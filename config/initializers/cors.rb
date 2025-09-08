@@ -14,3 +14,18 @@
 #       methods: [:get, :post, :put, :patch, :delete, :options, :head]
 #   end
 # end
+# frozen_string_literal: true
+
+Rails.application.config.middleware.insert_before 0, Rack::Cors do
+  allow do
+    origins %r{\Ahttp://localhost:\d+},
+            %r{\Ahttp://127\.0\.0\.1:\d+},
+            %r{\Ahttp://192\.168\.\d+\.\d+(?::\d+)?},
+            %r{\Ahttp://.*\.local(?::\d+)?}
+
+    resource "*",
+             headers: :any,
+             methods: %i[get post put patch delete options head],
+             expose: %w[X-Host-Token]
+  end
+end
