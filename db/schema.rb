@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_08_083307) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_09_001000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -36,8 +36,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_08_083307) do
     t.string "reconnect_token", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "ready", default: false, null: false
     t.index ["game_id", "name"], name: "index_players_on_game_id_and_name", unique: true
+    t.index ["game_id", "ready"], name: "index_players_on_game_id_and_ready"
     t.index ["game_id"], name: "index_players_on_game_id"
+    t.index ["game_id"], name: "uniq_host_per_game", unique: true, where: "(is_host = true)"
     t.index ["reconnect_token"], name: "index_players_on_reconnect_token", unique: true
   end
 
