@@ -1,23 +1,32 @@
 module Api
   module V1
     class GamesController < ApplicationController
-      before_action :find_game, only: [:state, :join]
+      before_action :find_game, except: :create
+      before_action :require_host!, only: [ :host_start, :host_next, :host_finish ]
 
       # POST /api/v1/games
       def create
         host_name = params.require(:host_name)
-        game = Game.create!
+        game = ::Game.create!
         host = game.players.create!(name: host_name, is_host: true)
         ok({ code: game.code, host_token: game.host_token, host_player_id: host.id }, status: :created)
       end
 
       # GET /api/v1/games/:code/state
+      # Safe public state (no answers/scores mid-round)
       def state
-        players = @game.players.order(:created_at).map { |p| { name: p.name, eliminated: p.eliminated } }
+        players = @game.players.order(:created_at).map { |p| { name: p.name, eliminated: p.eliminated, is_host: p.is_host, ready: (p.respond_to?(:ready) ? p.ready : false) } }
+        time_remaining_ms = if @game.question_end_at
+          [ (@game.question_end_at - Time.current) * 1000, 0 ].max.to_i
+        else
+          0
+        end
+
         ok({
           status: @game.status,
           round_number: @game.round_number,
           current_question_index: @game.current_question_index,
+          time_remaining_ms: time_remaining_ms,
           players: players
         })
       end
@@ -25,21 +34,252 @@ module Api
       # POST /api/v1/games/:code/join
       def join
         name = params.require(:name).to_s.strip
-        if @game.players.count >= 5
-          return render json: { error: { code: "full", message: "Game is full" } }, status: 422
-        end
-        if @game.players.exists?(name: name)
-          return render json: { error: { code: "name_taken", message: "Name already in use" } }, status: 422
+        return render json: { error: { code: "full", message: "Game is full" } }, status: 422 if @game.players.where(is_host: false).count >= 4
+        return render json: { error: { code: "name_taken", message: "Name already in use" } }, status: 422 if @game.players.exists?(name: name)
+        return render json: { error: { code: "bad_state", message: "Join only in lobby" } }, status: 422 unless @game.lobby?
+
+        player = @game.players.create!(name: name, is_host: false)
+        broadcast(:player_joined, { name: player.name })
+        ok({ player_id: player.id, reconnect_token: player.reconnect_token })
+      end
+
+      # POST /api/v1/games/:code/rename
+      def rename
+        return render json: { error: { code: "bad_state", message: "Rename only in lobby" } }, status: 422 unless @game.lobby?
+        player_id = params.require(:player_id).to_i
+        token     = params.require(:reconnect_token)
+        new_name  = params.require(:name).to_s.strip
+
+        player = @game.players.find(player_id)
+        return render json: { error: { code: "auth", message: "Bad token" } }, status: 403 unless player.reconnect_token == token
+        return render json: { error: { code: "name_taken", message: "Name already in use" } }, status: 422 if @game.players.where.not(id: player.id).exists?(name: new_name)
+
+        old_name = player.name
+        player.update!(name: new_name)
+        broadcast(:player_renamed, { old_name: old_name, new_name: new_name })
+        ok({ renamed: true })
+      end
+
+      # POST /api/v1/games/:code/ready
+      def ready
+        return render json: { error: { code: "bad_state", message: "Ready only in lobby" } }, status: 422 unless @game.lobby?
+        player_id = params.require(:player_id).to_i
+        token     = params.require(:reconnect_token)
+        ready_val = ActiveModel::Type::Boolean.new.cast(params.require(:ready))
+
+        player = @game.players.find(player_id)
+        return render json: { error: { code: "auth", message: "Bad token" } }, status: 403 unless player.reconnect_token == token
+
+        player.update!(ready: ready_val) if player.respond_to?(:ready)
+        broadcast(:player_ready, { name: player.name, ready: ready_val })
+
+        # If all non-host players are present and ready, inform host UI
+        non_hosts = @game.players.where(is_host: false)
+        all_ready = non_hosts.exists? && non_hosts.where(ready: true).count == non_hosts.count
+        broadcast(:all_ready, {}) if all_ready
+
+        ok({ ready: ready_val })
+      end
+
+      # POST /api/v1/games/:code/host_start
+      def host_start
+        return render json: { error: { code: "bad_state", message: "Not in lobby" } }, status: 422 unless @game.lobby?
+
+        # Validate exactly 5 questions per round
+        unless (1..3).all? { |r| Question.where(round_number: r).count == 5 }
+          return render json: { error: { code: "bad_setup", message: "Each round must have exactly 5 questions" } }, status: 422
         end
 
-        player = @game.players.create!(name: name)
-        ok({ player_id: player.id, reconnect_token: player.reconnect_token })
+        @game.update!(status: :in_round, round_number: 1, current_question_index: 0)
+        start_current_question!
+        ok({ started: true, round_number: @game.round_number, index: @game.current_question_index })
+      end
+
+      # POST /api/v1/games/:code/host_next
+      def host_next
+        unless @game.in_round? || @game.between_rounds?
+          return render json: { error: { code: "bad_state", message: "Not in round or between rounds" } }, status: 422
+        end
+
+        if @game.in_round?
+          if @game.current_question_index >= 4
+            # end of round
+            @game.update!(status: :between_rounds, question_end_at: nil)
+            broadcast(:round_ended, { round_number: @game.round_number })
+            ok({ round_ended: true, round_number: @game.round_number })
+          else
+            @game.increment!(:current_question_index)
+            start_current_question!
+            ok({ advanced: true, index: @game.current_question_index })
+          end
+        else
+          # between_rounds -> next round
+          @game.update!(status: :in_round, current_question_index: 0, round_number: @game.round_number + 1)
+          start_current_question!
+          broadcast(:next_round_started, { round_number: @game.round_number })
+          ok({ next_round_started: true, round_number: @game.round_number })
+        end
+      end
+
+      # POST /api/v1/games/:code/submit
+      def submit
+        player_id = params.require(:player_id).to_i
+        token     = params.require(:reconnect_token)
+        choice    = params.require(:selected_index).to_i
+
+        player = @game.players.find(player_id)
+        return render json: { error: { code: "auth", message: "Bad token" } }, status: 403 unless player.reconnect_token == token
+        return render json: { error: { code: "eliminated", message: "Player eliminated" } }, status: 422 if player.eliminated?
+        return render json: { error: { code: "host", message: "Host cannot submit" } }, status: 422 if player.is_host?
+        return render json: { error: { code: "closed", message: "Question closed" } }, status: 422 if @game.question_end_at.blank? || Time.current > @game.question_end_at
+
+        q = current_question
+        opened_at    = @question_opened_at || (@game.question_end_at - q.time_limit.seconds)
+        submitted_at = Time.current
+        latency_ms   = ((submitted_at - opened_at) * 1000).to_i
+
+        Submission.create_with(
+          selected_index: choice,
+          submitted_at: submitted_at,
+          latency_ms: latency_ms,
+          correct: (choice == q.correct_index)
+        ).find_or_create_by!(game: @game, player:, question: q)
+
+        ok({ accepted: true })
+      end
+
+      # GET /api/v1/games/:code/question
+      def question
+        return render json: { error: { code: "bad_state", message: "No open question" } }, status: 422 unless @game.in_round? && @game.question_end_at.present? && Time.current < @game.question_end_at
+        q = current_question
+        return render json: { error: { code: "not_found", message: "Question not found" } }, status: 404 unless q
+        ok({
+          round_number: @game.round_number,
+          index: @game.current_question_index,
+          text: q.text,
+          options: q.options,
+          ends_at: @game.question_end_at.iso8601(3)
+        })
+      end
+
+      # GET /api/v1/games/:code/me
+      def me
+        player_id = params.require(:player_id).to_i
+        token     = params.require(:reconnect_token)
+        player    = @game.players.find(player_id)
+        return render json: { error: { code: "auth", message: "Bad token" } }, status: 403 unless player.reconnect_token == token
+        ok({ name: player.name, eliminated: player.eliminated, is_host: player.is_host, total_score: player.total_score })
+      end
+
+      # GET /api/v1/games/:code/round_result
+      # Reveals end-of-round scores + who is eliminated; advances state accordingly.
+      def round_result
+        return render json: { error: { code: "bad_state", message: "Not between rounds" } }, status: 422 unless @game.between_rounds?
+
+        round = @game.round_number
+        qs    = questions_for_round(round)
+
+        players = @game.players.where(is_host: false)
+        active  = players.where(eliminated: false)
+
+        # Compute round-only scores (points) and tie-break by total latency_ms
+        round_stats = active.map do |p|
+          rel = Submission.where(game: @game, player: p, question: qs)
+          score = rel.where(correct: true).joins(:question).sum("questions.points")
+          latency_sum = rel.where(correct: true).sum(:latency_ms)
+          { player: p, name: p.name, round_score: score, latency_sum: latency_sum }
+        end
+
+        # Determine lowest by score, tie-break by latency (higher latency worse)
+        min_score = round_stats.map { |s| s[:round_score] }.min
+        lowest = round_stats.select { |s| s[:round_score] == min_score }
+        if lowest.size > 1
+          max_latency = lowest.map { |s| s[:latency_sum] }.max
+          lowest = lowest.select { |s| s[:latency_sum] == max_latency }
+        end
+
+        eliminated_names = []
+        next_state = :between_rounds
+        ActiveRecord::Base.transaction do
+          if lowest.size == 1
+            loser = lowest.first[:player]
+            loser.update!(eliminated: true)
+            eliminated_names = [ loser.name ]
+          else
+            # still tied after latency tie-break → sudden death
+            next_state = :sudden_death
+          end
+
+          # If only one active non-host remains, finish game
+          remaining = players.where(eliminated: false).count
+          next_state = :finished if remaining <= 1
+
+          @game.update!(status: next_state)
+        end
+
+        leaderboard = round_stats.sort_by { |s| [ -s[:round_score], s[:latency_sum] ] }
+                                  .map { |s| { name: s[:name], round_score: s[:round_score] } }
+
+        broadcast(:round_result, { round: round, leaderboard: leaderboard, eliminated_names: eliminated_names, next_state: next_state })
+
+        ok({ round: round, leaderboard: leaderboard, eliminated_names: eliminated_names, next_state: next_state })
+      end
+
+      # POST /api/v1/games/:code/host_finish
+      def host_finish
+        @game.update!(status: :finished, question_end_at: nil)
+        ok({ finished: true })
+      end
+
+      # GET /api/v1/games/:code/results
+      def results
+        return render json: { error: { code: "bad_state", message: "Not finished" } }, status: 422 unless @game.finished?
+
+        answers = Question.order(:round_number, :id).map do |q|
+          { round: q.round_number, text: q.text, correct_index: q.correct_index }
+        end
+        players = @game.players.where(is_host: false)
+        remaining = players.where(eliminated: false).pluck(:name)
+        winner = remaining.first
+        ok({ winner: winner, answers: answers })
       end
 
       private
 
       def find_game
         @game = Game.find_by!(code: params[:code])
+      end
+
+      def require_host!
+        token = request.headers["X-Host-Token"].to_s
+        render json: { error: { code: "auth", message: "Host token required" } }, status: 403 and return unless token.present? && token == @game.host_token
+      end
+
+      def current_question
+        Question.where(round_number: @game.round_number).order(:id).offset(@game.current_question_index).first
+      end
+
+      def questions_for_round(round)
+        Question.where(round_number: round)
+      end
+
+      def start_current_question!
+        q = current_question
+        raise ActiveRecord::RecordNotFound, "Question not found" unless q
+        ends_at = q.time_limit.seconds.from_now
+        @game.update!(question_end_at: ends_at, status: :in_round)
+        broadcast(:question_started, {
+          round_number: @game.round_number,
+          index: @game.current_question_index,
+          text: q.text,
+          options: q.options,
+          ends_at: ends_at.iso8601(3)
+        })
+      end
+
+      def broadcast(type, payload)
+        return unless defined?(GameChannel)
+        GameChannel.broadcast_to(@game, { type: type.to_s, payload: payload })
       end
     end
   end
