@@ -14,4 +14,3 @@ class CreateQuestions < ActiveRecord::Migration[7.1]
     add_index :questions, :round_number
   end
 end
-

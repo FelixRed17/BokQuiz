@@ -16,4 +16,3 @@ class CreatePlayers < ActiveRecord::Migration[7.1]
     add_index :players, :reconnect_token,  unique: true      # resume securely
   end
 end
-

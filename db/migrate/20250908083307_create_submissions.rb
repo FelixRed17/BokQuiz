@@ -13,7 +13,7 @@ class CreateSubmissions < ActiveRecord::Migration[7.1]
       t.timestamps
     end
 
-    add_index :submissions, [:game_id, :player_id, :question_id],
+    add_index :submissions, [ :game_id, :player_id, :question_id ],
               unique: true, name: "uniq_submission_per_q"
   end
 end

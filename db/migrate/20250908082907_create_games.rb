@@ -4,7 +4,7 @@ class CreateGames < ActiveRecord::Migration[7.1]
       t.string  :code,                  null: false
       t.integer :status,                null: false, default: 0   # 0:lobby,1:in_round,2:between_rounds,3:sudden_death,4:finished
       t.integer :round_number,          null: false, default: 1
-      t.integer :current_question_index,null: false, default: 0
+      t.integer :current_question_index, null: false, default: 0
       t.datetime :question_end_at
       t.string :host_token,            null: false
 
