@@ -12,7 +12,7 @@ class CreatePlayers < ActiveRecord::Migration[7.1]
       t.timestamps
     end
 
-    add_index :players, [:game_id, :name], unique: true      # lock names per game
+    add_index :players, [ :game_id, :name ], unique: true      # lock names per game
     add_index :players, :reconnect_token,  unique: true      # resume securely
   end
 end
