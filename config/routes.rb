@@ -13,6 +13,7 @@ Rails.application.routes.draw do
           post :host_next
           post :host_finish
           post :submit
+          post :sudden_death_resolve # Shaista's additions
           get  :round_result
           get  :results
         end
