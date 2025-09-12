@@ -27,16 +27,16 @@ end
 
 # Shaista's additions below
 # return array of integer ids (always)
-def sudden_death_candidate_ids
-  (self[:sudden_death_candidate_ids] || []).map(&:to_i)
-end
+  def sudden_death_candidate_ids
+    (self[:sudden_death_candidate_ids] || []).map(&:to_i)
+  end
 
-def set_sudden_death_candidates!(ids)
-  update!(sudden_death_candidate_ids: ids.map(&:to_i))
-end
+  def set_sudden_death_candidates!(ids)
+    update!(sudden_death_candidate_ids: ids.map(&:to_i))
+  end
 
-def clear_sudden_death_candidates!
-  update!(sudden_death_candidate_ids: [])
-end
+  def clear_sudden_death_candidates!
+    update!(sudden_death_candidate_ids: [])
+  end
 end
 

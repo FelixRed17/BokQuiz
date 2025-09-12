@@ -5,10 +5,6 @@ module Api
       before_action :find_game, except: :create
       before_action :require_host!, only: [ :host_start, :host_next, :host_finish ]
 
-      # -------Shaista's additions below
-      before_action :require_host!, only: [ :host_start, :host_next, :host_finish, :sudden_death_resolve ]
-
-
       # POST /api/v1/games
       def create
         host_name = params.require(:host_name)
@@ -152,99 +148,6 @@ module Api
 
         ok({ accepted: true })
       end
-      # THIS CODE IS CORRECT
-
-
-
-      # ------- Shaista's additions below ------- 
-      def submit
-        player_id = params.require(:player_id).to_i
-        token     = params.require(:reconnect_token)
-        choice    = params.require(:selected_index).to_i
-      
-        player = @game.players.find(player_id)
-        return render json: { error: { code: "auth", message: "Bad token" } }, status: 403 unless player.reconnect_token == token
-        return render json: { error: { code: "eliminated", message: "Player eliminated" } }, status: 422 if player.eliminated?
-        return render json: { error: { code: "host", message: "Host cannot submit" } }, status: 422 if player.is_host?
-        return render json: { error: { code: "closed", message: "Question closed" } }, status: 422 if @game.question_end_at.blank? || Time.current > @game.question_end_at
-      
-        q = current_question
-        opened_at    = @game.question_started_at || (@game.question_end_at - q.time_limit.seconds) # here different
-        submitted_at = Time.current
-        latency_ms   = [(submitted_at - opened_at) * 1000, 0].max.to_i # here different
-      
-        # here different until end
-        attrs = {
-          selected_index: choice,
-          submitted_at: submitted_at,
-          latency_ms: latency_ms,
-          correct: (choice == q.correct_index)
-        }
-      
-        begin
-          submission = Submission.create_with(attrs).find_or_create_by!(game: @game, player: player, question: q)
-        rescue ActiveRecord::RecordNotUnique
-          # concurrent write: someone else wrote the record, just fetch it
-          submission = Submission.find_by!(game: @game, player: player, question: q)
-        end
-      
-        broadcast(:player_submitted, { name: player.name, index: @game.current_question_index }) # optional
-        ok({ accepted: true })
-      end
-        
-      # ------- Shaista's additions above -------
-      
-      
-      #Shaista's additions below
-      #Add new endpoint to resolve sudden death (host-only)
-      #Add a new action to the controller (host must call after sudden-death question finishes or when host decides to resolve):
-      # POST /api/v1/games/:code/sudden_death_resolve
-      def sudden_death_resolve
-        return render json: { error: { code: "bad_state", message: "Not in sudden_death" } }, status: 422 unless @game.sudden_death?
-
-        q = current_question
-        unless q
-          return render json: { error: { code: "not_found", message: "Sudden-death question not found" } }, status: 404
-        end
-
-        candidate_ids = @game.sudden_death_candidate_ids
-        # pick only submissions from candidate players (treat missing submission as wrong)
-        subs = Submission.where(game: @game, question: q, player_id: candidate_ids)
-
-        # check who answered correctly
-        correct_subs = subs.where(correct: true)
-
-        if correct_subs.any?
-          # fastest correct submission wins
-          winner_submission = correct_subs.order(:latency_ms).first
-          winner = winner_submission.player
-
-          # eliminate other tied players
-          losers = Player.where(game: @game, id: candidate_ids).where.not(id: winner.id)
-          eliminated_names = losers.pluck(:name)
-          losers.update_all(eliminated: true)
-
-          # clear candidates and move back to between_rounds
-         @game.update!(status: :between_rounds, sudden_death_candidate_ids: [])
-        
-
-          # broadcast updated round result (but not final game finish)
-          broadcast(:sudden_death_result, {
-            winner: { id: winner.id, name: winner.name },
-            eliminated_names: eliminated_names,
-            next_state: :between_rounds
-          })
-
-         ok({ winner: winner.name, eliminated: eliminated_names, next_state: :between_rounds })
-       else
-         # nobody answered correctly — instruct host/UI to repeat sudden death (or choose alternate policy)
-        broadcast(:sudden_death_repeat, { message: "No correct answers among tied players. Repeat sudden death." })
-        ok({ repeat: true })
-      end
-  end
-
-
-
 
       # GET /api/v1/games/:code/question
       def question
@@ -324,79 +227,6 @@ module Api
       end
 
 
-      
-      # ------- Shaista's additions below -------
-      def round_result
-        return render json: { error: { code: "bad_state", message: "Not between rounds" } }, status: 422 unless @game.between_rounds?
-      
-        round = @game.round_number
-        qs    = questions_for_round(round)
-      
-        players = @game.players.where(is_host: false)
-        active  = players.where(eliminated: false)
-      
-        # Compute round-only scores (points) and tie-break by total latency_ms for correct answers
-        round_stats = active.map do |p|
-          rel = Submission.where(game: @game, player: p, question: qs)
-          score = rel.where(correct: true).joins(:question).sum("questions.points")
-          latency_sum = rel.where(correct: true).sum(:latency_ms)
-          { player: p, name: p.name, round_score: score, latency_sum: latency_sum }
-        end
-      
-        # Determine lowest by score
-        min_score = round_stats.map { |s| s[:round_score] }.min
-        lowest = round_stats.select { |s| s[:round_score] == min_score }
-      
-        eliminated_names = []
-        next_state = :between_rounds
-        sudden_candidates = []
-      
-        ActiveRecord::Base.transaction do
-          if lowest.size > 1
-            # tie among lowest — move to sudden_death with tied players as candidates (do not eliminate yet)
-            candidate_players = lowest.map { |s| s[:player] }
-            sudden_candidates = candidate_players.map(&:id)
-            next_state = :sudden_death
-      
-            # persist candidate ids on game
-            @game.update!(status: :sudden_death, sudden_death_candidate_ids: sudden_candidates)
-            # broadcast event to UI so it can present sudden-death flow
-            broadcast(:sudden_death_start, {
-              round: round,
-              candidates: candidate_players.map { |p| { id: p.id, name: p.name } }
-            })
-          else
-            # clear sudden death candidates if any leftover
-            @game.clear_sudden_death_candidates! if @game.sudden_death_candidate_ids.present?
-      
-            # single loser -> eliminate
-            loser = lowest.first[:player]
-            loser.update!(eliminated: true)
-            eliminated_names = [ loser.name ]
-            next_state = :between_rounds
-          end
-      
-          # If only one active remains and we're at/after final round, finish (keep existing logic)
-          remaining = players.where(eliminated: false).count
-          next_state = :finished if remaining <= 1 && @game.round_number >= 3
-          # NOTE: we don't force-finish if sudden_death is required or if rounds remain.
-          @game.update!(status: next_state) unless next_state == :sudden_death
-        end
-      
-        leaderboard = round_stats.sort_by { |s| [ -s[:round_score], s[:latency_sum] ] }
-                                  .map { |s| { name: s[:name], round_score: s[:round_score] } }
-      
-        # Broadcast the usual round result; if sudden_death started, we already broadcast that separately.
-        broadcast(:round_result, { round: round, leaderboard: leaderboard, eliminated_names: eliminated_names, next_state: next_state })
-      
-        ok({ round: round, leaderboard: leaderboard, eliminated_names: eliminated_names, next_state: next_state })
-      end
-      
-      # ------- Shaista's additions above -------
-      # some changes in code above
-
-
-
       # POST /api/v1/games/:code/host_finish
       def host_finish
         @game.update!(status: :finished, question_end_at: nil)
@@ -448,36 +278,6 @@ module Api
           ends_at: ends_at.iso8601(3)
         })
       end
-
-
-      # ------- Shaista's additions below -------
-      def start_current_question!
-        q = current_question
-        raise ActiveRecord::RecordNotFound, "Question not found" unless q
-      
-        started_at = Time.current
-        ends_at    = q.time_limit.seconds.from_now
-      
-        # if game was already in sudden_death keep its status, else ensure in_round
-        new_status = @game.sudden_death? ? :sudden_death : :in_round
-      
-        @game.update!(
-          question_started_at: started_at,
-          question_end_at: ends_at,
-          status: new_status
-        )
-      
-        broadcast(:question_started, {
-          round_number: @game.round_number,
-          index: @game.current_question_index,
-          text: q.text,
-          options: q.options,
-          started_at: started_at.iso8601(3),
-          ends_at: ends_at.iso8601(3),
-          sudden_death: @game.sudden_death?
-        })
-      end
-      
 
       def broadcast(type, payload)
         return unless defined?(GameChannel)
@@ -629,11 +429,10 @@ module Api
         return render json: { error: { code: "closed", message: "Question closed" } }, status: 422 if @game.question_end_at.blank? || Time.current > @game.question_end_at
       
         q = current_question
-        opened_at    = @game.question_started_at || (@game.question_end_at - q.time_limit.seconds) # here different
+        opened_at    = @game.question_started_at || (@game.question_end_at - q.time_limit.seconds)
         submitted_at = Time.current
-        latency_ms   = [(submitted_at - opened_at) * 1000, 0].max.to_i # here different
+        latency_ms   = [(submitted_at - opened_at) * 1000, 0].max.to_i 
       
-        # here different until end
         attrs = {
           selected_index: choice,
           submitted_at: submitted_at,
@@ -881,7 +680,7 @@ end
 
 
 
-#code 3
+#code 3 - One player eliminated per round
 module Api
   module V1
     class GamesController < ApplicationController
@@ -1193,7 +992,7 @@ module Api
 end
 
 
-# code 4 - New live leaderboard broadscast added.
+# code 4 - New live leaderboard broadcast added.
 module Api
   module V1
     class GamesController < ApplicationController
