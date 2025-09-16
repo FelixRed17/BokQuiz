@@ -1,0 +1,114 @@
+
+.pageBg {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: linear-gradient(to bottom right, #166534, #14532d);
+}
+
+.cardShell {
+  max-width: 42rem;
+  width: 100%;
+  background-color: #166534;
+  border: 2px solid rgba(25, 135, 84, 0.25);
+  border-radius: 1rem;
+}
+
+.logoCircle {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 9999px;
+  background-color: #eab308;
+  border: 4px solid #facc15;
+}
+
+.title {
+  color: #ffffff;
+  font-weight: 700;
+  margin-bottom: .5rem;
+  font-size: 2.25rem;
+}
+
+.subtitle {
+  color: #86efac;
+}
+
+.playersHeader {
+  color: #ffffff;
+  font-weight: 700;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.codeBox {
+  border: 2px solid #facc15;
+  background-color: transparent;
+  border-radius: .5rem;
+  padding: .5rem .75rem;
+}
+
+.codeLabel {
+  color: #facc15;
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.codeValue {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.playerItem {
+  background-color: #fef3c7;
+  border-radius: .75rem;
+  padding: .75rem;
+}
+
+.statusDot {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+}
+
+.statusOnline {
+  background-color: #22c55e;
+}
+
+.statusOffline {
+  background-color: #9ca3af;
+}
+
+.statTitle {
+  color: #ffffff;
+  font-weight: 700;
+  margin-bottom: .25rem;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.statValue {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.875rem;
+  text-align: center;
+}
+
+.startBtn {
+  background-color: #eab308;
+  color: #111827;
+  border: none;
+  font-weight: 700;
+  font-size: 1.5rem;
+  border-radius: .75rem;
+  padding: .875rem 2.5rem;
+}
+
+.startBtn:hover {
+  background-color: #f1c21a;
+}
+
+
+

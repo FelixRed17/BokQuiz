@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Springbok-style rugby ball icon">
+  <!-- Palette -->
+  <!-- Gold   --> <defs><style>
+    .gold { fill:#FFB81C; stroke:#FFB81C; }
+    .green{ fill:#004C28; stroke:#004C28; }
+  </style></defs>
+
+  <!-- Dark green background (remove if you want transparent) -->
+  <rect width="200" height="200" class="green"/>
+
+  <!-- Outer ring -->
+  <circle cx="100" cy="100" r="84" fill="none" stroke="#FFB81C" stroke-width="10"/>
+
+  <!-- Ball group (diagonal) -->
+  <g transform="translate(100,100) rotate(-28)">
+    <!-- Ball body -->
+    <ellipse rx="46" ry="28" class="gold" stroke-width="0"/>
+    <!-- Center seam -->
+    <line x1="-48" y1="0" x2="48" y2="0" class="green" stroke-width="10" stroke-linecap="round"/>
+    <!-- Laces -->
+    <g class="gold" fill="none" stroke-width="8" stroke-linecap="round">
+      <line x1="-10" y1="-10" x2="-10" y2="10"/>
+      <line x1="0"   y1="-12" x2="0"   y2="12"/>
+      <line x1="10"  y1="-10" x2="10"  y2="10"/>
+    </g>
+  </g>
+</svg>
+
