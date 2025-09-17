@@ -5,27 +5,27 @@ rounds:
         options: ["1991", "1995", "1999", "2003"]
         correct_index: 1
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "Who captained the Springboks to victory in the 2007 Rugby World Cup?"
         options: ["John Smit", "Francois Pienaar", "Siya Kolisi", "Victor Matfield"]
         correct_index: 0
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "Against which team did the Springboks achieve their biggest ever win margin in a test match?"
         options: ["Uruguay", "Italy", "Namibia", "Japan"]
         correct_index: 0
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "How many Rugby World Cups have the Springboks won to date?"
         options: ["2", "3", "4", "5"]
         correct_index: 2
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "Which Springbok player is nicknamed ‘The Beast’?"
         options: ["Bakkies Botha", "Tendai Mtawarira", "Eben Etzebeth", "Bryan Habana"]
         correct_index: 1
         points: 1
-        time_limit: 30
+        time_limit: 40
 
   - number: 2
     questions:
@@ -33,27 +33,27 @@ rounds:
         options: ["Joel Stransky", "Naas Botha", "Butch James", "Handré Pollard"]
         correct_index: 0
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "In 2019, which Springbok scored two tries in the Rugby World Cup final against England?"
         options: ["Cheslin Kolbe", "Makazole Mapimpi", "Willie le Roux", "Duane Vermeulen"]
         correct_index: 1
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "What famous quote did Nelson Mandela say about sport after the 1995 World Cup?"
         options: ["Sport can change the world", "One team, one nation", "Victory belongs to everyone", "Go Bokke!"]
         correct_index: 0
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "Which player is known for the ‘Hand Off’ against England’s Mike Catt in 1999?"
         options: ["Schalk Burger", "Joost van der Westhuizen", "Jonah Lomu", "Pieter Rossouw"]
         correct_index: 2
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "Who is the Springboks’ most capped player of all time?"
         options: ["Percy Montgomery", "Bryan Habana", "Victor Matfield", "Eben Etzebeth"]
         correct_index: 3
         points: 1
-        time_limit: 30
+        time_limit: 40
 
   - number: 3
     questions:
@@ -61,27 +61,27 @@ rounds:
         options: ["Bokkie", "Springy", "Bokkito", "Goldie"]
         correct_index: 0
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "Which city is home to Loftus Versfeld Stadium?"
         options: ["Cape Town", "Pretoria", "Bloemfontein", "Durban"]
         correct_index: 1
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "What does the ‘Go Bokke’ slogan mean?"
         options: ["Good luck Springboks", "Run faster", "Win the cup", "Play hard"]
         correct_index: 0
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "Which position is responsible for throwing the ball into the lineout?"
         options: ["Hooker", "Scrum-half", "Fly-half", "Lock"]
         correct_index: 0
         points: 1
-        time_limit: 30
+        time_limit: 40
       - text: "What is the Springboks’ traditional jersey colour?"
         options: ["Blue", "Green & Gold", "Black & White", "Yellow"]
         correct_index: 1
         points: 1
-        time_limit: 30
+        time_limit: 40
 
 # Optional: bonus round (not part of 1..3 rounds validation)
   - number: 4
@@ -90,6 +90,60 @@ rounds:
         options: ["1996", "1998", "2000", "2002"]
         correct_index: 0
         points: 1
-        time_limit: 30
+        time_limit: 40
+
+      - text: "Which position kicks conversions most often?"
+        options: ["Hooker", "Fly-half", "Lock", "Scrum-half"]
+        correct_index: 1
+        points: 1
+        time_limit: 40
+
+      - text: "How many points is a try worth?"
+        options: ["3", "4", "5", "6"]
+        correct_index: 2
+        points: 1
+        time_limit: 40
+
+      - text: "What color is the Springboks’ home jersey?"
+        options: ["Blue", "Green & Gold", "Green & White", "Black"]
+        correct_index: 1
+        points: 1
+        time_limit: 40
+
+      - text: "Who throws the ball into a lineout?"
+        options: ["Hooker", "Scrum-half", "Wing", "No. 8"]
+        correct_index: 0
+        points: 1
+        time_limit: 40
+
+      - text: "A successful try conversion adds how many points?"
+        options: ["2", "3", "5", "7"]
+        correct_index: 0
+        points: 1
+        time_limit: 40
+
+      - text: "Which card means a player is sent off permanently?"
+        options: ["Yellow", "Red", "Orange", "Blue"]
+        correct_index: 1
+        points: 1
+        time_limit: 40
+
+      - text: "How many players per side in union rugby?"
+        options: ["13", "14", "15", "16"]
+        correct_index: 2
+        points: 1
+        time_limit: 40
+
+      - text: "What is awarded for a deliberate knock-on?"
+        options: ["Try", "Penalty", "Scrum", "Drop-out"]
+        correct_index: 1
+        points: 1
+        time_limit: 40
+
+      - text: "What restarts play after the ball goes into touch?"
+        options: ["Scrum", "Lineout", "Kick-off", "Drop goal"]
+        correct_index: 1
+        points: 1
+        time_limit: 40
 
 

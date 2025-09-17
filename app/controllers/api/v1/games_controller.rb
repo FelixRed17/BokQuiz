@@ -22,12 +22,20 @@ module Api
           0
         end
 
+        sd_participants = if @game.respond_to?(:sudden_death_player_ids) && @game.sudden_death? && @game.sudden_death_player_ids.present?
+          ids = Array(@game.sudden_death_player_ids)
+          @game.players.where(id: ids).order(:created_at).pluck(:id, :name).map { |id, name| { id: id, name: name } }
+        else
+          []
+        end
+
         ok({
           status: @game.status,
           round_number: @game.round_number,
           current_question_index: @game.current_question_index,
           time_remaining_ms: time_remaining_ms,
-          players: players
+          players: players,
+          sudden_death_participants: sd_participants
         })
       end
 
@@ -97,9 +105,12 @@ module Api
 
       # POST /api/v1/games/:code/host_next
       def host_next
-        unless @game.in_round? || @game.between_rounds?
+        unless @game.in_round? || @game.between_rounds? || @game.sudden_death?
           return render json: { error: { code: "bad_state", message: "Not in round or between rounds" } }, status: 422
         end
+
+        # Sudden death flow
+        return handle_sudden_death_next if @game.sudden_death?
 
         if @game.in_round?
           if @game.current_question_index >= 4
@@ -133,6 +144,14 @@ module Api
         return render json: { error: { code: "host", message: "Host cannot submit" } }, status: 422 if player.is_host?
         return render json: { error: { code: "closed", message: "Question closed" } }, status: 422 if @game.question_end_at.blank? || Time.current > @game.question_end_at
 
+        # During sudden death, only participants may submit
+        if @game.sudden_death?
+          sd_ids = Array(@game.sudden_death_player_ids)
+          unless sd_ids.include?(player.id)
+            return render json: { error: { code: "not_participant", message: "Not in sudden death" } }, status: 422
+          end
+        end
+
         q = current_question
         opened_at    = @question_opened_at || (@game.question_end_at - q.time_limit.seconds)
         submitted_at = Time.current
@@ -150,11 +169,11 @@ module Api
 
       # GET /api/v1/games/:code/question
       def question
-        return render json: { error: { code: "bad_state", message: "No open question" } }, status: 422 unless @game.in_round? && @game.question_end_at.present? && Time.current < @game.question_end_at
+        return render json: { error: { code: "bad_state", message: "No open question" } }, status: 422 unless (@game.in_round? || @game.sudden_death?) && @game.question_end_at.present? && Time.current < @game.question_end_at
         q = current_question
         return render json: { error: { code: "not_found", message: "Question not found" } }, status: 404 unless q
         ok({
-          round_number: @game.round_number,
+          round_number: (@game.sudden_death? ? 4 : @game.round_number),
           index: @game.current_question_index,
           text: q.text,
           options: q.options,
@@ -208,6 +227,8 @@ module Api
           else
             # still tied after latency tie-break → sudden death
             next_state = :sudden_death
+            sd_ids = lowest.map { |s| s[:player].id }
+            @game.update!(sudden_death_player_ids: sd_ids, current_question_index: 0, question_end_at: nil)
           end
 
           # If only one active non-host remains, finish game
@@ -256,7 +277,8 @@ module Api
       end
 
       def current_question
-        Question.where(round_number: @game.round_number).order(:id).offset(@game.current_question_index).first
+        round_scope = @game.sudden_death? ? 4 : @game.round_number
+        Question.where(round_number: round_scope).order(:id).offset(@game.current_question_index).first
       end
 
       def questions_for_round(round)
@@ -267,14 +289,86 @@ module Api
         q = current_question
         raise ActiveRecord::RecordNotFound, "Question not found" unless q
         ends_at = q.time_limit.seconds.from_now
-        @game.update!(question_end_at: ends_at, status: :in_round)
+        new_status = @game.sudden_death? ? :sudden_death : :in_round
+        @game.update!(question_end_at: ends_at, status: new_status)
         broadcast(:question_started, {
-          round_number: @game.round_number,
+          round_number: (@game.sudden_death? ? 4 : @game.round_number),
           index: @game.current_question_index,
           text: q.text,
           options: q.options,
           ends_at: ends_at.iso8601(3)
         })
+      end
+
+      # Sudden-death driver: uses Round 4 questions and eliminates per rules
+      def handle_sudden_death_next
+        participants = Array(@game.sudden_death_player_ids)
+        players = participants.map { |pid| @game.players.find_by(id: pid, is_host: false) }.compact
+
+        # No participants tracked → end sudden death
+        if players.empty?
+          @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [])
+          return ok({ sudden_death_ended: true, reason: "no_participants" })
+        end
+
+        # Start or continue SD by opening a question if none is open
+        if @game.question_end_at.blank? || Time.current >= @game.question_end_at
+          # If we just finished a question, evaluate it first
+          if @game.question_end_at.present?
+            q = current_question
+            rel = Submission.where(game: @game, question: q, player_id: players.map(&:id))
+            correct_ids = rel.where(correct: true).pluck(:player_id)
+            wrong_ids   = players.map(&:id) - correct_ids
+
+            if correct_ids.empty?
+              # All wrong → continue with same set
+              @game.increment!(:current_question_index)
+              start_current_question!
+              return ok({ sudden_death_continue: true, reason: "all_wrong", index: @game.current_question_index })
+            end
+
+            if wrong_ids.size == 1
+              # Exactly one wrong → eliminate that player, exit SD
+              loser = @game.players.find(wrong_ids.first)
+              ActiveRecord::Base.transaction do
+                loser.update!(eliminated: true)
+                @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [])
+              end
+              broadcast(:sudden_death_eliminated, { name: loser.name })
+              return ok({ sudden_death_ended: true, eliminated: loser.name })
+            end
+
+            if correct_ids.size == 1 && wrong_ids.size > 1
+              # Narrow to the wrong players only
+              @game.update!(sudden_death_player_ids: wrong_ids)
+              @game.increment!(:current_question_index)
+              start_current_question!
+              return ok({ sudden_death_narrowed: true, remaining_count: wrong_ids.size })
+            end
+
+            # Everyone correct or multiple correct without single loser → latency tie-break among corrects
+            latencies = rel.where(player_id: correct_ids).pluck(:player_id, :latency_ms)
+            slowest = latencies.max_by { |(_pid, latency)| latency }
+            if slowest
+              loser_id = slowest[0]
+              loser = @game.players.find(loser_id)
+              ActiveRecord::Base.transaction do
+                loser.update!(eliminated: true)
+                @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [])
+              end
+              broadcast(:sudden_death_eliminated, { name: loser.name })
+              return ok({ sudden_death_ended: true, eliminated: loser.name, tie_breaker: "latency" })
+            end
+          end
+
+          # Open next SD question
+          @game.update!(current_question_index: 0) if @game.current_question_index.nil?
+          start_current_question!
+          return ok({ sudden_death_started: true })
+        end
+
+        # If a question is already open, just report
+        ok({ sudden_death_active: true, ends_at: @game.question_end_at })
       end
 
       def broadcast(type, payload)
