@@ -1,3 +1,4 @@
+frontend/TK
 import React from 'react';
 import './index.css';
 import QuizScreen from './presentation/components/QuizScreen.tsx';
@@ -31,5 +32,6 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
