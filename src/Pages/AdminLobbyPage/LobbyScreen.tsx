@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import styles from "./LobbyScreen.module.css";
 
 interface Player {
