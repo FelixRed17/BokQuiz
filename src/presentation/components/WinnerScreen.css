@@ -1,0 +1,60 @@
+.winner-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, var(--overlay-opacity, 0.3));
+  z-index: 0;
+}
+
+.title-block {
+  position: absolute;
+  top: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  text-align: center;
+  letter-spacing: 4px;
+  line-height: 1.1;
+  padding: 0 16px;
+}
+
+.title {
+  color: var(--primary, #FFB302);
+  font-size: 4rem;
+  font-weight: 900;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
+}
+
+.name {
+  font-size: 2rem;
+  margin-top: 8px;
+  color: #ffffff;
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.message {
+  font-size: 1.25rem;
+  margin-top: 8px;
+  color: #f0f0f0;
+  max-width: 800px;
+}
+
+.lottie-wrapper {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 500px;
+  height: 500px;
+  z-index: 1;
+}
+

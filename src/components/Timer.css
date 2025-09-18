@@ -1,0 +1,18 @@
+.timer {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--quiz-top-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.6rem;
+  color: var(--quiz-yellow);
+  box-shadow: var(--quiz-timer-shadow);
+  z-index: 2;
+}
+
