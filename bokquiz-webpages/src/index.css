@@ -1,0 +1,142 @@
+/* Leaderboard.css */
+
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+.leaderboard-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #065f46; 
+  position: relative; 
+  overflow: hidden; /* clip video edges */
+}
+
+.leaderboard-card {
+  background-color: #002d1e; 
+  color: white;
+  border-radius: 1rem;
+  padding: 24px;
+  width: 550px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  position: relative; /* above video */
+  z-index: 1;
+}
+
+/* Background video layer */
+.leaderboard-bg-video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 100%;
+  min-height: 130%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+  object-fit: cover;
+  z-index: 0;
+  opacity: 0.35; 
+}
+
+.leaderboard-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.leaderboard-header-icon {
+  width: 32px;
+  height: 32px;
+  background-color: #c1a33b; 
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.leaderboard-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.leaderboard-subtitle {
+  font-size: 0.875rem;
+  color: #367746; 
+  margin-bottom: 16px;
+}
+
+.leaderboard-divider {
+  border: 0;
+  border-top: 2px solid #deb923; /* yellow-600 */
+  margin-bottom: 16px;
+}
+
+.leaderboard-headers {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #deb923; /* yellow-600 */
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.header-place,
+.data-place {
+  width: 60px;
+  text-align: center;
+}
+
+.header-name,
+.data-name {
+  flex: 1;
+  text-align: left;
+  padding-left: 76px;
+}
+
+.header-score,
+.data-score {
+  width: 80px;
+  text-align: center;
+}
+
+.leaderboard-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background-color: #0b442b; 
+}
+
+.leaderboard-row:first-child {
+  background-color: #deb923; 
+  color: #002d1e; 
+}
+
+
+.leaderboard-button {
+  width: 50%;
+  display: block;
+  margin: 20px auto 0px;
+  background-color: #deb923; 
+  color: #065f46; 
+  font-weight: 600;
+  padding: 8px 0;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.leaderboard-button:hover {
+  background-color: #ebd78f; 
+}
