@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_09_001000) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_17_131522) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -23,8 +23,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_09_001000) do
     t.string "host_token", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "question_started_at"
+    t.jsonb "sudden_death_candidate_ids", default: [], null: false
     t.index ["code"], name: "index_games_on_code", unique: true
     t.index ["host_token"], name: "index_games_on_host_token", unique: true
+    t.index ["sudden_death_candidate_ids"], name: "index_games_on_sudden_death_candidate_ids", using: :gin
   end
 
   create_table "players", force: :cascade do |t|
@@ -66,6 +69,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_09_001000) do
     t.integer "latency_ms", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["game_id", "player_id", "question_id"], name: "index_unique_submission_per_player_question", unique: true
     t.index ["game_id", "player_id", "question_id"], name: "uniq_submission_per_q", unique: true
     t.index ["game_id"], name: "index_submissions_on_game_id"
     t.index ["player_id"], name: "index_submissions_on_player_id"

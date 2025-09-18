@@ -38,5 +38,4 @@ end
   def clear_sudden_death_candidates!
     update!(sudden_death_candidate_ids: [])
   end
-end
 
