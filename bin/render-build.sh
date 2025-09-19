@@ -4,10 +4,9 @@ set -euo pipefail
 # Install gems
 bundle install
 
-# Precompile assets (safe even for API-only; skips if no assets)
-bundle exec rails assets:precompile
-
-# Clean old assets to keep slug smaller
-bundle exec rails assets:clean
+# API-only app: no asset pipeline tasks
+# If you later add assets, re-enable:
+# bundle exec rails assets:precompile
+# bundle exec rails assets:clean
 
 
