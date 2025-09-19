@@ -1,0 +1,95 @@
+/* BokQuiz Design System CSS Variables */
+
+:root {
+  /* Brand Colors */
+  --color-primary: #1C352D;
+  --color-secondary: #FFD700;
+  
+  /* Background Colors */
+  --color-bg-primary: #1C352D;
+  --color-bg-white: #ffffff;
+  --color-bg-overlay: rgba(255, 255, 255, 0.95);
+  
+  /* Text Colors */
+  --color-text-primary: #1C352D;
+  --color-text-secondary: #000000;
+  --color-text-accent: #FFD700;
+  --color-text-muted: #6B7280;
+  
+  /* Typography */
+  --font-family-primary: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  
+  /* Spacing */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-12: 3rem;
+  
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+}
+
+/* Component Classes */
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-secondary), #FFA500);
+  color: var(--color-text-secondary);
+  padding: var(--spacing-3) var(--spacing-6);
+  border-radius: var(--radius-lg);
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+}
+
+.input-default {
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 2px solid var(--color-secondary);
+  border-radius: var(--radius-lg);
+  font-size: 1rem;
+  font-weight: 500;
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+}
+
+.input-default:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.card-default {
+  background: var(--color-bg-overlay);
+  border-radius: var(--radius-2xl);
+  padding: var(--spacing-8);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.label-default {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--spacing-3);
+  color: var(--color-text-primary);
+}
+
+.label-accent {
+  color: var(--color-text-accent);
+  font-weight: 700;
+}
