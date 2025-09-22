@@ -48,4 +48,3 @@ group :development, :test do
   # New gems added for the Boz Quiz
   gem "redis"
 end
-
