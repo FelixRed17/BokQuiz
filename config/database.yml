@@ -78,9 +78,22 @@ test:
 # Read https://guides.rubyonrails.org/configuring.html#configuring-a-database
 # for a full overview on how database connection configuration can be specified.
 production:
-  adapter: postgresql
-  url: <%= ENV.fetch('DATABASE_URL') %>
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
+  primary: &primary
+    adapter: postgresql
+    url: <%= ENV.fetch('DATABASE_URL') %>
+    pool: <%= ENV.fetch('RAILS_MAX_THREADS', 5) %>
+
+  # Solid Cable needs this
+  cable:
+    <<: *primary
+
+  # (Optional) If you ever wire Solid Queue / Solid Cache separately,
+  # adding these now prevents similar errors later. Safe to keep.
+  queue:
+    <<: *primary
+  cache:
+    <<: *primary
+    
   # primary: &primary_production
   #   <<: *default
   #   database: bok_quiz_production
