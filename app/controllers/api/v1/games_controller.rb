@@ -42,12 +42,35 @@ module Api
       # POST /api/v1/games/:code/join
       def join
         name = params.require(:name).to_s.strip
-        return render json: { error: { code: "full", message: "Game is full" } }, status: 422 if @game.players.where(is_host: false).count >= 4
-        return render json: { error: { code: "name_taken", message: "Name already in use" } }, status: 422 if @game.players.exists?(name: name)
-        return render json: { error: { code: "bad_state", message: "Join only in lobby" } }, status: 422 unless @game.lobby?
+        # Validation checks
+        if @game.players.where(is_host: false).count >= 4
+          return render json: { error: { code: "full", message: "Game is full" } }, status: 422
+        end
 
+        if @game.players.exists?(name: name)
+          return render json: { error: { code: "name_taken", message: "Name already in use" } }, status: 422
+        end
+
+        unless @game.lobby?
+          return render json: { error: { code: "bad_state", message: "Join only in lobby" } }, status: 422
+        end
+
+        # Create the player
         player = @game.players.create!(name: name, is_host: false)
-        player.broadcast_append_to "game_#{@game.id}_players", target: "players_list"
+
+        # Broadcast to the game channel (use a partial or just the player JSON)
+        if defined?(Turbo)
+          @game.broadcast_append_to(
+            "game_#{@game.id}_players",
+            target: "players_list",
+            partial: "players/player",
+            locals: { player: player }
+          )
+        else
+          # Fallback: send a standard JSON broadcast
+          broadcast(:player_joined, { name: player.name })
+        end
+
         ok({ player_id: player.id, reconnect_token: player.reconnect_token })
       end
 
