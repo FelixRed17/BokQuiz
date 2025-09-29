@@ -47,7 +47,7 @@ module Api
         return render json: { error: { code: "bad_state", message: "Join only in lobby" } }, status: 422 unless @game.lobby?
 
         player = @game.players.create!(name: name, is_host: false)
-        broadcast(:player_joined, { name: player.name })
+        player.broadcast_append_to "game_#{@game.id}_players", target: "players_list"
         ok({ player_id: player.id, reconnect_token: player.reconnect_token })
       end
 

@@ -84,4 +84,6 @@ Rails.application.configure do
   #
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
+  config.action_cable.url = "wss://excess-seana-felix-glucode-0704cdd3.koyeb.app/cable"
 end
