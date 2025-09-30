@@ -1,6 +1,7 @@
 class CreatePlayers < ActiveRecord::Migration[7.1]
   def change
-    create_table :players do |t|
+    create_table :players, id: false do |t|
+      t.primary_key :id
       t.references :game, null: false, foreign_key: true
 
       t.string  :name,         null: false

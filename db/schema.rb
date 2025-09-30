@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_29_121029) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_30_111832) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -26,6 +26,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_29_121029) do
     t.jsonb "sudden_death_player_ids", default: [], null: false
     t.index ["code"], name: "index_games_on_code", unique: true
     t.index ["host_token"], name: "index_games_on_host_token", unique: true
+    t.index ["id"], name: "index_games_on_id", unique: true
   end
 
   create_table "players", force: :cascade do |t|
@@ -42,6 +43,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_29_121029) do
     t.index ["game_id", "ready"], name: "index_players_on_game_id_and_ready"
     t.index ["game_id"], name: "index_players_on_game_id"
     t.index ["game_id"], name: "uniq_host_per_game", unique: true, where: "(is_host = true)"
+    t.index ["id"], name: "index_players_on_id", unique: true
     t.index ["reconnect_token"], name: "index_players_on_reconnect_token", unique: true
   end
 
@@ -51,9 +53,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_29_121029) do
     t.jsonb "options", default: [], null: false
     t.integer "correct_index", null: false
     t.integer "points", default: 1, null: false
-    t.integer "time_limit", default: 25, null: false
+    t.integer "time_limit", default: 40, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["id"], name: "index_questions_on_id", unique: true
     t.index ["round_number"], name: "index_questions_on_round_number"
   end
 
@@ -69,6 +72,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_29_121029) do
     t.datetime "updated_at", null: false
     t.index ["game_id", "player_id", "question_id"], name: "uniq_submission_per_q", unique: true
     t.index ["game_id"], name: "index_submissions_on_game_id"
+    t.index ["id"], name: "index_submissions_on_id", unique: true
     t.index ["player_id"], name: "index_submissions_on_player_id"
     t.index ["question_id"], name: "index_submissions_on_question_id"
   end
