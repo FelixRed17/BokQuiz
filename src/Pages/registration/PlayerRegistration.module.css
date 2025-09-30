@@ -1,0 +1,101 @@
+/* Root page wrapper */
+.pageRoot {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: #213A35;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    box-sizing: border-box;
+  }
+  
+  /* Card */
+  .registrationContainer {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 100px rgba(255, 215, 0, 0.1);
+    padding: 40px;
+    max-width: 450px;
+    width: 100%;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    animation: slideUp 0.6s ease-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Header */
+  .header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 30px;
+  }
+  
+  .title {
+    color: #1C352D;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 15px 0;
+    background: linear-gradient(45deg, #1C352D, #006633);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+  }
+  
+  .subtitle {
+    color: #666;
+    font-size: 1.2rem;
+    margin: 0;
+    font-weight: 400;
+    text-align: center;
+  }
+  
+  /* Footer */
+  .footer {
+    width: 100%;
+    border-top: 1px solid #e9ecef;
+    padding-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .footerText {
+    color: #6c757d;
+    font-size: 0.95rem;
+    margin: 0;
+    font-weight: 500;
+    text-align: center;
+  }
+  
+  /* Animations */
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Responsive tweaks */
+  @media (max-width: 480px) {
+    .title {
+      font-size: 2rem;
+    }
+  
+    .registrationContainer {
+      padding: 24px;
+    }
+  }
+  

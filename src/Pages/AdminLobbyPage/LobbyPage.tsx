@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import styles from "./LobbyScreen.module.css";
+import { useState } from "react";
+import { useParams } from "react-router-dom";
+import styles from "./LobbyPage.module.css";
 
 interface Player {
   id: string;
@@ -9,6 +10,9 @@ interface Player {
 }
 
 function LobbyScreen() {
+  const { code } = useParams<{ code: string }>();
+  const gameCode = code ?? "—";
+
   const [players, setPlayers] = useState<Player[]>([
     { id: "1", name: "Thabo", status: "online" },
     { id: "2", name: "Lerato", status: "online" },
@@ -17,19 +21,15 @@ function LobbyScreen() {
   ]);
 
   const handleKickPlayer = (playerId: string) => {
-    setPlayers(players.filter((player) => player.id !== playerId));
+    setPlayers((prev) => prev.filter((p) => p.id !== playerId));
   };
 
   const handleStartGame = () => {
     alert("Starting the quiz game!");
   };
 
-  const onlinePlayers = players.filter(
-    (player) => player.status === "online"
-  ).length;
-  const readyPlayers = players.filter(
-    (player) => player.status === "online"
-  ).length; // Assuming online players are ready
+  const onlinePlayers = players.filter((p) => p.status === "online").length;
+  const readyPlayers = onlinePlayers; // Assuming online players are ready
 
   return (
     <div
@@ -58,7 +58,8 @@ function LobbyScreen() {
           <h2 className={`${styles.playersHeader}`}>PLAYER</h2>
           <div className={styles.codeBox}>
             <span className={styles.codeLabel}>CODE: </span>
-            <span className={styles.codeValue}>BOK-7321</span>
+            {/* Replace BOK-7321 with the real code */}
+            <span className={styles.codeValue}>{gameCode}</span>
           </div>
         </div>
 
@@ -77,7 +78,7 @@ function LobbyScreen() {
                         ? styles.statusOnline
                         : styles.statusOffline
                     }`}
-                  ></div>
+                  />
                   <span className="text-dark fw-semibold fs-5">
                     {player.name}
                   </span>
