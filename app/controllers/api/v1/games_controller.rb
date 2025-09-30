@@ -395,8 +395,7 @@ module Api
       end
 
       def broadcast(type, payload)
-        return unless defined?(GameChannel)
-        GameChannel.broadcast_to(@game, { type: type.to_s, payload: payload })
+        ActionCable.server.broadcast("game:#{@game.id}", { type: type.to_s, payload: payload })
       end
     end
   end
