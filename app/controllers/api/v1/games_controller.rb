@@ -385,8 +385,10 @@ module Api
       end
 
       def broadcast(type, payload)
-        # Skip broadcasting in development/test to avoid Solid Cable issues
-        return unless Rails.env.production?     
+        # Don't broadcast at all in development - ActionCable not needed for API-only mode
+        return if Rails.env.development? || Rails.env.test?
+        return unless ActionCable.server.present?
+        
         # Safely broadcast without crashing on errors
         ActionCable.server.broadcast("game:#{@game.id}", { type: type.to_s, payload: payload })
       rescue ArgumentError => e
