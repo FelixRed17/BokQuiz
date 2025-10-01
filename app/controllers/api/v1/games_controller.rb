@@ -8,7 +8,7 @@ module Api
       def create
         host_name = params.require(:host_name)
         game = ::Game.create!
-        host = game.players.create!(name: host_name, is_host: true)
+        host = game.players.create!(name: host_name, is_host: true, ready: true)
         ok({ code: game.code, host_token: game.host_token, host_player_id: host.id }, status: :created)
       end
 
