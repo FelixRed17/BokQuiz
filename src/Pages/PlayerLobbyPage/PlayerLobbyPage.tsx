@@ -12,8 +12,8 @@ export interface PlayerLobbyPageProps {
 }
 
 function PlayerLobbyPage({
-  message = "Waiting for other players...",
-  backgroundColor = "#b11919ff",
+  message = "Waiting for game to start...",
+  backgroundColor = "#1B3838",
   lottieUrl,
 }: PlayerLobbyPageProps) {
   const [remoteLottie, setRemoteLottie] = useState<LottieData | null>(null);
