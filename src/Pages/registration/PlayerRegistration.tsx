@@ -1,5 +1,6 @@
 import { RegistrationForm, type RegistrationData } from "./RegistrationForm";
 import styles from "./PlayerRegistration.module.css";
+import { useNavigate } from "react-router-dom";
 
 export interface PlayerRegistrationProps {
   onRegisterComplete?: (data: RegistrationData) => void;
@@ -10,14 +11,17 @@ export function PlayerRegistration({
   onRegisterComplete,
   onNavigateBack,
 }: PlayerRegistrationProps) {
+  const navigate = useNavigate();
+
   const handleRegistrationSuccess = (registrationData: RegistrationData) => {
     if (onRegisterComplete) {
       onRegisterComplete(registrationData);
     }
+
     console.log("Player registered:", registrationData);
-    console.log(
-      `Starting quiz for ${registrationData.playerName} in game ${registrationData.gameCode}`
-    );
+
+    // Navigate to player lobby with game code
+    navigate(`/player/lobby/${encodeURIComponent(registrationData.gameCode)}`);
   };
 
   return (

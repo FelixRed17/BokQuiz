@@ -5,18 +5,22 @@ import LobbyScreen from "./Pages/AdminLobbyPage/LobbyPage";
 import WelcomePageWrapper from "./Pages/WelcomePage/WelcomePageWrapper";
 import { PlayerRegistration } from "./Pages/registration/PlayerRegistration";
 import PlayerLobbyPage from "./Pages/PlayerLobbyPage/PlayerLobbyPage";
+import QuizPage from "./Pages/QuizPage/QuizPage";
 
 function App() {
   return (
-    /*<BrowserRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<WelcomePageWrapper />} />
         <Route path="/admin" element={<SpringbokGameHost />} />
         <Route path="/player" element={<PlayerRegistration />} />
         <Route path="/lobby/:code" element={<LobbyScreen />} />
+        <Route path="/player/lobby/:code" element={<PlayerLobbyPage />} />
+
+        {/* shared quiz page for host & players */}
+        <Route path="/game/:code/question" element={<QuizPage />} />
       </Routes>
-    </BrowserRouter>*/
-    <PlayerLobbyPage/>
+    </BrowserRouter>
   );
 }
 

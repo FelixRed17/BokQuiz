@@ -1,35 +1,51 @@
-import { useState } from "react";
 import { useParams } from "react-router-dom";
 import styles from "./LobbyPage.module.css";
-
-interface Player {
-  id: string;
-  name: string;
-  status: "online" | "offline";
-  lastSeen?: string;
-}
+import { useGameState } from "./hooks/useGameState";
+import { useNavigate } from "react-router-dom";
+import { hostStart, fetchQuestion } from "./services/games.service";
 
 function LobbyScreen() {
   const { code } = useParams<{ code: string }>();
-  const gameCode = code ?? "—";
+  const gameCode = code ?? "";
+  const navigate = useNavigate();
 
-  const [players, setPlayers] = useState<Player[]>([
-    { id: "1", name: "Thabo", status: "online" },
-    { id: "2", name: "Lerato", status: "online" },
-    { id: "3", name: "Sipho", status: "offline", lastSeen: "45s ago" },
-    { id: "4", name: "Aisha", status: "online" },
-  ]);
+  const { state, isLoading, error, reload } = useGameState(gameCode, {
+    pollIntervalMs: 3000,
+  });
 
-  const handleKickPlayer = (playerId: string) => {
-    setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+  const players = state?.players ?? [];
+
+  const totalPlayers = players.length;
+  const readyCount = players.filter((p) => p.ready).length;
+  const eliminatedCount = players.filter((p) => p.eliminated).length;
+
+  const handleStartGame = async () => {
+    if (!gameCode) return;
+    const hostToken = localStorage.getItem("hostToken");
+    if (!hostToken) {
+      alert(
+        "Host token missing. Create a game or set host token in localStorage."
+      );
+      return;
+    }
+
+    try {
+      // 1) tell server to start the round
+      await hostStart(gameCode, hostToken);
+
+      // 2) immediately fetch the question (server should now have question open)
+      const question = await fetchQuestion(gameCode);
+
+      // 3) navigate to shared quiz page; pass question via location state so host sees it immediately
+      navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
+        state: { question },
+      });
+    } catch (err: any) {
+      const msg =
+        err?.data?.error?.message ?? err?.message ?? "Failed to start game";
+      alert(msg);
+    }
   };
-
-  const handleStartGame = () => {
-    alert("Starting the quiz game!");
-  };
-
-  const onlinePlayers = players.filter((p) => p.status === "online").length;
-  const readyPlayers = onlinePlayers; // Assuming online players are ready
 
   return (
     <div
@@ -53,43 +69,60 @@ function LobbyScreen() {
           </div>
         </div>
 
-        {/* Player Header and Game Code */}
+        {/* Header / Code */}
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h2 className={`${styles.playersHeader}`}>PLAYER</h2>
           <div className={styles.codeBox}>
             <span className={styles.codeLabel}>CODE: </span>
-            {/* Replace BOK-7321 with the real code */}
-            <span className={styles.codeValue}>{gameCode}</span>
+            <span className={styles.codeValue}>{gameCode || "—"}</span>
           </div>
         </div>
 
-        {/* Players List */}
+        {/* Loading / Error */}
+        {isLoading && (
+          <div className="mb-3">
+            <small className="text-muted">Loading lobby…</small>
+          </div>
+        )}
+        {error && (
+          <div className="mb-3">
+            <small className="text-danger">Error: {error}</small>
+          </div>
+        )}
+
+        {/* Players */}
         <div className="mb-4">
           <div className="d-flex flex-column gap-3">
-            {players.map((player) => (
+            {players.length === 0 && !isLoading && (
+              <div className="text-muted">No players yet.</div>
+            )}
+
+            {players.map((p) => (
               <div
-                key={player.id}
+                key={p.name}
                 className={`d-flex align-items-center justify-content-between ${styles.playerItem}`}
               >
                 <div className="d-flex align-items-center">
                   <div
                     className={`me-3 ${styles.statusDot} ${
-                      player.status === "online"
-                        ? styles.statusOnline
-                        : styles.statusOffline
+                      p.eliminated ? styles.statusOffline : styles.statusOnline
                     }`}
                   />
-                  <span className="text-dark fw-semibold fs-5">
-                    {player.name}
-                  </span>
+                  <span className="text-dark fw-semibold fs-5">{p.name}</span>
                 </div>
+
                 <div className="d-flex align-items-center gap-3">
-                  <span className="text-dark fw-medium">
-                    {player.status === "online" ? "Online" : player.lastSeen}
-                  </span>
+                  {p.eliminated ? (
+                    <span className="badge bg-danger">Eliminated</span>
+                  ) : p.ready ? (
+                    <span className="badge bg-success">Ready</span>
+                  ) : (
+                    <span className="badge bg-secondary">Not Ready</span>
+                  )}
+
                   <button
-                    onClick={() => handleKickPlayer(player.id)}
                     className="btn btn-outline-success fw-semibold px-3 py-2"
+                    disabled
                   >
                     Kick
                   </button>
@@ -103,23 +136,26 @@ function LobbyScreen() {
         <div className="d-flex justify-content-between mb-4 text-white">
           <div className="text-center">
             <div className={styles.statTitle}>TOTAL</div>
-            <div className={styles.statValue}>{players.length}</div>
+            <div className={styles.statValue}>{totalPlayers}</div>
           </div>
           <div className="text-center">
             <div className={styles.statTitle}>ONLINE</div>
-            <div className={styles.statValue}>{onlinePlayers}</div>
+            <div className={styles.statValue}>
+              {totalPlayers - eliminatedCount}
+            </div>
           </div>
           <div className="text-center">
             <div className={styles.statTitle}>READY</div>
-            <div className={styles.statValue}>{readyPlayers}</div>
+            <div className={styles.statValue}>{readyCount}</div>
           </div>
         </div>
 
-        {/* Start Button */}
+        {/* Start */}
         <div className="d-flex justify-content-center">
           <button
             onClick={handleStartGame}
             className={`shadow ${styles.startBtn}`}
+            disabled={(state?.status ?? "lobby") !== "lobby"}
           >
             Start
           </button>

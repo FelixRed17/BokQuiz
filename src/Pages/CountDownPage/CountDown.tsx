@@ -1,44 +1,57 @@
+// src/Pages/CountDown/CountDown.tsx
 import { useEffect, useState } from "react";
 
-export default function CountDown(){
-    const [secondsRemaining, setSecondsRemaining] = useState<number>(3);
+type Props = {
+  seconds?: number;
+  onComplete?: () => void;
+};
 
-    useEffect(() => {
-        setSecondsRemaining(3);
-        const intervalId = setInterval(() => {
-            setSecondsRemaining((prev) => {
-                if (prev <= 1) {
-                    clearInterval(intervalId);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
+export default function CountDown({ seconds = 3, onComplete }: Props) {
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(seconds);
 
-        return () => clearInterval(intervalId);
-    }, []);
-
-    useEffect(() => {
-        if (secondsRemaining === 0) {
-            window.alert("next round has begun");
+  useEffect(() => {
+    setSecondsRemaining(seconds);
+    const intervalId = setInterval(() => {
+      setSecondsRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalId);
+          return 0;
         }
-    }, [secondsRemaining]);
+        return prev - 1;
+      });
+    }, 1000);
 
-    return (
-        <div className="countdown-container">
-            <video className="countdown-bg-video" autoPlay muted loop playsInline src="public/scrum.mp4" 
-            />
-            <div className="countdown-card">
-            <div className="countdown-header">
-                <div className="countdown-header-icon">🏉</div>
-                <h1 className="countdown-heading">Springbok Quiz</h1>
-            </div>
-            <p className="next-round"> NEXT ROUND</p>
-            <hr className="countdown-divider"/>
+    return () => clearInterval(intervalId);
+  }, [seconds]);
 
-            <div className="countdown">{secondsRemaining}</div>
-            <div className="begins-in">Begins In</div>
-            </div>
+  useEffect(() => {
+    if (secondsRemaining === 0) {
+      onComplete?.();
+    }
+  }, [secondsRemaining, onComplete]);
+
+  return (
+    <div className="countdown-container">
+      <video
+        className="countdown-bg-video"
+        autoPlay
+        muted
+        loop
+        playsInline
+        src="/scrum.mp4"
+      />
+      <div className="countdown-card">
+        <div className="countdown-header">
+          <div className="countdown-header-icon">🏉</div>
+          <h1 className="countdown-heading">Springbok Quiz</h1>
         </div>
-    )
+
+        <p className="next-round">NEXT ROUND</p>
+        <hr className="countdown-divider" />
+
+        <div className="countdown">{secondsRemaining}</div>
+        <div className="begins-in">Begins In</div>
+      </div>
+    </div>
+  );
 }

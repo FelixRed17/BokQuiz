@@ -8,10 +8,16 @@ export default function SpringbokGameHost() {
   const { isLoading, error, data, createGame } = useCreateGame();
   const navigate = useNavigate();
 
+  // inside SpringbokGameHost.tsx
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const game = await createGame(hostName);
     if (game) {
+      // Persist host credentials so Start can use them later
+      localStorage.setItem("hostToken", game.hostToken);
+      localStorage.setItem("hostPlayerId", String(game.hostPlayerId));
+      localStorage.setItem("gameCode", game.code);
+
       // Go to lobby with the real code in the URL
       navigate(`/lobby/${game.code}`);
     }
