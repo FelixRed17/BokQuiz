@@ -28,48 +28,55 @@ function PlayerLobbyPage({
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
   const navigate = useNavigate();
+  const { state, reload } = useGameState(gameCode, { pollIntervalMs: 3000 });
 
-  const { state, isLoading, error, reload } = useGameState(gameCode, {
-    pollIntervalMs: 3000,
-  });
+  // Host detection remains for logging purposes, but navigation is made universal for this component
+  const amHost = localStorage.getItem("amHost") === "true";
 
-  // determine whether this client is host (we persist hostToken at create time)
-  const hostToken = localStorage.getItem("hostToken");
-  const amHost = Boolean(hostToken);
-
-  // subscribe to game channel and handle messages
   useGameChannel(gameCode, {
-    onMessage: (msg) => {
-      // message shape: { type: 'question_started', payload: { ... } } as your server sends
-      if (!msg || !msg.type) return;
-
-      // If the server told "question_started" — only players should navigate
-      if (msg.type === "question_started") {
-        if (!amHost) {
-          // navigate players to the quiz page
-          navigate(`/game/${encodeURIComponent(gameCode)}/question`);
-        } else {
-          // host: do nothing here, host already navigates locally after calling host_start
-        }
-      }
-
-      // you can handle other event types:
-      // if (msg.type === 'player_joined') { reload(); }
-      // if (msg.type === 'player_ready') { reload(); }
-    },
     onConnected: () => {
-      // optional: reload now that live connection is available
+      console.log("WS connected for game", gameCode);
       reload();
     },
+    onMessage: (msg) => {
+      console.log("GameChannel message:", msg);
+      if (!msg?.type) return;
+
+      if (msg.type === "question_started") {
+        // PlayerLobbyPage is the player route, so any user here should navigate
+        console.log("Received question_started broadcast. Navigating to quiz.");
+        navigate(`/game/${encodeURIComponent(gameCode)}/question`);
+      }
+
+      // live update lobby on these events
+      if (
+        msg.type === "player_joined" ||
+        msg.type === "player_ready" ||
+        msg.type === "player_renamed"
+      ) {
+        reload();
+      }
+    },
   });
 
-  // also keep the state-based fallback: if the state changes to not 'lobby' (e.g., if subscription missed), redirect players
+  // fallback: if polling detects state change (missed WS)
   useEffect(() => {
     if (!state) return;
-    if (state.status !== "lobby" && !amHost) {
+
+    console.log(
+      `Polling state update: status=${state.status}, amHost=${amHost}`
+    );
+
+    // If the game status changes from 'lobby', navigate to the quiz page.
+    // This component is only for players, so we navigate regardless of the local 'amHost' flag
+    // (A host landing here is an edge case, but should still follow the game flow).
+    if (state.status !== "lobby") {
+      console.log(
+        `Game status changed to ${state.status}. Navigating to quiz.`
+      );
       navigate(`/game/${encodeURIComponent(gameCode)}/question`);
     }
-  }, [state?.status, amHost, gameCode, navigate]);
+  }, [state?.status, gameCode, navigate, amHost]); // Keeping amHost in dependencies for console logging only
 
   useEffect(() => {
     let isActive = true;

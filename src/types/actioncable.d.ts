@@ -1,19 +1,22 @@
-// src/types/actioncable.d.ts
 declare module "@rails/actioncable" {
-    export type Cable = {
-      subscriptions: {
-        create(
-          channel: object,
-          callbacks: {
-            connected?: () => void;
-            disconnected?: () => void;
-            received?: (data: any) => void;
-          }
-        ): any;
-        remove(subscription: any): void;
-      };
-    };
-  
-    export function createConsumer(url?: string): Cable;
-  }
-  
+  export type SubscriptionCallbacks = {
+    connected?: () => void;
+    disconnected?: () => void;
+    received?: (data: any) => void;
+  };
+
+  export type Subscription = {
+    unsubscribe(): void;
+  };
+
+  export type Subscriptions = {
+    create(identifier: any, callbacks: SubscriptionCallbacks): Subscription;
+    remove(subscription: Subscription): void;
+  };
+
+  export type Cable = {
+    subscriptions: Subscriptions;
+  };
+
+  export function createConsumer(url?: string): Cable;
+}

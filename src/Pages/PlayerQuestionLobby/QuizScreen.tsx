@@ -32,6 +32,9 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
     if (timeLeft === 0 && onNext) onNext(selected);
   }, [timeLeft]);
 
+  // Safely default to an empty array if questionData.options is undefined or null
+  const options = questionData.options || [];
+
   return (
     <div className="quiz-screen">
       <Timer timeLeft={timeLeft} />
@@ -41,7 +44,8 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
           questionNumber={questionNumber}
         />
         <div className="quiz-options">
-          {questionData.options.map((opt, idx) => (
+          {/* Use the safely defaulted 'options' array */}
+          {options.map((opt, idx) => (
             <OptionButton
               key={idx}
               option={opt}

@@ -1,5 +1,5 @@
 // src/Pages/QuizPage/QuizPage.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import CountDown from "../CountDownPage/CountDown"; // create or adjust path
 import QuizScreen from "../PlayerQuestionLobby/QuizScreen";
@@ -55,8 +55,12 @@ export default function QuizPage() {
   if (!question)
     return <div className="p-4 text-muted">No question available</div>;
 
+  // Defensive checks for question data before passing to QuizScreen
+  const questionText = question.text ?? "Question Text Missing";
+  const questionIndex = typeof question.index === "number" ? question.index : 0;
+
   const questionData = {
-    question: question.text,
+    question: questionText,
     options: question.options,
   };
 
@@ -67,7 +71,7 @@ export default function QuizPage() {
       ) : (
         <QuizScreen
           questionData={questionData}
-          questionNumber={question.index + 1}
+          questionNumber={questionIndex + 1}
           onNext={(selected) => {
             // submit answer — you can call submit endpoint here
             console.log("selected:", selected);

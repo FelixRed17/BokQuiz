@@ -1,25 +1,23 @@
+// src/hooks/useGameChannel.ts
 import { useEffect, useRef } from "react";
 import { getCable } from "../lib/cable";
 
-type GameChannelPayload = {
-  type: string;
-  payload?: any;
-};
+type Payload = { type: string; payload?: any };
 
-type Handlers = {
-  onMessage?: (msg: GameChannelPayload) => void;
-  onConnected?: () => void;
-  onDisconnected?: () => void;
-};
-
-export function useGameChannel(gameCode: string | undefined, handlers: Handlers = {}) {
+export function useGameChannel(
+  gameCode: string | undefined,
+  handlers: {
+    onConnected?: () => void;
+    onDisconnected?: () => void;
+    onMessage?: (msg: Payload) => void;
+  } = {}
+) {
   const subRef = useRef<any>(null);
 
   useEffect(() => {
     if (!gameCode) return;
+
     const cable = getCable();
-    // subscribe to GameChannel with stream identifier (the server likely uses broadcast_to @game)
-    // We pass { game_code: gameCode } if your channel supports params; if not, server will still broadcast_to
     subRef.current = cable.subscriptions.create(
       { channel: "GameChannel", code: gameCode },
       {
@@ -29,8 +27,9 @@ export function useGameChannel(gameCode: string | undefined, handlers: Handlers 
         disconnected() {
           handlers.onDisconnected?.();
         },
-        received(data: GameChannelPayload) {
-          handlers.onMessage?.(data);
+        received(data: any) {
+          // data from server will be { type: "...", payload: {...} } per your broadcast
+          handlers.onMessage?.(data as Payload);
         },
       }
     );

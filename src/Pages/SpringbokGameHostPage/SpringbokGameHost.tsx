@@ -17,6 +17,7 @@ export default function SpringbokGameHost() {
       localStorage.setItem("hostToken", game.hostToken);
       localStorage.setItem("hostPlayerId", String(game.hostPlayerId));
       localStorage.setItem("gameCode", game.code);
+      localStorage.setItem("amHost", "true");
 
       // Go to lobby with the real code in the URL
       navigate(`/lobby/${game.code}`);

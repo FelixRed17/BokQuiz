@@ -23,7 +23,7 @@ function LobbyScreen() {
     if (!gameCode) return;
     const hostToken = localStorage.getItem("hostToken");
     if (!hostToken) {
-      alert(
+      console.error(
         "Host token missing. Create a game or set host token in localStorage."
       );
       return;
@@ -43,7 +43,8 @@ function LobbyScreen() {
     } catch (err: any) {
       const msg =
         err?.data?.error?.message ?? err?.message ?? "Failed to start game";
-      alert(msg);
+      console.error(`Failed to start game: ${msg}`);
+      // alert(msg); // Removed alert
     }
   };
 

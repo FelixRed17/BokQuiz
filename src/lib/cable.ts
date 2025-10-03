@@ -1,14 +1,15 @@
-// tiny ActionCable consumer singleton
-import * as ActionCable from "@rails/actioncable";
+// src/lib/cable.ts
+import { createConsumer } from "@rails/actioncable";
 
-let consumer: ActionCable.Cable | null = null;
+let consumer: ReturnType<typeof createConsumer> | null = null;
 
 export function getCable() {
   if (!consumer) {
-    // default to same origin — adjust if your backend URL differs
-    consumer = ActionCable.createConsumer();
+    const url = import.meta.env.VITE_ACTION_CABLE_URL; // now properly typed
+    consumer = createConsumer(url);
   }
   return consumer;
 }
+
 
 
