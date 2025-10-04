@@ -8,7 +8,7 @@ module Api
       def create
         host_name = params.require(:host_name)
         game = ::Game.create!
-        host = game.players.create!(name: host_name, is_host: true)
+        host = game.players.create!(name: host_name, is_host: true, ready: true)
         ok({ code: game.code, host_token: game.host_token, host_player_id: host.id }, status: :created)
       end
 
@@ -55,21 +55,16 @@ module Api
           return render json: { error: { code: "bad_state", message: "Join only in lobby" } }, status: 422
         end
 
-        # Create the player
-        player = @game.players.create!(name: name, is_host: false)
+        # Create the player (auto-ready by default for non-hosts)
+        player = @game.players.create!(name: name, is_host: false, ready: true)
 
-        # Broadcast to the game channel (use a partial or just the player JSON)
-        if defined?(Turbo)
-          @game.broadcast_append_to(
-            "game_#{@game.id}_players",
-            target: "players_list",
-            partial: "players/player",
-            locals: { player: player }
-          )
-        else
-          # Fallback: send a standard JSON broadcast
-          broadcast(:player_joined, { name: player.name })
-        end
+        # Broadcast player joined event
+        broadcast(:player_joined, { name: player.name })
+
+        # If all non-host players are present and ready, inform host UI (parity with previous /ready)
+        non_hosts = @game.players.where(is_host: false)
+        all_ready = non_hosts.exists? && non_hosts.where(ready: true).count == non_hosts.count
+        broadcast(:all_ready, {}) if all_ready
 
         ok({ player_id: player.id, reconnect_token: player.reconnect_token })
       end
@@ -395,7 +390,17 @@ module Api
       end
 
       def broadcast(type, payload)
+        # Don't broadcast at all in development - ActionCable not needed for API-only mode
+        return if Rails.env.development? || Rails.env.test?
+        return unless ActionCable.server.present?
+
+        # Safely broadcast without crashing on errors
         ActionCable.server.broadcast("game:#{@game.id}", { type: type.to_s, payload: payload })
+      rescue ArgumentError => e
+        # Log the error but don't crash the request
+        Rails.logger.error("Broadcast failed: #{e.message}")
+      rescue => e
+        Rails.logger.error("Unexpected broadcast error: #{e.message}")
       end
     end
   end
