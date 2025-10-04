@@ -1,9 +1,8 @@
-// src/Pages/QuizPage/QuizPage.tsx
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import CountDown from "../CountDownPage/CountDown"; // create or adjust path
+import CountDown from "../CountDownPage/CountDown";
 import QuizScreen from "../PlayerQuestionLobby/QuizScreen";
-import { fetchQuestion } from "../AdminLobbyPage/services/games.service";
+import { useGameChannel } from "../../hooks/useGameChannel"; // New import
 
 type LocationState = { question?: any };
 
@@ -16,52 +15,38 @@ export default function QuizPage() {
   const [question, setQuestion] = useState<any | null>(
     locState.question ?? null
   );
-  const [loading, setLoading] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // If no question in state (players), fetch the question
-  useEffect(() => {
-    if (question) return;
-    let mounted = true;
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const q = await fetchQuestion(gameCode);
-        if (!mounted) return;
-        setQuestion(q);
-      } catch (err: any) {
-        setError(
-          err?.data?.error?.message ?? err?.message ?? "Failed to load question"
-        );
-      } finally {
-        if (mounted) setLoading(false);
+  // Use the new hook to listen for server events
+  useGameChannel(gameCode, {
+    onMessage: (msg) => {
+      // The server broadcasts a 'question_started' event when a question is ready
+      if (msg.type === "question_started") {
+        setQuestion(msg.payload); // Update state with the new question data
+        setShowQuiz(false); // Reset to show countdown
       }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [gameCode, question]);
+    },
+  });
 
-  // Called when countdown finishes
   const handleCountdownComplete = () => {
     setShowQuiz(true);
   };
 
-  if (loading) return <div className="p-4">Loading question...</div>;
-  if (error) return <div className="p-4 text-danger">Error: {error}</div>;
-  if (!question)
-    return <div className="p-4 text-muted">No question available</div>;
+  if (!question) {
+    return (
+      <div className="p-4 text-muted">
+        Waiting for host to start the question...
+      </div>
+    );
+  }
 
-  // Defensive checks for question data before passing to QuizScreen
   const questionText = question.text ?? "Question Text Missing";
   const questionIndex = typeof question.index === "number" ? question.index : 0;
+  const questionOptions = question.options ?? [];
 
   const questionData = {
     question: questionText,
-    options: question.options,
+    options: questionOptions,
   };
 
   return (
@@ -73,7 +58,6 @@ export default function QuizPage() {
           questionData={questionData}
           questionNumber={questionIndex + 1}
           onNext={(selected) => {
-            // submit answer — you can call submit endpoint here
             console.log("selected:", selected);
           }}
         />

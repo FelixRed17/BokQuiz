@@ -33,18 +33,15 @@ function LobbyScreen() {
       // 1) tell server to start the round
       await hostStart(gameCode, hostToken);
 
-      // 2) immediately fetch the question (server should now have question open)
-      const question = await fetchQuestion(gameCode);
+      // 2) The server will now broadcast the first question to the channel
+      // We no longer need to manually fetch it.
 
-      // 3) navigate to shared quiz page; pass question via location state so host sees it immediately
-      navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
-        state: { question },
-      });
+      // 3) navigate to quiz page
+      navigate(`/game/${encodeURIComponent(gameCode)}/question`); // Navigate without state
     } catch (err: any) {
       const msg =
         err?.data?.error?.message ?? err?.message ?? "Failed to start game";
       console.error(`Failed to start game: ${msg}`);
-      // alert(msg); // Removed alert
     }
   };
 
