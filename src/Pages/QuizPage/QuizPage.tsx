@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import CountDown from "../CountDownPage/CountDown";
 import QuizScreen from "../PlayerQuestionLobby/QuizScreen";
-import { useGameChannel } from "../../hooks/useGameChannel";
-import { fetchQuestion } from "../AdminLobbyPage/services/games.service";
+import { useGameChannel } from "../../hooks/useGameChannel"; // New import
 
 type LocationState = { question?: any };
 
@@ -17,41 +16,17 @@ export default function QuizPage() {
     locState.question ?? null
   );
   const [showQuiz, setShowQuiz] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false);
 
-  // Use the WebSocket hook
+  // Use the new hook to listen for server events
   useGameChannel(gameCode, {
     onMessage: (msg) => {
+      // The server broadcasts a 'question_started' event when a question is ready
       if (msg.type === "question_started") {
-        setQuestion(msg.payload);
-        setShowQuiz(false);
-        setWsConnected(true);
+        setQuestion(msg.payload); // Update state with the new question data
+        setShowQuiz(false); // Reset to show countdown
       }
     },
   });
-
-  // Fallback: Poll for questions if WebSocket doesn't connect
-  useEffect(() => {
-    if (question || wsConnected) return;
-
-    const pollQuestion = async () => {
-      try {
-        const data = await fetchQuestion(gameCode);
-        setQuestion(data);
-        setWsConnected(true); // Stop polling once we get data
-      } catch (err) {
-        console.log("Question not ready yet, will retry...");
-      }
-    };
-
-    // Initial fetch
-    pollQuestion();
-
-    // Poll every 2 seconds if no question yet
-    const interval = setInterval(pollQuestion, 2000);
-
-    return () => clearInterval(interval);
-  }, [gameCode, question, wsConnected]);
 
   const handleCountdownComplete = () => {
     setShowQuiz(true);
@@ -61,13 +36,6 @@ export default function QuizPage() {
     return (
       <div className="p-4 text-muted">
         Waiting for host to start the question...
-        {!wsConnected && (
-          <div className="mt-2">
-            <small className="text-warning">
-              ⚠️ WebSocket connection failed. Using polling fallback...
-            </small>
-          </div>
-        )}
       </div>
     );
   }
