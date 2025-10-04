@@ -16,8 +16,6 @@ function App() {
         <Route path="/player" element={<PlayerRegistration />} />
         <Route path="/lobby/:code" element={<LobbyScreen />} />
         <Route path="/player/lobby/:code" element={<PlayerLobbyPage />} />
-
-        {/* shared quiz page for host & players */}
         <Route path="/game/:code/question" element={<QuizPage />} />
       </Routes>
     </BrowserRouter>

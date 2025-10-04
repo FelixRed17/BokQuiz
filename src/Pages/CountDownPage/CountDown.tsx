@@ -1,4 +1,4 @@
-// src/Pages/CountDown/CountDown.tsx
+import "./CountDown.css";
 import { useEffect, useState } from "react";
 
 type Props = {
@@ -32,14 +32,6 @@ export default function CountDown({ seconds = 3, onComplete }: Props) {
 
   return (
     <div className="countdown-container">
-      <video
-        className="countdown-bg-video"
-        autoPlay
-        muted
-        loop
-        playsInline
-        src="/scrum.mp4"
-      />
       <div className="countdown-card">
         <div className="countdown-header">
           <div className="countdown-header-icon">🏉</div>
