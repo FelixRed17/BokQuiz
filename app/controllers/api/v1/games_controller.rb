@@ -393,11 +393,10 @@ module Api
         # Don't broadcast at all in development - ActionCable not needed for API-only mode
         return if Rails.env.development? || Rails.env.test?
         return unless ActionCable.server.present?
-
-        # Safely broadcast without crashing on errors
-        ActionCable.server.broadcast("game:#{@game.id}", { type: type.to_s, payload: payload })
+      
+        # Use game CODE not game ID, and use underscore not colon
+        ActionCable.server.broadcast("game_#{@game.code}", { type: type.to_s, payload: payload })
       rescue ArgumentError => e
-        # Log the error but don't crash the request
         Rails.logger.error("Broadcast failed: #{e.message}")
       rescue => e
         Rails.logger.error("Unexpected broadcast error: #{e.message}")
