@@ -394,8 +394,8 @@ module Api
         return if Rails.env.development? || Rails.env.test?
         return unless ActionCable.server.present?
       
-        # Use game CODE not game ID, and use underscore not colon
-        ActionCable.server.broadcast("game_#{@game.code}", { type: type.to_s, payload: payload })
+        # Safely broadcast without crashing on errors
+        ActionCable.server.broadcast("game:#{@game.id}", { type: type.to_s, payload: payload })
       rescue ArgumentError => e
         Rails.logger.error("Broadcast failed: #{e.message}")
       rescue => e
