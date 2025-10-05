@@ -391,7 +391,7 @@ module Api
 
       def broadcast(type, payload)
         # Don't broadcast at all in development - ActionCable not needed for API-only mode
-        return if Rails.env.development? || Rails.env.test?
+      
         return unless ActionCable.server.present?
       
         # Safely broadcast without crashing on errors
