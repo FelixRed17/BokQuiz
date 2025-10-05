@@ -4,7 +4,7 @@ import LoadingAnimation from "./loading_gray.json";
 import styles from "./PlayerLobbyPage.module.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
-import { useGameChannel } from "../../hooks/useGameChannel"; // path adjust
+import { useGameChannel } from "../../hooks/useGameChannel";
 
 type LottieData = object;
 
@@ -30,7 +30,6 @@ function PlayerLobbyPage({
   const navigate = useNavigate();
   const { state, reload } = useGameState(gameCode, { pollIntervalMs: 3000 });
 
-  // Host detection remains for logging purposes, but navigation is made universal for this component
   const amHost = localStorage.getItem("amHost") === "true";
 
   useGameChannel(gameCode, {
@@ -43,12 +42,12 @@ function PlayerLobbyPage({
       if (!msg?.type) return;
 
       if (msg.type === "question_started") {
-        // PlayerLobbyPage is the player route, so any user here should navigate
         console.log("Received question_started broadcast. Navigating to quiz.");
-        navigate(`/game/${encodeURIComponent(gameCode)}/question`);
+        navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
+          state: { question: msg.payload },
+        });
       }
 
-      // live update lobby on these events
       if (
         msg.type === "player_joined" ||
         msg.type === "player_ready" ||
@@ -59,7 +58,6 @@ function PlayerLobbyPage({
     },
   });
 
-  // fallback: if polling detects state change (missed WS)
   useEffect(() => {
     if (!state) return;
 
@@ -67,16 +65,13 @@ function PlayerLobbyPage({
       `Polling state update: status=${state.status}, amHost=${amHost}`
     );
 
-    // If the game status changes from 'lobby', navigate to the quiz page.
-    // This component is only for players, so we navigate regardless of the local 'amHost' flag
-    // (A host landing here is an edge case, but should still follow the game flow).
     if (state.status !== "lobby") {
       console.log(
         `Game status changed to ${state.status}. Navigating to quiz.`
       );
       navigate(`/game/${encodeURIComponent(gameCode)}/question`);
     }
-  }, [state?.status, gameCode, navigate, amHost]); // Keeping amHost in dependencies for console logging only
+  }, [state?.status, gameCode, navigate, amHost]);
 
   useEffect(() => {
     let isActive = true;

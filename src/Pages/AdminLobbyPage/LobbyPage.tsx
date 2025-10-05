@@ -2,7 +2,8 @@ import { useParams } from "react-router-dom";
 import styles from "./LobbyPage.module.css";
 import { useGameState } from "./hooks/useGameState";
 import { useNavigate } from "react-router-dom";
-import { hostStart, fetchQuestion } from "./services/games.service";
+import { hostStart } from "./services/games.service";
+import { useGameChannel } from "../../hooks/useGameChannel";
 
 function LobbyScreen() {
   const { code } = useParams<{ code: string }>();
@@ -11,6 +12,18 @@ function LobbyScreen() {
 
   const { state, isLoading, error, reload } = useGameState(gameCode, {
     pollIntervalMs: 3000,
+  });
+
+  // Listen for question_started event via WebSocket
+  useGameChannel(gameCode, {
+    onMessage: (msg) => {
+      if (msg.type === "question_started") {
+        console.log("Host received question_started. Navigating to host view.");
+        navigate(`/game/${encodeURIComponent(gameCode)}/host`, {
+          state: { question: msg.payload },
+        });
+      }
+    },
   });
 
   const players = state?.players ?? [];
@@ -30,14 +43,8 @@ function LobbyScreen() {
     }
 
     try {
-      // 1) tell server to start the round
       await hostStart(gameCode, hostToken);
-
-      // 2) The server will now broadcast the first question to the channel
-      // We no longer need to manually fetch it.
-
-      // 3) navigate to quiz page
-      navigate(`/game/${encodeURIComponent(gameCode)}/question`); // Navigate without state
+      // Don't navigate here - the WebSocket message handler will navigate when question_started arrives
     } catch (err: any) {
       const msg =
         err?.data?.error?.message ?? err?.message ?? "Failed to start game";
@@ -59,7 +66,7 @@ function LobbyScreen() {
           </div>
           <div>
             <h1 className={`fw-bold mb-2 ${styles.title}`}>
-              Springbok Quiz — Admin Lobby
+              Springbok Quiz – Admin Lobby
             </h1>
             <p className={`text-light fs-5 mb-0 ${styles.subtitle}`}>
               Manage players and start the match
