@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useGameChannel } from "../../hooks/useGameChannel";
-import { fetchQuestion } from "../AdminLobbyPage/services/games.service";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
+import { http } from "../../lib/http";  
 import "./HostQuizView.css";
-import { useLocation } from "react-router-dom";
 
 interface QuestionData {
   text: string;
@@ -18,13 +17,11 @@ export default function HostQuizView() {
   const gameCode = code ?? "";
   const navigate = useNavigate();
   const location = useLocation();
-
+  
   // Get initial question from navigation state
   const initialQuestion = (location.state as any)?.question || null;
-
-  const [question, setQuestion] = useState<QuestionData | null>(
-    initialQuestion
-  );
+  
+  const [question, setQuestion] = useState<QuestionData | null>(initialQuestion);
   const [timeLeft, setTimeLeft] = useState<number>(30);
   const { state } = useGameState(gameCode, { pollIntervalMs: 2000 });
 
@@ -36,7 +33,7 @@ export default function HostQuizView() {
           text: msg.payload.text,
           options: msg.payload.options || [],
           index: msg.payload.index,
-          round_number: msg.payload.round_number,
+          round_number: msg.payload.round_number
         });
         setTimeLeft(30);
       }
@@ -46,25 +43,6 @@ export default function HostQuizView() {
       }
     },
   });
-
-  // Fetch initial question if not available
-  useEffect(() => {
-    if (!question) {
-      fetchQuestion(gameCode)
-        .then((data) => {
-          setQuestion({
-            text: data.text,
-            options: data.options || [],
-            index: data.index,
-            round_number: data.round_number,
-          });
-          setTimeLeft(30);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch question:", err);
-        });
-    }
-  }, [gameCode, question]);
 
   // Timer countdown
   useEffect(() => {
@@ -83,25 +61,27 @@ export default function HostQuizView() {
     }
 
     try {
-      // Call your API to move to next question
-      const response = await fetch(
-        `/api/v1/games/${encodeURIComponent(gameCode)}/host_next`,
-        {
-          method: "POST",
-          headers: {
-            "X-Host-Token": hostToken,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
+      const url = `${apiBaseUrl}/api/v1/games/${encodeURIComponent(gameCode)}/host_next`;
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "X-Host-Token": hostToken,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to advance to next question");
+        const error = await response.text();
+        throw new Error(`Failed to advance: ${error}`);
       }
 
+      console.log("Successfully advanced to next question");
       // WebSocket will handle updating the question
     } catch (err) {
       console.error("Error advancing question:", err);
+      alert("Failed to advance to next question. Check console for details.");
     }
   };
 
@@ -137,9 +117,7 @@ export default function HostQuizView() {
           <span className="question-number">
             Question {(question.index ?? 0) + 1}
           </span>
-          <span className="round-number">
-            Round {question.round_number ?? 1}
-          </span>
+          <span className="round-number">Round {question.round_number ?? 1}</span>
         </div>
         <div className="question-text">
           <h2>{question.text}</h2>
@@ -150,7 +128,9 @@ export default function HostQuizView() {
       <div className="options-grid">
         {(question.options || []).map((option, idx) => (
           <div key={idx} className={`option-card option-${idx}`}>
-            <div className="option-letter">{String.fromCharCode(65 + idx)}</div>
+            <div className="option-letter">
+              {String.fromCharCode(65 + idx)}
+            </div>
             <div className="option-text">{option}</div>
           </div>
         ))}
