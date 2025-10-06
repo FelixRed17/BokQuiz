@@ -4,7 +4,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background-image: url('./BackgroundImage.png');
+  box-sizing: border-box;
+  background-image: url('./components/BackgroundImage.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -19,8 +20,20 @@
   padding: 32px 24px;
   box-shadow: var(--quiz-container-shadow);
   color: #111;
+  border: 7px solid #111;
+  border-radius: 16px;
+  margin-bottom: 24px;
 }
 
 .quiz-options { width: 100%; }
-.quiz-submit { margin-top: 8px; padding: 10px 28px; background: var(--quiz-yellow); color: #fff; font-weight: 800; border: none; border-radius: 24px; box-shadow: var(--quiz-submit-shadow); cursor: pointer; }
+.quiz-submit { 
+  margin-top: 8px; 
+  padding: 10px 28px; 
+  background: var(--quiz-yellow); 
+  color: #fff; 
+  font-weight: 800; 
+  border: none; 
+  border-radius: 24px; 
+  box-shadow: var(--quiz-submit-shadow); 
+  cursor: pointer; }
 
