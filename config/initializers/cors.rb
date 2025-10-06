@@ -3,6 +3,9 @@
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     origins 'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:5175'
+            'http://localhost:5176'
             %r{\Ahttp://127\.0\.0\.1:\d+},
             %r{\Ahttp://192\.168\.\d+\.\d+(?::\d+)?},
             %r{\Ahttp://10\.\d+\.\d+\.\d+(?::\d+)?},
