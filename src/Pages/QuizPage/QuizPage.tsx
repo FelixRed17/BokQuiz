@@ -18,13 +18,24 @@ export default function QuizPage() {
   );
   const [showQuiz, setShowQuiz] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
+  const [currentRound, setCurrentRound] = useState(question?.round_number ?? 0);
 
   // Use the WebSocket hook
   useGameChannel(gameCode, {
     onMessage: (msg) => {
       if (msg.type === "question_started") {
-        setQuestion(msg.payload);
-        setShowQuiz(false);
+        const newQuestion = msg.payload;
+        setQuestion(newQuestion);
+
+        if (
+          newQuestion.index === 0 &&
+          newQuestion.round_number !== currentRound
+        ) {
+          setShowQuiz(false);
+          setCurrentRound(newQuestion.round_number);
+        } else {
+          setShowQuiz(true);
+        }
         setWsConnected(true);
       }
     },
@@ -44,12 +55,8 @@ export default function QuizPage() {
       }
     };
 
-    // Initial fetch
     pollQuestion();
-
-    // Poll every 2 seconds if no question yet
     const interval = setInterval(pollQuestion, 2000);
-
     return () => clearInterval(interval);
   }, [gameCode, question, wsConnected]);
 

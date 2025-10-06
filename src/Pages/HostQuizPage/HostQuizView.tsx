@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useLocation } from "react-router-dom";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
-import { http } from "../../lib/http";  
+import { http } from "../../lib/http";
+import CountDown from "../CountDownPage/CountDown"; // Import the CountDown component
 import "./HostQuizView.css";
 
 interface QuestionData {
@@ -15,43 +16,59 @@ interface QuestionData {
 export default function HostQuizView() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
-  const navigate = useNavigate();
   const location = useLocation();
-  
-  // Get initial question from navigation state
+
   const initialQuestion = (location.state as any)?.question || null;
-  
-  const [question, setQuestion] = useState<QuestionData | null>(initialQuestion);
+
+  const [question, setQuestion] = useState<QuestionData | null>(
+    initialQuestion
+  );
   const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const currentRoundRef = useRef(initialQuestion?.round_number || 0);
+
   const { state } = useGameState(gameCode, { pollIntervalMs: 2000 });
 
-  // Listen for WebSocket updates
   useGameChannel(gameCode, {
     onMessage: (msg) => {
       if (msg.type === "question_started") {
+        const newQuestion = msg.payload;
         setQuestion({
-          text: msg.payload.text,
-          options: msg.payload.options || [],
-          index: msg.payload.index,
-          round_number: msg.payload.round_number
+          text: newQuestion.text,
+          options: newQuestion.options || [],
+          index: newQuestion.index,
+          round_number: newQuestion.round_number,
         });
-        setTimeLeft(30);
+
+        if (
+          newQuestion.index === 0 &&
+          newQuestion.round_number !== currentRoundRef.current
+        ) {
+          setShowQuiz(false); // Trigger countdown
+          currentRoundRef.current = newQuestion.round_number;
+        } else {
+          setShowQuiz(true); // Skip countdown
+        }
       }
       if (msg.type === "round_ended") {
-        // Navigate to results or next question
         console.log("Round ended");
+        // Add navigation to a round results page here
       }
     },
   });
 
-  // Timer countdown
   useEffect(() => {
-    if (timeLeft <= 0) return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft]);
+    if (showQuiz && timeLeft > 0) {
+      const timer = setInterval(() => {
+        setTimeLeft((prev) => Math.max(0, prev - 1));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [showQuiz, timeLeft]);
+
+  const handleCountdownComplete = () => {
+    setShowQuiz(true);
+  };
 
   const handleNextQuestion = async () => {
     const hostToken = localStorage.getItem("hostToken");
@@ -62,8 +79,10 @@ export default function HostQuizView() {
 
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
-      const url = `${apiBaseUrl}/api/v1/games/${encodeURIComponent(gameCode)}/host_next`;
-      
+      const url = `${apiBaseUrl}/api/v1/games/${encodeURIComponent(
+        gameCode
+      )}/host_next`;
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -78,7 +97,6 @@ export default function HostQuizView() {
       }
 
       console.log("Successfully advanced to next question");
-      // WebSocket will handle updating the question
     } catch (err) {
       console.error("Error advancing question:", err);
       alert("Failed to advance to next question. Check console for details.");
@@ -97,66 +115,74 @@ export default function HostQuizView() {
   }
 
   return (
-    <div className="host-quiz-view">
-      {/* Header */}
-      <div className="host-header">
-        <div className="host-title">
-          <h1>Host Control Panel</h1>
-          <span className="game-code">Game Code: {gameCode}</span>
-        </div>
-        <div className="timer-display">
-          <div className="timer-circle">
-            <span className="timer-value">{timeLeft}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Question Display */}
-      <div className="question-section">
-        <div className="question-header">
-          <span className="question-number">
-            Question {(question.index ?? 0) + 1}
-          </span>
-          <span className="round-number">Round {question.round_number ?? 1}</span>
-        </div>
-        <div className="question-text">
-          <h2>{question.text}</h2>
-        </div>
-      </div>
-
-      {/* Options Display */}
-      <div className="options-grid">
-        {(question.options || []).map((option, idx) => (
-          <div key={idx} className={`option-card option-${idx}`}>
-            <div className="option-letter">
-              {String.fromCharCode(65 + idx)}
+    <div>
+      {!showQuiz ? (
+        <CountDown onComplete={handleCountdownComplete} />
+      ) : (
+        <div className="host-quiz-view">
+          {/* Header */}
+          <div className="host-header">
+            <div className="host-title">
+              <h1>Host Control Panel</h1>
+              <span className="game-code">Game Code: {gameCode}</span>
             </div>
-            <div className="option-text">{option}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Players Section */}
-      <div className="players-section">
-        <h3>Active Players ({activePlayers.length})</h3>
-        <div className="players-grid">
-          {activePlayers.map((player) => (
-            <div key={player.name} className="player-card">
-              <div className="player-name">{player.name}</div>
-              <div className="player-status">
-                {player.ready ? "✓ Answered" : "⏳ Thinking..."}
+            <div className="timer-display">
+              <div className="timer-circle">
+                <span className="timer-value">{timeLeft}</span>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Control Buttons */}
-      <div className="host-controls">
-        <button className="btn-next" onClick={handleNextQuestion}>
-          Next Question →
-        </button>
-      </div>
+          {/* Question Display */}
+          <div className="question-section">
+            <div className="question-header">
+              <span className="question-number">
+                Question {(question.index ?? 0) + 1}
+              </span>
+              <span className="round-number">
+                Round {question.round_number ?? 1}
+              </span>
+            </div>
+            <div className="question-text">
+              <h2>{question.text}</h2>
+            </div>
+          </div>
+
+          {/* Options Display */}
+          <div className="options-grid">
+            {(question.options || []).map((option, idx) => (
+              <div key={idx} className={`option-card option-${idx}`}>
+                <div className="option-letter">
+                  {String.fromCharCode(65 + idx)}
+                </div>
+                <div className="option-text">{option}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Players Section */}
+          <div className="players-section">
+            <h3>Active Players ({activePlayers.length})</h3>
+            <div className="players-grid">
+              {activePlayers.map((player) => (
+                <div key={player.name} className="player-card">
+                  <div className="player-name">{player.name}</div>
+                  <div className="player-status">
+                    {player.ready ? "✓ Answered" : "⏳ Thinking..."}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Control Buttons */}
+          <div className="host-controls">
+            <button className="btn-next" onClick={handleNextQuestion}>
+              Next Question →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

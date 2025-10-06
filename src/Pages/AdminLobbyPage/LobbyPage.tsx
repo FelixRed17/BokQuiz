@@ -14,7 +14,6 @@ function LobbyScreen() {
     pollIntervalMs: 3000,
   });
 
-  // Listen for question_started event via WebSocket
   useGameChannel(gameCode, {
     onMessage: (msg) => {
       if (msg.type === "question_started") {
