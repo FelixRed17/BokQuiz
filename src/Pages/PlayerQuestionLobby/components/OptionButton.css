@@ -28,7 +28,7 @@
   font-size: 16px;
   font-weight: 900;
   background: rgba(0,0,0,0.12);
-  color: #111;
+  color: #fff;
 }
 
 .option-text { flex: 1; text-align: left; }
