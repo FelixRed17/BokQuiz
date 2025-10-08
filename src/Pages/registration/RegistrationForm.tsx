@@ -78,14 +78,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         return;
       }
 
+      // Store player credentials in localStorage for API calls
+      localStorage.setItem("playerId", String(response.player_id));
+      localStorage.setItem("reconnectToken", response.reconnect_token);
+      localStorage.setItem("playerName", playerName.trim());
+      localStorage.setItem("gameCode", gameCode.trim());
+      // Clear amHost flag - this is a regular player, not the host
+      localStorage.setItem("amHost", "false");
+
       // Success — call the parent with minimal registration data
       onRegisterSuccess({
         playerName: playerName.trim(),
         gameCode: gameCode.trim(),
       });
-
-      // Optionally you can store player_id or token to localStorage here:
-      // if (response.data?.player_token) localStorage.setItem('playerToken', response.data.player_token);
     } catch (err: any) {
       // if ApiError from lib/errors is thrown, it may contain status & data
       const apiMessage =

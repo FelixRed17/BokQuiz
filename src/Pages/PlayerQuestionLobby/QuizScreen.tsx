@@ -8,21 +8,26 @@ interface QuestionData {
   question: string;
   options: string[];
 }
-interface QuizScreenProps {
+
+export interface QuizScreenProps {
   questionData: QuestionData;
   onNext?: (selected: number | null) => void;
   questionNumber?: number;
+  hasSubmitted?: boolean;
 }
 
 const QuizScreen: React.FC<QuizScreenProps> = ({
   questionData,
   onNext,
   questionNumber = 1,
+  hasSubmitted = false,
 }) => {
   const [selected, setSelected] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(30);
 
+  // Reset selected answer when question changes
   useEffect(() => {
+    setSelected(null); // Clear selection for new question
     setTimeLeft(30);
     const t = setInterval(() => setTimeLeft((p) => (p > 0 ? p - 1 : 0)), 1000);
     return () => clearInterval(t);
@@ -59,8 +64,9 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
           <button
             className="quiz-submit"
             onClick={() => onNext && onNext(selected)}
+            disabled={hasSubmitted || selected === null}
           >
-            Submit
+            {hasSubmitted ? "Submitted ✓" : "Submit"}
           </button>
         </div>
       </div>

@@ -7,6 +7,8 @@ import { PlayerRegistration } from "./Pages/registration/PlayerRegistration";
 import PlayerLobbyPage from "./Pages/PlayerLobbyPage/PlayerLobbyPage";
 import QuizPage from "./Pages/QuizPage/QuizPage";
 import HostQuizView from "./Pages/HostQuizPage/HostQuizView";
+import HostLeaderboardPage from "./Pages/HostLeaderboardPage/HostLeaderboardPage";
+import PlayerRoundResultPage from "./Pages/PlayerRoundResultPage/PlayerRoundResultPage";
 
 function App() {
   return (
@@ -19,6 +21,8 @@ function App() {
         <Route path="/player/lobby/:code" element={<PlayerLobbyPage />} />
         <Route path="/game/:code/question" element={<QuizPage />} />
         <Route path="/game/:code/host" element={<HostQuizView />} />
+        <Route path="/game/:code/leaderboard" element={<HostLeaderboardPage />} />
+        <Route path="/game/:code/round-result" element={<PlayerRoundResultPage />} />
       </Routes>
     </BrowserRouter>
   );

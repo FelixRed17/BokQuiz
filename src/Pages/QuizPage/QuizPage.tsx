@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import CountDown from "../CountDownPage/CountDown";
-import QuizScreen from "../PlayerQuestionLobby/QuizScreen";
+import QuizScreen, { type QuizScreenProps } from "../PlayerQuestionLobby/QuizScreen";
 import { useGameChannel } from "../../hooks/useGameChannel";
-import { fetchQuestion } from "../AdminLobbyPage/services/games.service";
+import { fetchQuestion, submitAnswer } from "../AdminLobbyPage/services/games.service";
 
 type LocationState = { question?: any };
 
@@ -11,6 +11,7 @@ export default function QuizPage() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
   const location = useLocation();
+  const navigate = useNavigate();
   const locState = (location.state || {}) as LocationState;
 
   const [question, setQuestion] = useState<any | null>(
@@ -19,6 +20,7 @@ export default function QuizPage() {
   const [showQuiz, setShowQuiz] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [currentRound, setCurrentRound] = useState(question?.round_number ?? 0);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   // Use the WebSocket hook
   useGameChannel(gameCode, {
@@ -26,6 +28,7 @@ export default function QuizPage() {
       if (msg.type === "question_started") {
         const newQuestion = msg.payload;
         setQuestion(newQuestion);
+        setHasSubmitted(false); // Reset submission state for new question
 
         if (
           newQuestion.index === 0 &&
@@ -37,6 +40,10 @@ export default function QuizPage() {
           setShowQuiz(true);
         }
         setWsConnected(true);
+      }
+      if (msg.type === "round_ended") {
+        console.log("Round ended - navigating to player results");
+        navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
       }
     },
   });
@@ -64,6 +71,42 @@ export default function QuizPage() {
     setShowQuiz(true);
   };
 
+  const handleSubmitAnswer = async (selectedIndex: number | null) => {
+    if (hasSubmitted) {
+      console.log("Already submitted answer for this question");
+      return;
+    }
+
+    if (selectedIndex === null) {
+      console.log("No answer selected");
+      return;
+    }
+
+    const playerId = localStorage.getItem("playerId");
+    const reconnectToken = localStorage.getItem("reconnectToken");
+
+    if (!playerId || !reconnectToken) {
+      console.error("Player credentials not found");
+      return;
+    }
+
+    try {
+      await submitAnswer(
+        gameCode,
+        parseInt(playerId),
+        reconnectToken,
+        selectedIndex
+      );
+      console.log("Answer submitted successfully:", selectedIndex);
+      setHasSubmitted(true);
+    } catch (err: any) {
+      const msg =
+        err?.data?.error?.message ?? err?.message ?? "Failed to submit answer";
+      console.error("Failed to submit answer:", msg);
+      alert(`Failed to submit: ${msg}`);
+    }
+  };
+
   if (!question) {
     return (
       <div className="p-4 text-muted">
@@ -89,9 +132,8 @@ export default function QuizPage() {
         <QuizScreen
           questionData={questionData}
           questionNumber={questionIndex + 1}
-          onNext={(selected) => {
-            console.log("selected:", selected);
-          }}
+          onNext={handleSubmitAnswer}
+          hasSubmitted={hasSubmitted}
         />
       )}
     </div>

@@ -68,3 +68,46 @@ export async function fetchQuestion(gameCode: string): Promise<QuestionResponseD
   const dto = await http<QuestionResponseDTO>(path, { method: "GET" });
   return dto;
 }
+
+/* fetch round result */
+export type RoundResultDTO = {
+  round: number;
+  leaderboard: Array<{
+    name: string;
+    round_score: number;
+  }>;
+  eliminated_names: string[];
+  next_state: string;
+};
+
+export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO> {
+  const path = `/api/v1/games/${encodeURIComponent(gameCode)}/round_result`;
+  const dto = await http<RoundResultDTO>(path, { method: "GET" });
+  return dto;
+}
+
+/* submit answer */
+export type SubmitAnswerDTO = {
+  accepted: boolean;
+};
+
+export async function submitAnswer(
+  gameCode: string,
+  playerId: number,
+  reconnectToken: string,
+  selectedIndex: number
+): Promise<SubmitAnswerDTO> {
+  const path = `/api/v1/games/${encodeURIComponent(gameCode)}/submit`;
+  const dto = await http<SubmitAnswerDTO>(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      player_id: playerId,
+      reconnect_token: reconnectToken,
+      selected_index: selectedIndex,
+    }),
+  });
+  return dto;
+}

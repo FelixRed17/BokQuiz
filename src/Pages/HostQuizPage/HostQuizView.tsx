@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
 import { http } from "../../lib/http";
@@ -17,6 +17,7 @@ export default function HostQuizView() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
   const location = useLocation();
+  const navigate = useNavigate();
 
   const initialQuestion = (location.state as any)?.question || null;
 
@@ -51,8 +52,8 @@ export default function HostQuizView() {
         }
       }
       if (msg.type === "round_ended") {
-        console.log("Round ended");
-        // Add navigation to a round results page here
+        console.log("Round ended - navigating to leaderboard");
+        navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
       }
     },
   });
