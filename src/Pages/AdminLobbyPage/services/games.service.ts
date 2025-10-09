@@ -80,9 +80,11 @@ export type RoundResultDTO = {
   next_state: string;
 };
 
-export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO> {
+export async function fetchRoundResult(gameCode: string, hostToken?: string): Promise<RoundResultDTO> {
   const path = `/api/v1/games/${encodeURIComponent(gameCode)}/round_result`;
-  const dto = await http<RoundResultDTO>(path, { method: "GET" });
+  const headers: HeadersInit = {};
+  if (hostToken) headers["X-Host-Token"] = hostToken;
+  const dto = await http<RoundResultDTO>(path, { method: "GET", headers });
   return dto;
 }
 
