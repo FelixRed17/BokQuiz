@@ -113,3 +113,100 @@ export async function submitAnswer(
   });
   return dto;
 }
+
+/**
+ * Transform ActionCable message payload to GameState
+ * Use this when the server sends a full state object via WebSocket
+ */
+export function transformChannelState(payload: any): GameState | null {
+  if (!payload) return null;
+  
+  try {
+    return {
+      status: payload.status,
+      roundNumber: payload.round_number ?? payload.roundNumber,
+      currentQuestionIndex: payload.current_question_index ?? payload.currentQuestionIndex,
+      timeRemainingMs: payload.time_remaining_ms ?? payload.timeRemainingMs,
+      players: (payload.players || []).map((p: any) => ({
+        name: p.name,
+        eliminated: !!p.eliminated,
+        isHost: !!p.is_host || !!p.isHost,
+        ready: !!p.ready,
+      })),
+      suddenDeathParticipants: payload.sudden_death_participants ?? payload.suddenDeathParticipants ?? [],
+    };
+  } catch (err) {
+    console.error("Failed to transform channel state:", err);
+    return null;
+  }
+}
+
+/**
+ * Optimistically update game state based on event type
+ * This allows for instant UI updates before server confirmation
+ */
+export function applyOptimisticUpdate(
+  currentState: GameState | null,
+  eventType: string,
+  eventPayload?: any
+): GameState | null {
+  if (!currentState) return null;
+
+  const newState = { ...currentState };
+
+  switch (eventType) {
+    case "player_joined":
+      if (eventPayload?.player) {
+        newState.players = [
+          ...newState.players,
+          {
+            name: eventPayload.player.name,
+            eliminated: false,
+            isHost: false,
+            ready: false,
+          },
+        ];
+      }
+      break;
+
+    case "player_ready":
+      if (eventPayload?.playerName) {
+        newState.players = newState.players.map((p) =>
+          p.name === eventPayload.playerName ? { ...p, ready: true } : p
+        );
+      }
+      break;
+
+    case "player_eliminated":
+      if (eventPayload?.playerName) {
+        newState.players = newState.players.map((p) =>
+          p.name === eventPayload.playerName ? { ...p, eliminated: true } : p
+        );
+      }
+      break;
+
+    case "round_started":
+      if (eventPayload?.roundNumber !== undefined) {
+        newState.roundNumber = eventPayload.roundNumber;
+        newState.currentQuestionIndex = 0;
+        newState.status = "active";
+      }
+      break;
+
+    case "question_started":
+      if (eventPayload?.index !== undefined) {
+        newState.currentQuestionIndex = eventPayload.index;
+      }
+      break;
+
+    case "round_ended":
+      newState.status = "round_ended";
+      break;
+
+    default:
+      // No optimistic update for unknown events
+      return currentState;
+  }
+
+  return newState;
+}
