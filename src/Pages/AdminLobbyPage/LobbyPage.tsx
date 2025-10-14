@@ -10,7 +10,7 @@ function LobbyScreen() {
   const gameCode = code ?? "";
   const navigate = useNavigate();
 
-  const { state, isLoading, error, reload } = useGameState(gameCode, {
+  const { state, isLoading, error } = useGameState(gameCode, {
     pollIntervalMs: 3000,
   });
 
