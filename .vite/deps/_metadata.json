@@ -1,43 +1,43 @@
 {
-  "hash": "7f0d7005",
-  "configHash": "9ae57315",
-  "lockfileHash": "0ed39721",
-  "browserHash": "b1d60b86",
+  "hash": "391c51e2",
+  "configHash": "9d9922ff",
+  "lockfileHash": "d936a593",
+  "browserHash": "e9b9009a",
   "optimized": {
     "react/jsx-dev-runtime": {
       "src": "../../node_modules/react/jsx-dev-runtime.js",
       "file": "react_jsx-dev-runtime.js",
-      "fileHash": "78ea6e9e",
+      "fileHash": "84092e38",
       "needsInterop": true
     },
     "react": {
       "src": "../../node_modules/react/index.js",
       "file": "react.js",
-      "fileHash": "4cda5a27",
+      "fileHash": "4fbb6aa6",
       "needsInterop": true
     },
     "react-dom/client": {
       "src": "../../node_modules/react-dom/client.js",
       "file": "react-dom_client.js",
-      "fileHash": "89ef9e60",
+      "fileHash": "4d56b102",
       "needsInterop": true
     },
     "react-router-dom": {
       "src": "../../node_modules/react-router-dom/dist/index.mjs",
       "file": "react-router-dom.js",
-      "fileHash": "dee7a882",
+      "fileHash": "3342fa60",
       "needsInterop": false
     },
     "lottie-react": {
       "src": "../../node_modules/lottie-react/build/index.es.js",
       "file": "lottie-react.js",
-      "fileHash": "2f4ae3d7",
+      "fileHash": "b3404f63",
       "needsInterop": false
     },
     "@rails/actioncable": {
       "src": "../../node_modules/@rails/actioncable/app/assets/javascripts/actioncable.esm.js",
       "file": "@rails_actioncable.js",
-      "fileHash": "c4832751",
+      "fileHash": "a9f18c70",
       "needsInterop": false
     }
   },

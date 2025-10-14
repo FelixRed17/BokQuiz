@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { fetchRoundResult } from "../AdminLobbyPage/services/games.service";
+import {
+  fetchRoundResult,
+  fetchGameState,
+} from "../AdminLobbyPage/services/games.service";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import styles from "./PlayerRoundResultPage.module.css";
 
@@ -46,6 +49,7 @@ export default function PlayerRoundResultPage() {
             next_state: payload.next_state || "between_rounds",
           });
           setIsLoading(false);
+          setError(null);
         }
       }
     },
@@ -60,39 +64,78 @@ export default function PlayerRoundResultPage() {
     setPlayerName(storedName);
   }, []);
 
-  // Immediately poll for round results until WebSocket provides data
-  // Stop polling as soon as data is received or on unmount
+  // POLL: Check game state, then fetch round_result only when state indicates results available
   useEffect(() => {
     if (data) return;
 
     let cancelled = false;
-    let intervalId: any;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const poll = async () => {
+    const pollGameState = async () => {
+      if (!gameCode) return;
       try {
-        const res = await fetchRoundResult(gameCode);
-        if (!cancelled && res && Array.isArray(res.leaderboard)) {
-          setData({
-            round: res.round || 1,
-            leaderboard: res.leaderboard || [],
-            eliminated_names: res.eliminated_names || [],
-            next_state: res.next_state || "between_rounds",
-          });
-          setIsLoading(false);
-          setError(null);
+        const gameState = await fetchGameState(gameCode);
+
+        // If server says results should be available, fetch them once
+        if (
+          gameState?.status === "between_rounds" ||
+          gameState?.status === "round_ended" ||
+          gameState?.status === "results_available"
+        ) {
+          try {
+            const rr = await fetchRoundResult(gameCode);
+            if (!cancelled && rr && Array.isArray(rr.leaderboard)) {
+              setData({
+                round: rr.round || 1,
+                leaderboard: rr.leaderboard || [],
+                eliminated_names: rr.eliminated_names || [],
+                next_state: rr.next_state || "between_rounds",
+              });
+              setIsLoading(false);
+              setError(null);
+              return;
+            }
+          } catch (err: any) {
+            const msg =
+              err?.data?.error?.message ?? err?.message ?? String(err);
+            console.warn("fetchRoundResult failed during state poll:", msg);
+
+            // If 422 / Not between rounds, rely on websocket (polite re-check)
+            if (
+              msg.toLowerCase().includes("not between rounds") ||
+              err?.status === 422
+            ) {
+              if (!cancelled) {
+                timer = setTimeout(pollGameState, 4000);
+              }
+              return;
+            }
+
+            // Other errors: retry with backoff
+            if (!cancelled) {
+              timer = setTimeout(pollGameState, 5000);
+            }
+            return;
+          }
+        } else {
+          // Not ready yet — poll again politely
+          if (!cancelled) {
+            timer = setTimeout(pollGameState, 3000);
+          }
         }
-      } catch {
-        // ignore transient errors during polling
+      } catch (err) {
+        console.warn("fetchGameState failed during polling:", err);
+        if (!cancelled) {
+          timer = setTimeout(pollGameState, 5000);
+        }
       }
     };
 
-    // Start immediately, then every 2s until data arrives
-    poll();
-    intervalId = setInterval(poll, 2000);
+    pollGameState();
 
     return () => {
       cancelled = true;
-      if (intervalId) clearInterval(intervalId);
+      if (timer) clearTimeout(timer);
     };
   }, [gameCode, data]);
 
@@ -228,4 +271,3 @@ export default function PlayerRoundResultPage() {
     </div>
   );
 }
-

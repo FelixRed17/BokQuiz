@@ -7,7 +7,7 @@ import * as gamesService from "../services/games.service";
 
 type UseGameStateOptions = {
   /** Fallback polling interval when WebSocket is disconnected (ms) */
-  pollIntervalMs?: number;
+  pollIntervalMs?: number | null;
   /** Enable real-time updates via ActionCable */
   enableRealtime?: boolean;
   /** Manual mode: don't auto-fetch, only update via channel or manual reload */
@@ -31,16 +31,16 @@ export function useGameState(
 
   const abortRef = useRef<AbortController | null>(null);
   const mounted = useRef(true);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch game state from API
   const load = useCallback(
     async (signal?: AbortSignal) => {
       if (!gameCode) return;
-      
+
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const newState = await gamesService.fetchGameState(gameCode);
         if (!mounted.current || signal?.aborted) return;
@@ -58,8 +58,8 @@ export function useGameState(
 
   // Start/stop polling based on connection state
   const startPolling = useCallback(() => {
+    if (!pollIntervalMs) return; // disabled
     if (pollIntervalRef.current) return;
-    
     pollIntervalRef.current = setInterval(() => {
       load();
     }, pollIntervalMs);
@@ -72,20 +72,26 @@ export function useGameState(
     }
   }, []);
 
-  // Setup ActionCable subscription for real-time updates
+  /**
+   * Centralized real-time handling:
+   * - On certain socket messages we either apply updates or refetch.
+   * - In particular, when we receive a 'round_result' broadcast, we stop polling
+   *   (so fallback doesn't race) and perform a single strong refresh via `load()`.
+   */
   useGameChannel(
     enableRealtime ? gameCode : undefined,
     {
       onConnected: () => {
         setIsConnected(true);
-        stopPolling(); // Stop polling when connected to WebSocket
-        
+        // Stop fallback polling when we have a live connection
+        stopPolling();
+
         // Fetch latest state on connection
         load();
       },
       onDisconnected: () => {
         setIsConnected(false);
-        
+
         // Start polling as fallback when WebSocket disconnects
         if (!manualMode) {
           startPolling();
@@ -95,36 +101,52 @@ export function useGameState(
         // Handle different message types from the server
         switch (msg.type) {
           case "game_state_update":
-            // Full state update
+            // Full state update from channel (server may send canonical state)
             if (msg.payload) {
-              setState(msg.payload);
+              try {
+                // If payload is already normalized, use directly;
+                // otherwise attempt transform helper if available.
+                setState((prev) => {
+                  return msg.payload;
+                });
+              } catch (e) {
+                console.debug("Received game_state_update but failed to set state:", e);
+              }
             }
             break;
-          
+
           case "game_state_changed":
-            // Server signals state changed, fetch the latest
+            // Server signals state changed — fetch the latest canonical state
             load();
             break;
-          
+
           case "player_joined":
           case "player_ready":
           case "player_eliminated":
           case "round_started":
           case "question_started":
           case "round_ended":
-            // Any event that affects game state - refetch
+            // These events likely imply the state mutated; fetch latest state
             load();
             break;
-          
+
+          case "round_result":
+            // Important: stop fallback polling (avoid race) and perform one strong refresh.
+            // The server broadcast should be treated as the source of truth; fetch once
+            // to ensure our local state and derived UI pieces are consistent.
+            stopPolling();
+            load();
+            break;
+
           default:
             // Unknown message type, optionally log or ignore
-            console.debug("Unknown message type:", msg.type);
+            console.debug("Unknown message type in useGameState:", msg.type);
         }
       },
       onError: (err) => {
         console.error("GameChannel error:", err);
         setError(err.message);
-        
+
         // Start polling on error
         if (!manualMode) {
           startPolling();

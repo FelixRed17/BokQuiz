@@ -35,7 +35,7 @@ export default function HostLeaderboardPage() {
         });
       }
       if (msg.type === "round_result") {
-        // Update data if received via WebSocket (shouldn't happen for host, but handle it)
+        // Update data if received via WebSocket
         console.log("Host received round_result broadcast:", msg.payload);
         const payload = msg.payload;
         if (payload && payload.leaderboard) {
@@ -46,51 +46,71 @@ export default function HostLeaderboardPage() {
             next_state: payload.next_state || "between_rounds",
           });
           setIsLoading(false);
+          setError(null);
         }
       }
     },
   });
 
   useEffect(() => {
-    const loadRoundResult = async () => {
-      let attempts = 0;
-      const maxAttempts = 10;
-      const delayMs = 1000;
+    // New behavior: try one immediate fetch, then rely on websocket.
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-      while (attempts < maxAttempts) {
-        try {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-          const hostToken = localStorage.getItem("hostToken") || undefined;
-          const result = await fetchRoundResult(gameCode, hostToken);
+    const tryFetchOnce = async () => {
+      if (!gameCode) return;
+      try {
+        const hostToken = localStorage.getItem("hostToken") || undefined;
+        const result = await fetchRoundResult(gameCode, hostToken);
 
-          const normalized = {
-            round: result?.round || 1,
-            leaderboard: Array.isArray(result?.leaderboard) ? result.leaderboard : [],
-            eliminated_names: Array.isArray(result?.eliminated_names) ? result.eliminated_names : [],
-            next_state: result?.next_state || "between_rounds",
-          };
+        const normalized = {
+          round: result?.round || 1,
+          leaderboard: Array.isArray(result?.leaderboard)
+            ? result.leaderboard
+            : [],
+          eliminated_names: Array.isArray(result?.eliminated_names)
+            ? result.eliminated_names
+            : [],
+          next_state: result?.next_state || "between_rounds",
+        };
 
-          if (!Array.isArray(normalized.leaderboard)) {
-            attempts++;
-            continue;
-          }
-
+        if (!cancelled) {
           setData(normalized);
           setIsLoading(false);
-          return;
-        } catch (err: any) {
-          attempts++;
-          const msg = err?.data?.error?.message ?? err?.message ?? "Failed to load results";
-          console.error(`Attempt ${attempts} failed:`, msg);
-          if (attempts >= maxAttempts) {
-            setError(msg);
-            setIsLoading(false);
+          setError(null);
+        }
+      } catch (err: any) {
+        const msg = err?.data?.error?.message ?? err?.message ?? String(err);
+        console.warn("Round result fetch failed:", msg);
+
+        // If server says not between rounds, don't hammer it — wait for websocket or polite retry
+        if (
+          msg.toLowerCase().includes("not between rounds") ||
+          err?.status === 422
+        ) {
+          if (!cancelled) {
+            // polite re-check once after 5s in case broadcast was missed
+            retryTimer = setTimeout(() => {
+              if (!cancelled) tryFetchOnce();
+            }, 5000);
           }
+          return;
+        }
+
+        // For other errors, surface to UI
+        if (!cancelled) {
+          setError(msg);
+          setIsLoading(false);
         }
       }
     };
 
-    loadRoundResult();
+    tryFetchOnce();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [gameCode]);
 
   const handleNextRound = async () => {
@@ -111,7 +131,9 @@ export default function HostLeaderboardPage() {
       // Navigation will happen via WebSocket message
     } catch (err: any) {
       const msg =
-        err?.data?.error?.message ?? err?.message ?? "Failed to start next round";
+        err?.data?.error?.message ??
+        err?.message ??
+        "Failed to start next round";
       console.error(`Failed to proceed: ${msg}`);
     }
   };
@@ -170,11 +192,15 @@ export default function HostLeaderboardPage() {
         {/* Leaderboard Table */}
         <div className={styles.tableBody}>
           {(data?.leaderboard ?? []).map((entry, index) => {
-            const isEliminated = (data?.eliminated_names ?? []).includes(entry.name);
+            const isEliminated = (data?.eliminated_names ?? []).includes(
+              entry.name
+            );
             return (
               <div
                 key={index}
-                className={`${styles.tableRow} ${isEliminated ? styles.eliminated : ""}`}
+                className={`${styles.tableRow} ${
+                  isEliminated ? styles.eliminated : ""
+                }`}
               >
                 <span className={styles.dataPlace}>{index + 1}</span>
                 <span className={styles.dataName}>
@@ -192,7 +218,8 @@ export default function HostLeaderboardPage() {
         {/* Next State Info */}
         {data.next_state === "sudden_death" && (
           <div className={styles.suddenDeathAlert}>
-            <strong>⚡ Sudden Death!</strong> Multiple players tied - sudden death round next
+            <strong>⚡ Sudden Death!</strong> Multiple players tied - sudden
+            death round next
           </div>
         )}
 
@@ -214,4 +241,3 @@ export default function HostLeaderboardPage() {
     </div>
   );
 }
-
