@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import CountDown from "../CountDownPage/CountDown";
-import QuizScreen, { type QuizScreenProps } from "../PlayerQuestionLobby/QuizScreen";
+import QuizScreen from "../PlayerQuestionLobby/QuizScreen";
 import { useGameChannel } from "../../hooks/useGameChannel";
-import { fetchQuestion, submitAnswer } from "../AdminLobbyPage/services/games.service";
+import {
+  fetchQuestion,
+  submitAnswer,
+} from "../AdminLobbyPage/services/games.service";
 
 type LocationState = { question?: any };
 

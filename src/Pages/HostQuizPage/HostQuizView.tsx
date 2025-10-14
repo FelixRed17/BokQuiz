@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
-import { http } from "../../lib/http";
 import CountDown from "../CountDownPage/CountDown"; // Import the CountDown component
 import "./HostQuizView.css";
 
