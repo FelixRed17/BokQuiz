@@ -106,7 +106,7 @@ export function useGameState(
               try {
                 // If payload is already normalized, use directly;
                 // otherwise attempt transform helper if available.
-                setState((prev) => {
+                setState(() => {
                   return msg.payload;
                 });
               } catch (e) {
