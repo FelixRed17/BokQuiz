@@ -214,33 +214,51 @@ module Api
         return render json: { error: { code: "bad_state", message: "Not between rounds" } }, status: 422 unless @game.between_rounds?
 
         round = @game.round_number
-        qs    = questions_for_round(round)
+        rr = nil
 
-        players = @game.players.where(is_host: false)
-        active  = players.where(eliminated: false)
-
-        # Compute round-only scores (points) and tie-break by total latency_ms
-        round_stats = active.map do |p|
-          rel = Submission.where(game: @game, player: p, question: qs)
-          score = rel.where(correct: true).joins(:question).sum("questions.points")
-          latency_sum = rel.where(correct: true).sum(:latency_ms)
-          { player: p, name: p.name, round_score: score, latency_sum: latency_sum }
-        end
-
-        # Determine lowest by score, tie-break by latency (higher latency worse)
-        min_score = round_stats.map { |s| s[:round_score] }.min
-        lowest = round_stats.select { |s| s[:round_score] == min_score }
-        if lowest.size > 1
-          max_latency = lowest.map { |s| s[:latency_sum] }.max
-          lowest = lowest.select { |s| s[:latency_sum] == max_latency }
-        end
-
-        eliminated_names = []
-        next_state = :between_rounds
         ActiveRecord::Base.transaction do
+          @game.lock!
+
+          # Idempotency: if already processed, return persisted result (no re-broadcast)
+          if (existing = RoundResult.find_by(game_id: @game.id, round_number: round))
+            payload = existing.payload.deep_symbolize_keys
+            return ok({
+              round: payload[:round] || round,
+              leaderboard: payload[:leaderboard] || [],
+              eliminated_names: payload[:eliminated_names] || [],
+              next_state: payload[:next_state] || @game.status
+            })
+          end
+
+          qs = questions_for_round(round)
+
+          players = @game.players.where(is_host: false)
+          active  = players.where(eliminated: false)
+
+          # Compute round-only scores (points) and tie-break by total latency_ms
+          round_stats = active.map do |p|
+            rel = Submission.where(game: @game, player: p, question: qs)
+            score = rel.where(correct: true).joins(:question).sum("questions.points")
+            latency_sum = rel.where(correct: true).sum(:latency_ms)
+            { player: p, name: p.name, round_score: score, latency_sum: latency_sum }
+          end
+
+          # Determine lowest by score, tie-break by latency (higher latency worse)
+          min_score = round_stats.map { |s| s[:round_score] }.min
+          lowest = round_stats.select { |s| s[:round_score] == min_score }
+          if lowest.size > 1
+            max_latency = lowest.map { |s| s[:latency_sum] }.max
+            lowest = lowest.select { |s| s[:latency_sum] == max_latency }
+          end
+
+          eliminated_names = []
+          next_state = :between_rounds
+
           if lowest.size == 1
             loser = lowest.first[:player]
-            loser.update!(eliminated: true)
+            unless loser.eliminated?
+              loser.update!(eliminated: true)
+            end
             eliminated_names = [ loser.name ]
           else
             # still tied after latency tie-break → sudden death
@@ -253,15 +271,33 @@ module Api
           remaining = players.where(eliminated: false).count
           next_state = :finished if remaining <= 1
 
-          @game.update!(status: next_state)
+          # persist canonical state update on game
+          @game.update!(status: next_state, last_processed_round: round)
+
+          # Build leaderboard
+          leaderboard = round_stats.sort_by { |s| [ -s[:round_score], s[:latency_sum] ] }
+                                   .map { |s| { name: s[:name], round_score: s[:round_score] } }
+
+          payload = {
+            round: round,
+            leaderboard: leaderboard,
+            eliminated_names: eliminated_names,
+            next_state: next_state
+          }
+
+          rr = RoundResult.create!(game: @game, round_number: round, payload: payload)
         end
 
-        leaderboard = round_stats.sort_by { |s| [ -s[:round_score], s[:latency_sum] ] }
-                                  .map { |s| { name: s[:name], round_score: s[:round_score] } }
+        # Broadcast single final result (only once) after commit
+        final_payload = rr.payload.merge(final: true, result_id: rr.id)
+        broadcast(:round_result, final_payload)
 
-        broadcast(:round_result, { round: round, leaderboard: leaderboard, eliminated_names: eliminated_names, next_state: next_state })
-
-        ok({ round: round, leaderboard: leaderboard, eliminated_names: eliminated_names, next_state: next_state })
+        ok({
+          round: rr.payload[:round],
+          leaderboard: rr.payload[:leaderboard],
+          eliminated_names: rr.payload[:eliminated_names],
+          next_state: rr.payload[:next_state]
+        })
       end
 
       # POST /api/v1/games/:code/host_finish
@@ -391,9 +427,9 @@ module Api
 
       def broadcast(type, payload)
         # Don't broadcast at all in development - ActionCable not needed for API-only mode
-      
+
         return unless ActionCable.server.present?
-      
+
         # Safely broadcast without crashing on errors
         ActionCable.server.broadcast("game:#{@game.id}", { type: type.to_s, payload: payload })
       rescue ArgumentError => e

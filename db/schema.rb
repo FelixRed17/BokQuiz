@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_04_222642) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_14_093132) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -24,9 +24,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_04_222642) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "sudden_death_player_ids", default: [], null: false
+    t.integer "last_processed_round", default: 0, null: false
     t.index ["code"], name: "index_games_on_code", unique: true
     t.index ["host_token"], name: "index_games_on_host_token", unique: true
     t.index ["id"], name: "index_games_on_id", unique: true
+    t.index ["last_processed_round"], name: "index_games_on_last_processed_round"
   end
 
   create_table "players", force: :cascade do |t|
@@ -60,6 +62,16 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_04_222642) do
     t.index ["round_number"], name: "index_questions_on_round_number"
   end
 
+  create_table "round_results", force: :cascade do |t|
+    t.bigint "game_id", null: false
+    t.integer "round_number", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_id", "round_number"], name: "index_round_results_on_game_and_round", unique: true
+    t.index ["game_id"], name: "index_round_results_on_game_id"
+  end
+
   create_table "solid_cable_messages", force: :cascade do |t|
     t.binary "channel", null: false
     t.binary "payload", null: false
@@ -68,6 +80,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_04_222642) do
     t.index ["channel"], name: "index_solid_cable_messages_on_channel"
     t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
     t.index ["created_at"], name: "index_solid_cable_messages_on_created_at"
+    t.index ["id"], name: "index_solid_cable_messages_on_id", unique: true
   end
 
   create_table "submissions", force: :cascade do |t|
@@ -88,6 +101,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_04_222642) do
   end
 
   add_foreign_key "players", "games"
+  add_foreign_key "round_results", "games"
   add_foreign_key "submissions", "games"
   add_foreign_key "submissions", "players"
   add_foreign_key "submissions", "questions"
