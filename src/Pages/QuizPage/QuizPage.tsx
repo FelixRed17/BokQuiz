@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import CountDown from "../CountDownPage/CountDown";
-import QuizScreen, { type QuizScreenProps } from "../PlayerQuestionLobby/QuizScreen";
+import QuizScreen from "../PlayerQuestionLobby/QuizScreen";
 import { useGameChannel } from "../../hooks/useGameChannel";
-import { fetchQuestion, submitAnswer } from "../AdminLobbyPage/services/games.service";
+import {
+  fetchQuestion,
+  submitAnswer,
+} from "../AdminLobbyPage/services/games.service";
 
 type LocationState = { question?: any };
 
@@ -82,8 +85,8 @@ export default function QuizPage() {
       return;
     }
 
-    const playerId = localStorage.getItem("playerId");
-    const reconnectToken = localStorage.getItem("reconnectToken");
+    const playerId = sessionStorage.getItem("playerId");
+    const reconnectToken = sessionStorage.getItem("reconnectToken");
 
     if (!playerId || !reconnectToken) {
       console.error("Player credentials not found");

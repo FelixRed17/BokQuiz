@@ -51,24 +51,50 @@ export default function PlayerRoundResultPage() {
     },
   });
 
+  // Load player identity from storage (prefer sessionStorage, fallback to localStorage)
   useEffect(() => {
-    // Get player name from localStorage
-    const storedName = localStorage.getItem("playerName") ?? "";
+    const storedName =
+      sessionStorage.getItem("playerName") ??
+      localStorage.getItem("playerName") ??
+      "";
     setPlayerName(storedName);
+  }, []);
 
-    // Players should ONLY wait for the round_result WebSocket broadcast
-    // The host will trigger the API call which broadcasts to all players
-    // Set a timeout to show error if broadcast doesn't arrive
-    const timeoutTimer = setTimeout(() => {
-      if (!data && isLoading) {
-        console.error("Round result broadcast not received after 10 seconds");
-        setError("Waiting for host to load results...");
-        // Don't stop loading - keep waiting for the broadcast
+  // Immediately poll for round results until WebSocket provides data
+  // Stop polling as soon as data is received or on unmount
+  useEffect(() => {
+    if (data) return;
+
+    let cancelled = false;
+    let intervalId: any;
+
+    const poll = async () => {
+      try {
+        const res = await fetchRoundResult(gameCode);
+        if (!cancelled && res && Array.isArray(res.leaderboard)) {
+          setData({
+            round: res.round || 1,
+            leaderboard: res.leaderboard || [],
+            eliminated_names: res.eliminated_names || [],
+            next_state: res.next_state || "between_rounds",
+          });
+          setIsLoading(false);
+          setError(null);
+        }
+      } catch {
+        // ignore transient errors during polling
       }
-    }, 10000); // Show message after 10 seconds
+    };
 
-    return () => clearTimeout(timeoutTimer);
-  }, [gameCode, data, isLoading]);
+    // Start immediately, then every 2s until data arrives
+    poll();
+    intervalId = setInterval(poll, 2000);
+
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [gameCode, data]);
 
   if (isLoading) {
     return (

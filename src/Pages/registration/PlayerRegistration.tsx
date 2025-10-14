@@ -9,7 +9,6 @@ export interface PlayerRegistrationProps {
 
 export function PlayerRegistration({
   onRegisterComplete,
-  onNavigateBack,
 }: PlayerRegistrationProps) {
   const navigate = useNavigate();
 
