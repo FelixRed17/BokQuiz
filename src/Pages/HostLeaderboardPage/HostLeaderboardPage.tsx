@@ -54,31 +54,38 @@ export default function HostLeaderboardPage() {
   useEffect(() => {
     const loadRoundResult = async () => {
       let attempts = 0;
-      const maxAttempts = 5;
+      const maxAttempts = 10;
       const delayMs = 1000;
 
       while (attempts < maxAttempts) {
         try {
-          // Wait before attempting (gives backend time to transition state)
           await new Promise(resolve => setTimeout(resolve, delayMs));
-          
-          console.log(`Attempting to fetch round result (attempt ${attempts + 1}/${maxAttempts})`);
-          const result = await fetchRoundResult(gameCode);
-          setData(result);
+          const hostToken = localStorage.getItem("hostToken") || undefined;
+          const result = await fetchRoundResult(gameCode, hostToken);
+
+          const normalized = {
+            round: result?.round || 1,
+            leaderboard: Array.isArray(result?.leaderboard) ? result.leaderboard : [],
+            eliminated_names: Array.isArray(result?.eliminated_names) ? result.eliminated_names : [],
+            next_state: result?.next_state || "between_rounds",
+          };
+
+          if (!Array.isArray(normalized.leaderboard)) {
+            attempts++;
+            continue;
+          }
+
+          setData(normalized);
           setIsLoading(false);
-          console.log("Successfully loaded round result:", result);
-          return; // Success, exit
+          return;
         } catch (err: any) {
           attempts++;
           const msg = err?.data?.error?.message ?? err?.message ?? "Failed to load results";
           console.error(`Attempt ${attempts} failed:`, msg);
-          
           if (attempts >= maxAttempts) {
-            // All attempts failed
             setError(msg);
             setIsLoading(false);
           }
-          // Otherwise, loop will retry
         }
       }
     };
@@ -162,14 +169,12 @@ export default function HostLeaderboardPage() {
 
         {/* Leaderboard Table */}
         <div className={styles.tableBody}>
-          {data.leaderboard.map((entry, index) => {
-            const isEliminated = data.eliminated_names.includes(entry.name);
+          {(data?.leaderboard ?? []).map((entry, index) => {
+            const isEliminated = (data?.eliminated_names ?? []).includes(entry.name);
             return (
               <div
                 key={index}
-                className={`${styles.tableRow} ${
-                  isEliminated ? styles.eliminated : ""
-                }`}
+                className={`${styles.tableRow} ${isEliminated ? styles.eliminated : ""}`}
               >
                 <span className={styles.dataPlace}>{index + 1}</span>
                 <span className={styles.dataName}>

@@ -82,8 +82,8 @@ export default function QuizPage() {
       return;
     }
 
-    const playerId = localStorage.getItem("playerId");
-    const reconnectToken = localStorage.getItem("reconnectToken");
+    const playerId = sessionStorage.getItem("playerId");
+    const reconnectToken = sessionStorage.getItem("reconnectToken");
 
     if (!playerId || !reconnectToken) {
       console.error("Player credentials not found");
