@@ -34,20 +34,59 @@ export default function HostLeaderboardPage() {
           state: { question: msg.payload },
         });
       }
+      // inside useGameChannel callback
       if (msg.type === "round_result") {
-        // Update data if received via WebSocket
-        console.log("Host received round_result broadcast:", msg.payload);
-        const payload = msg.payload;
-        if (payload && payload.leaderboard) {
-          setData({
-            round: payload.round || 1,
-            leaderboard: payload.leaderboard || [],
-            eliminated_names: payload.eliminated_names || [],
-            next_state: payload.next_state || "between_rounds",
-          });
-          setIsLoading(false);
-          setError(null);
-        }
+        console.log("Host received round_result broadcast (raw):", msg.payload);
+
+        // Best practice: treat WS as a signal and re-fetch canonical result.
+        // This ensures we display exactly what was persisted to RoundResult.
+        (async () => {
+          try {
+            const hostToken = localStorage.getItem("hostToken") || undefined;
+            // small cache-bust to avoid stale caches
+            const res = await fetch(
+              `/api/v1/games/${encodeURIComponent(
+                gameCode
+              )}/round_result?t=${Date.now()}`,
+              {
+                method: "GET",
+                headers: {
+                  Accept: "application/json",
+                  ...(hostToken ? { "X-Host-Token": hostToken } : {}),
+                  "Cache-Control": "no-cache",
+                },
+              }
+            );
+
+            const dto = await res.json();
+            console.log("Canonical round_result fetched after broadcast:", dto);
+
+            // Normalize tolerant to both keys
+            const roundValue = dto.round ?? dto.round_number ?? 1;
+            const leaderboard = Array.isArray(dto.leaderboard)
+              ? dto.leaderboard
+              : [];
+            const eliminated_names = Array.isArray(dto.eliminated_names)
+              ? dto.eliminated_names
+              : [];
+            const next_state =
+              dto.next_state ?? dto.nextState ?? "between_rounds";
+
+            setData({
+              round: roundValue,
+              leaderboard,
+              eliminated_names,
+              next_state,
+            });
+            setIsLoading(false);
+            setError(null);
+          } catch (e) {
+            console.error(
+              "Failed to fetch canonical round_result after broadcast:",
+              e
+            );
+          }
+        })();
       }
     },
   });
