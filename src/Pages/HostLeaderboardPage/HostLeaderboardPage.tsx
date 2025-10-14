@@ -99,8 +99,7 @@ export default function HostLeaderboardPage() {
     const tryFetchOnce = async () => {
       if (!gameCode) return;
       try {
-        const hostToken = localStorage.getItem("hostToken") || undefined;
-        const result = await fetchRoundResult(gameCode, hostToken);
+        const result = await fetchRoundResult(gameCode);
 
         const normalized = {
           round: result?.round || 1,
