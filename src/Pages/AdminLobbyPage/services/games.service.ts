@@ -83,8 +83,9 @@ export type RoundResultDTO = {
 export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO> {
   const ts = Date.now();
   const path = `/api/v1/games/${encodeURIComponent(gameCode)}/round_result?ts=${ts}`;
-  const dto = await http<RoundResultDTO>(path, { method: "GET", cache: "no-store" });
-  return dto;
+  // ensure no-store; http() will attach API_BASE_URL
+  const dto = await http<{ data: RoundResultDTO }>(path, { method: "GET", cache: "no-store" });
+  return dto.data;
 }
 
 /* submit answer */
