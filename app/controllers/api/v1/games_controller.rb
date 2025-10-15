@@ -228,7 +228,8 @@ module Api
               round_number: round,
               leaderboard: payload[:leaderboard] || [],
               eliminated_names: payload[:eliminated_names] || [],
-              next_state: (payload[:next_state] || @game.status).to_s
+              next_state: (payload[:next_state] || @game.status).to_s,
+              sudden_death_players: payload[:sudden_death_players] || []
             }
             # Return from inside transaction (transaction will commit/rollback as usual)
             return ok(normalized_payload)
@@ -255,7 +256,8 @@ module Api
               round_number: round,
               leaderboard: [],
               eliminated_names: [],
-              next_state: @game.status.to_s
+              next_state: @game.status.to_s,
+              sudden_death_players: []
             }
             rr = RoundResult.create!(game: @game, round_number: round, payload: payload)
             return ok(payload)
@@ -269,6 +271,7 @@ module Api
 
           eliminated_names = []
           next_state = :between_rounds
+          sd_player_names = []
 
           if lowest.size == 1
             loser = lowest.first[:player]
@@ -281,6 +284,9 @@ module Api
             next_state = :sudden_death
             sd_ids = lowest.map { |s| s[:player].id }
             @game.update!(sudden_death_player_ids: sd_ids, current_question_index: 0, question_end_at: nil, sudden_death_attempts: 0, sudden_death_started_at: Time.current)
+
+            # gather names for RoundResult payload so frontend can show participants
+            sd_player_names = @game.players.where(id: sd_ids).order(:created_at).pluck(:name)
           end
 
           # If only one active non-host remains, finish game
@@ -299,7 +305,8 @@ module Api
             round_number: round,
             leaderboard: leaderboard,
             eliminated_names: eliminated_names,
-            next_state: next_state.to_s
+            next_state: next_state.to_s,
+            sudden_death_players: sd_player_names
           }
 
           rr = RoundResult.create!(game: @game, round_number: round, payload: payload)
@@ -310,7 +317,8 @@ module Api
             round_number: rr.payload["round_number"],
             leaderboard: rr.payload["leaderboard"],
             eliminated_names: rr.payload["eliminated_names"],
-            next_state: rr.payload["next_state"]
+            next_state: rr.payload["next_state"],
+            sudden_death_players: rr.payload["sudden_death_players"] || []
           })
         end
       end
@@ -519,3 +527,4 @@ module Api
     end
   end
 end
+
