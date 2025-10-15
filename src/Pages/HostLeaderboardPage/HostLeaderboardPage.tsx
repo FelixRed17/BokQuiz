@@ -53,44 +53,107 @@ export default function HostLeaderboardPage() {
           state: { question: msg.payload },
         });
       }
+      // Insert/replace your round_result handler with this
 
       if (msg.type === "round_result") {
-        // Treat WS as a signal and fetch canonical result (defensive)
-        console.log(
-          "Host received round_result broadcast (signal):",
-          msg.payload
-        );
+        console.log("Received round_result broadcast:", msg.payload);
+
+        const payload = msg.payload ?? {};
+
+        // If payload already contains a full leaderboard, use it immediately.
+        if (
+          Array.isArray(payload.leaderboard) &&
+          payload.leaderboard.length > 0
+        ) {
+          const normalized = {
+            round: payload.round ?? payload.round_number ?? 1,
+            leaderboard: payload.leaderboard,
+            eliminated_names: payload.eliminated_names ?? [],
+            next_state:
+              payload.next_state ?? payload.nextState ?? "between_rounds",
+            sudden_death_players:
+              payload.sudden_death_players ??
+              payload.sudden_death_participants ??
+              [],
+          };
+          setData(normalized);
+          setIsLoading(false);
+          setError(null);
+          return;
+        }
+
+        // If server explicitly marked final, do a single fetch (should succeed)
+        if (payload.final || payload.result_id) {
+          (async () => {
+            try {
+              const rr = await fetchRoundResult(gameCode);
+              setData({
+                round: rr.round ?? rr.round_number ?? 1,
+                leaderboard: rr.leaderboard ?? [],
+                eliminated_names: rr.eliminated_names ?? [],
+                next_state: rr.next_state ?? "between_rounds",
+                sudden_death_players: (rr as any).sudden_death_players ?? [],
+              });
+              setIsLoading(false);
+              setError(null);
+            } catch (e) {
+              console.warn(
+                "fetchRoundResult failed even though payload was final:",
+                e
+              );
+            }
+          })();
+          return;
+        }
+
+        // Otherwise: payload appears to be a *signal* (no full data). Poll canonical endpoint with polite retries.
         (async () => {
-          try {
-            setIsProcessing(true);
-            const rr = await fetchRoundResult(gameCode);
-            const normalized = normalizeRoundResult(rr);
-            setData(normalized);
-            setIsLoading(false);
-            setError(null);
-          } catch (e) {
-            console.error(
-              "Failed to fetch canonical round_result after WS broadcast:",
-              e
-            );
-            // fall back to using the payload if it's good
-            const payload = msg.payload ?? {};
-            if (payload && Array.isArray(payload.leaderboard)) {
-              try {
-                const normalized = normalizeRoundResult(payload);
-                setData(normalized);
-                setIsLoading(false);
-                setError(null);
-              } catch (err) {
-                console.warn(
-                  "Failed to normalize WS payload as fallback:",
-                  err
+          const maxAttempts = 5;
+          let attempt = 0;
+          let delayMs = 300; // start small (server might be committing)
+          while (attempt < maxAttempts) {
+            attempt += 1;
+            try {
+              const rr = await fetchRoundResult(gameCode);
+              setData({
+                round: rr.round ?? rr.round_number ?? 1,
+                leaderboard: rr.leaderboard ?? [],
+                eliminated_names: rr.eliminated_names ?? [],
+                next_state: rr.next_state ?? "between_rounds",
+                sudden_death_players: (rr as any).sudden_death_players ?? [],
+              });
+              setIsLoading(false);
+              setError(null);
+              return;
+            } catch (err: any) {
+              const msg =
+                err?.data?.error?.message ?? err?.message ?? String(err);
+              // If server responds 'Not between rounds' / 422, wait and retry.
+              if (
+                msg.toLowerCase().includes("not between rounds") ||
+                err?.status === 422
+              ) {
+                console.debug(
+                  `round_result not ready (attempt ${attempt}). Will retry in ${delayMs}ms.`
                 );
+                await new Promise((res) => setTimeout(res, delayMs));
+                delayMs = Math.min(2000, Math.round(delayMs * 1.8)); // exponential backoff cap 2s
+                continue;
+              } else {
+                // non-422: surface error and stop retrying
+                console.warn("fetchRoundResult failed:", err);
+                if (!data) {
+                  // only set error if we don't already have results
+                  setError(msg);
+                  setIsLoading(false);
+                }
+                return;
               }
             }
-          } finally {
-            setIsProcessing(false);
           }
+          console.warn(
+            "round_result canonical not available after retries; will wait for next broadcast."
+          );
         })();
       }
     },
