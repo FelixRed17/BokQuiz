@@ -1,8 +1,9 @@
+# app/controllers/api/v1/games_controller.rb
 module Api
   module V1
     class GamesController < ApplicationController
       before_action :find_game, except: :create
-      before_action :require_host!, only: [:host_start, :host_next, :host_finish]
+      before_action :require_host!, only: [ :host_start, :host_next, :host_finish ]
 
       # POST /api/v1/games
       def create
@@ -13,13 +14,11 @@ module Api
       end
 
       # GET /api/v1/games/:code/state
+      # Safe public state (no answers/scores mid-round)
       def state
-        players = @game.players.order(:created_at).map do |p|
-          { name: p.name, eliminated: p.eliminated, is_host: p.is_host, ready: (p.respond_to?(:ready) ? p.ready : false) }
-        end
-
+        players = @game.players.order(:created_at).map { |p| { name: p.name, eliminated: p.eliminated, is_host: p.is_host, ready: (p.respond_to?(:ready) ? p.ready : false) } }
         time_remaining_ms = if @game.question_end_at
-          [(@game.question_end_at - Time.current) * 1000, 0].max.to_i
+          [ (@game.question_end_at - Time.current) * 1000, 0 ].max.to_i
         else
           0
         end
@@ -44,7 +43,7 @@ module Api
       # POST /api/v1/games/:code/join
       def join
         name = params.require(:name).to_s.strip
-
+        # Validation checks
         if @game.players.where(is_host: false).count >= 4
           return render json: { error: { code: "full", message: "Game is full" } }, status: 422
         end
@@ -57,10 +56,13 @@ module Api
           return render json: { error: { code: "bad_state", message: "Join only in lobby" } }, status: 422
         end
 
+        # Create the player (auto-ready by default for non-hosts)
         player = @game.players.create!(name: name, is_host: false, ready: true)
 
+        # Broadcast player joined event
         broadcast(:player_joined, { name: player.name })
 
+        # If all non-host players are present and ready, inform host UI (parity with previous /ready)
         non_hosts = @game.players.where(is_host: false)
         all_ready = non_hosts.exists? && non_hosts.where(ready: true).count == non_hosts.count
         broadcast(:all_ready, {}) if all_ready
@@ -98,6 +100,7 @@ module Api
         player.update!(ready: ready_val) if player.respond_to?(:ready)
         broadcast(:player_ready, { name: player.name, ready: ready_val })
 
+        # If all non-host players are present and ready, inform host UI
         non_hosts = @game.players.where(is_host: false)
         all_ready = non_hosts.exists? && non_hosts.where(ready: true).count == non_hosts.count
         broadcast(:all_ready, {}) if all_ready
@@ -109,6 +112,7 @@ module Api
       def host_start
         return render json: { error: { code: "bad_state", message: "Not in lobby" } }, status: 422 unless @game.lobby?
 
+        # Validate exactly 5 questions per round
         unless (1..3).all? { |r| Question.where(round_number: r).count == 5 }
           return render json: { error: { code: "bad_setup", message: "Each round must have exactly 5 questions" } }, status: 422
         end
@@ -124,10 +128,12 @@ module Api
           return render json: { error: { code: "bad_state", message: "Not in round or between rounds" } }, status: 422
         end
 
+        # Sudden death flow
         return handle_sudden_death_next if @game.sudden_death?
 
         if @game.in_round?
           if @game.current_question_index >= 4
+            # end of round
             @game.update!(status: :between_rounds, question_end_at: nil)
             broadcast(:round_ended, { round_number: @game.round_number })
             ok({ round_ended: true, round_number: @game.round_number })
@@ -137,6 +143,7 @@ module Api
             ok({ advanced: true, index: @game.current_question_index })
           end
         else
+          # between_rounds -> next round
           @game.update!(status: :in_round, current_question_index: 0, round_number: @game.round_number + 1)
           start_current_question!
           broadcast(:next_round_started, { round_number: @game.round_number })
@@ -156,6 +163,7 @@ module Api
         return render json: { error: { code: "host", message: "Host cannot submit" } }, status: 422 if player.is_host?
         return render json: { error: { code: "closed", message: "Question closed" } }, status: 422 if @game.question_end_at.blank? || Time.current > @game.question_end_at
 
+        # During sudden death, only participants may submit
         if @game.sudden_death?
           sd_ids = Array(@game.sudden_death_player_ids)
           unless sd_ids.include?(player.id)
@@ -202,6 +210,7 @@ module Api
       end
 
       # GET /api/v1/games/:code/round_result
+      # Reveals end-of-round scores + who is eliminated; advances state accordingly.
       def round_result
         return render json: { error: { code: "bad_state", message: "Not between rounds" } }, status: 422 unless @game.between_rounds?
 
@@ -211,22 +220,27 @@ module Api
         ActiveRecord::Base.transaction do
           @game.lock!
 
+          # Idempotency: if already processed, return persisted result (no re-broadcast)
           if (existing = RoundResult.find_by(game_id: @game.id, round_number: round))
             payload = existing.payload.deep_symbolize_keys
-            return ok({
-              round: payload[:round],
-              round_number: payload[:round_number],
-              leaderboard: payload[:leaderboard],
-              eliminated_names: payload[:eliminated_names],
-              next_state: payload[:next_state],
+            normalized_payload = {
+              round: round,
+              round_number: round,
+              leaderboard: payload[:leaderboard] || [],
+              eliminated_names: payload[:eliminated_names] || [],
+              next_state: (payload[:next_state] || @game.status).to_s,
               sudden_death_players: payload[:sudden_death_players] || []
-            })
+            }
+            # Return from inside transaction (transaction will commit/rollback as usual)
+            return ok(normalized_payload)
           end
 
           qs = questions_for_round(round)
-          players = @game.players.where(is_host: false)
-          active = players.where(eliminated: false)
 
+          players = @game.players.where(is_host: false)
+          active  = players.where(eliminated: false)
+
+          # Compute round-only scores (points) and tie-break by total latency_ms
           round_stats = active.map do |p|
             rel = Submission.where(game: @game, player: p, question: qs)
             score = rel.where(correct: true).joins(:question).sum("questions.points")
@@ -234,34 +248,56 @@ module Api
             { player: p, name: p.name, round_score: score, latency_sum: latency_sum }
           end
 
+          # Guard: if there are no active players, create an empty result and return
           if round_stats.empty?
-            payload = { round: round, round_number: round, leaderboard: [], eliminated_names: [], next_state: @game.status.to_s, sudden_death_players: [] }
+            Rails.logger.warn("round_result: no active players for game=#{@game.id} round=#{round}")
+            payload = {
+              round: round,
+              round_number: round,
+              leaderboard: [],
+              eliminated_names: [],
+              next_state: @game.status.to_s,
+              sudden_death_players: []
+            }
             rr = RoundResult.create!(game: @game, round_number: round, payload: payload)
             return ok(payload)
           end
 
+          # Determine lowest by score. If multiple players share the lowest score,
+          # we trigger sudden death among them regardless of latency. Latency is
+          # still used only for leaderboard ordering (not elimination at this stage).
           min_score = round_stats.map { |s| s[:round_score] }.min
           lowest = round_stats.select { |s| s[:round_score] == min_score }
 
           eliminated_names = []
           next_state = :between_rounds
+          sd_player_names = []
 
           if lowest.size == 1
             loser = lowest.first[:player]
-            loser.update!(eliminated: true) unless loser.eliminated?
-            eliminated_names = [loser.name]
+            unless loser.eliminated?
+              loser.update!(eliminated: true)
+            end
+            eliminated_names = [ loser.name ]
           else
+            # Multiple players tied at the lowest score → sudden death among them
             next_state = :sudden_death
             sd_ids = lowest.map { |s| s[:player].id }
             @game.update!(sudden_death_player_ids: sd_ids, current_question_index: 0, question_end_at: nil, sudden_death_attempts: 0, sudden_death_started_at: Time.current)
+
+            # gather names for RoundResult payload so frontend can show participants
+            sd_player_names = @game.players.where(id: sd_ids).order(:created_at).pluck(:name)
           end
 
+          # If only one active non-host remains, finish game
           remaining = players.where(eliminated: false).count
           next_state = :finished if remaining <= 1
 
+          # persist canonical state update on game
           @game.update!(status: next_state, last_processed_round: round)
 
-          leaderboard = round_stats.sort_by { |s| [-s[:round_score], s[:latency_sum]] }
+          # Build leaderboard
+          leaderboard = round_stats.sort_by { |s| [ -s[:round_score], s[:latency_sum] ] }
                                    .map { |s| { name: s[:name], round_score: s[:round_score] } }
 
           payload = {
@@ -270,12 +306,20 @@ module Api
             leaderboard: leaderboard,
             eliminated_names: eliminated_names,
             next_state: next_state.to_s,
-            sudden_death_players: @game.sudden_death? ? @game.players.where(id: @game.sudden_death_player_ids).pluck(:name) : []
+            sudden_death_players: sd_player_names
           }
 
           rr = RoundResult.create!(game: @game, round_number: round, payload: payload)
 
-          return ok(payload)
+          # Return canonical response (inside transaction). Transaction will commit if no errors.
+          return ok({
+            round: rr.payload["round"],
+            round_number: rr.payload["round_number"],
+            leaderboard: rr.payload["leaderboard"],
+            eliminated_names: rr.payload["eliminated_names"],
+            next_state: rr.payload["next_state"],
+            sudden_death_players: rr.payload["sudden_death_players"] || []
+          })
         end
       end
 
@@ -292,7 +336,6 @@ module Api
         answers = Question.order(:round_number, :id).map do |q|
           { round: q.round_number, text: q.text, correct_index: q.correct_index }
         end
-
         players = @game.players.where(is_host: false)
         remaining = players.where(eliminated: false).pluck(:name)
         winner = remaining.first
@@ -306,89 +349,182 @@ module Api
       end
 
       def require_host!
-        token = request.headers["X-HOST-TOKEN"]
-        return render json: { error: { code: "auth", message: "Not host" } }, status: 403 unless @game.host_token == token
+        token = request.headers["X-Host-Token"].to_s
+        render json: { error: { code: "auth", message: "Host token required" } }, status: 403 and return unless token.present? && token == @game.host_token
       end
 
       def current_question
-        round = @game.sudden_death? ? 4 : @game.round_number
-        Question.where(round_number: round).order(:id).offset(@game.current_question_index).first
+        if @game.sudden_death?
+          sd_scope = Question.where(round_number: 4).order(:id)
+          sd_count = sd_scope.count
+          return nil if sd_count == 0
+          base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0) % sd_count
+          idx  = (base + (@game.current_question_index || 0)) % sd_count
+          sd_scope.offset(idx).first
+        else
+          Question.where(round_number: @game.round_number).order(:id).offset(@game.current_question_index || 0).first
+        end
+      end
+
+      def questions_for_round(round)
+        Question.where(round_number: round)
       end
 
       def start_current_question!
         q = current_question
-        return unless q
-        @game.update!(question_end_at: Time.current + q.time_limit.seconds)
-        @question_opened_at = Time.current
-        broadcast(:question_opened, { round_number: @game.sudden_death? ? 4 : @game.round_number, index: @game.current_question_index, question_id: q.id })
+        raise ActiveRecord::RecordNotFound, "Question not found" unless q
+        ends_at = q.time_limit.seconds.from_now
+        new_status = @game.sudden_death? ? :sudden_death : :in_round
+        @game.update!(question_end_at: ends_at, status: new_status)
+        broadcast(:question_started, {
+          round_number: (@game.sudden_death? ? 4 : @game.round_number),
+          index: @game.current_question_index,
+          text: q.text,
+          options: q.options,
+          ends_at: ends_at.iso8601(3)
+        })
       end
 
+      # Sudden-death driver: uses Round 4 questions and eliminates per rules
       def handle_sudden_death_next
-        participants_ids = Array(@game.sudden_death_player_ids).map(&:to_i)
-        players = participants_ids.map { |pid| @game.players.find_by(id: pid, is_host: false) }.compact
-        return ok({ sudden_death_ended: true, reason: "no_participants" }) if players.empty?
+        participants = Array(@game.sudden_death_player_ids).map(&:to_i).uniq
+        players = participants.map { |pid| @game.players.find_by(id: pid, is_host: false) }.compact
 
+        # If nothing to do, end SD
+        if players.empty?
+          @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
+          return ok({ sudden_death_ended: true, reason: "no_participants" })
+        end
+
+        # SD question pool
         sd_questions = Question.where(round_number: 4).order(:id).to_a
         if sd_questions.empty?
+          Rails.logger.error("handle_sudden_death_next: no SD questions configured for game=#{@game.id}")
           @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
           return ok({ sudden_death_ended: true, reason: "no_sd_questions" })
         end
 
+        # If no open question or expired, evaluate previous and/or open next
         if @game.question_end_at.blank? || Time.current >= @game.question_end_at
-          @game.increment!(:current_question_index)
-          if @game.current_question_index <= 3
+          # If we just finished a question, record its submissions (but do NOT eliminate immediately).
+          if @game.question_end_at.present?
+            q = current_question
+            rel = Submission.where(game: @game, question: q, player_id: players.map(&:id))
+            correct_ids = rel.where(correct: true).pluck(:player_id)
+            wrong_ids   = players.map(&:id) - correct_ids
+
+            Rails.logger.info("SD eval (post-question) game=#{@game.id} q_idx=#{@game.current_question_index} correct=#{correct_ids.inspect} wrong=#{wrong_ids.inspect}")
+
+            # Count this attempt (we treat every finished question as an attempt, even if all wrong)
+            @game.increment!(:sudden_death_attempts)
+            @game.increment!(:current_question_index)
+
+            # If we've not reached attempt limit, open next SD question
+            if (@game.sudden_death_attempts || 0) < 3
+              start_current_question!
+              return ok({ sudden_death_continue: true, attempt: @game.sudden_death_attempts })
+            end
+            # else fall through to aggregate elimination after attempts exhausted
+          end
+
+          # If a question is not open and attempts remaining, open the next question
+          if @game.current_question_index.nil?
+            @game.update!(current_question_index: 0)
+          end
+
+          if (@game.sudden_death_attempts || 0) < 3
+            # For the first SD question, ensure attempts counter increments when we open it
+            @game.increment!(:sudden_death_attempts) if (@game.sudden_death_attempts || 0) == 0
             start_current_question!
-            return ok({ sudden_death_continue: true, index: @game.current_question_index })
+            return ok({ sudden_death_started: true, attempt: @game.sudden_death_attempts })
           end
+        end
 
-          used_questions = sd_questions.first(3)
-          used_q_ids = used_questions.map(&:id)
-          stats = participants_ids.each_with_object({}) { |pid, acc| acc[pid] = { correct_count: 0, latency_sum: 0 } }
+        # If we reach here, attempts have been exhausted -> aggregate across used SD questions and eliminate worst performer
+        attempts = @game.sudden_death_attempts || 0
+        if attempts <= 0
+          @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
+          return ok({ sudden_death_ended: true, reason: "no_attempts" })
+        end
 
-          Submission.where(game: @game, question_id: used_q_ids, player_id: participants_ids).each do |s|
-            stats[s.player_id][:correct_count] += 1 if s.correct
-            stats[s.player_id][:latency_sum] += s.latency_ms || 0
+        # Determine used SD question ids (first `attempts` from pool, in order)
+        used_questions = sd_questions.first(attempts)
+        used_q_ids = used_questions.map(&:id)
+
+        if used_q_ids.empty?
+          Rails.logger.warn("handle_sudden_death_next: no used SD question ids (attempts=#{attempts}) for game=#{@game.id}")
+          @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
+          return ok({ sudden_death_ended: true, reason: "no_used_questions" })
+        end
+
+        participants = Array(@game.sudden_death_player_ids).map(&:to_i).uniq
+
+        # Aggregate per-player: correct_count and latency_sum across used_questions
+        stats = participants.each_with_object({}) do |pid, acc|
+          acc[pid] = { correct_count: 0, latency_sum: 0 }
+        end
+
+        submissions = Submission.where(game: @game, question_id: used_q_ids, player_id: participants)
+        submissions.where(correct: true).each do |s|
+          stats[s.player_id][:correct_count] += 1
+          stats[s.player_id][:latency_sum] += (s.latency_ms || 0)
+        end
+
+        Rails.logger.info("SD aggregate stats game=#{@game.id} stats=#{stats.inspect}")
+
+        # Find minimal correct_count
+        min_correct = stats.values.map { |v| v[:correct_count] }.min
+        worst = stats.select { |_pid, v| v[:correct_count] == min_correct }.to_a
+
+        loser_id = nil
+        if worst.size == 1
+          loser_id = worst.first[0]
+        else
+          # tie on correct_count -> pick the one with largest latency_sum
+          max_latency = worst.map { |_pid, v| v[:latency_sum] }.max
+          candidates = worst.select { |_pid, v| v[:latency_sum] == max_latency }.map(&:first)
+
+          if candidates.size == 1
+            loser_id = candidates.first
+          else
+            # deterministic fallback: lowest id
+            loser_id = candidates.sort.first
           end
+        end
 
-          min_correct = stats.values.map { |v| v[:correct_count] }.min
-          worst = stats.select { |_pid, v| v[:correct_count] == min_correct }.to_a
-
-          loser_id = if worst.size == 1
-                       worst.first[0]
-                     else
-                       max_latency = worst.map { |_pid, v| v[:latency_sum] }.max
-                       candidates = worst.select { |_pid, v| v[:latency_sum] == max_latency }.map(&:first)
-                       candidates.size == 1 ? candidates.first : candidates.sort.first
-                     end
-
+        if loser_id
           loser = @game.players.find(loser_id)
           ActiveRecord::Base.transaction do
             loser.update!(eliminated: true)
             @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
           end
-
           broadcast(:sudden_death_eliminated, { name: loser.name })
-
-          rr_payload = {
-            round: @game.round_number,
-            round_number: @game.round_number,
-            leaderboard: @game.players.where(is_host: false).map { |p| { name: p.name, total_score: p.total_score } },
-            eliminated_names: [loser.name],
-            next_state: "between_rounds",
-            sudden_death_players: players.map(&:name)
-          }
-
-          RoundResult.create!(game: @game, round_number: @game.round_number, payload: rr_payload)
-
-          return ok({ sudden_death_ended: true, eliminated: loser.name, reason: "aggregate", sudden_death_players: players.map(&:name) })
+          return ok({ sudden_death_ended: true, eliminated: loser.name, reason: "aggregate" })
+        else
+          # Fallback: mark SD ended without elimination
+          @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
+          return ok({ sudden_death_ended: true, reason: "no_clear_loser" })
         end
       end
 
-      def questions_for_round(round)
-        Question.where(round_number: round).order(:id)
+      def broadcast(type, payload)
+        # Don't broadcast at all in development if ActionCable not configured
+        return unless ActionCable.server.present?
+
+        begin
+          channel_name = "game:#{@game.id}"
+          message = { type: type.to_s, payload: payload }
+
+          Rails.logger.debug("Broadcasting to #{channel_name}: #{message.inspect}")
+          ActionCable.server.broadcast(channel_name, message)
+        rescue ArgumentError => e
+          Rails.logger.error("Broadcast failed (ArgumentError): #{e.message}")
+        rescue => e
+          Rails.logger.error("Unexpected broadcast error: #{e.class.name} - #{e.message}")
+          Rails.logger.error(e.backtrace.first(5).join("\n"))
+        end
       end
     end
   end
 end
-
 
