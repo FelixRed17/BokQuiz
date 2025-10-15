@@ -208,8 +208,6 @@ module Api
         ok({ name: player.name, eliminated: player.eliminated, is_host: player.is_host, total_score: player.total_score })
       end
 
-     # GET /api/v1/games/:code/round_result
-# Reveals end-of-round scores + who is eliminated; advances state accordingly.
 def round_result
   return render json: { error: { code: "bad_state", message: "Not between rounds" } }, status: 422 unless @game.between_rounds?
 
@@ -222,7 +220,6 @@ def round_result
     # Idempotency: if already processed, return persisted result (no re-broadcast)
     if (existing = RoundResult.find_by(game_id: @game.id, round_number: round))
       payload = existing.payload.deep_symbolize_keys
-      # Ensure both round and round_number are present for client compatibility
       normalized_payload = {
         round: round,
         round_number: round,
@@ -230,6 +227,7 @@ def round_result
         eliminated_names: payload[:eliminated_names] || [],
         next_state: (payload[:next_state] || @game.status).to_s
       }
+      # Return from inside transaction (transaction will commit/rollback as usual)
       return ok(normalized_payload)
     end
 
@@ -238,7 +236,6 @@ def round_result
     players = @game.players.where(is_host: false)
     active  = players.where(eliminated: false)
 
-    # Compute round-only scores (points) and tie-break by total latency_ms
     round_stats = active.map do |p|
       rel = Submission.where(game: @game, player: p, question: qs)
       score = rel.where(correct: true).joins(:question).sum("questions.points")
@@ -246,9 +243,6 @@ def round_result
       { player: p, name: p.name, round_score: score, latency_sum: latency_sum }
     end
 
-    # Determine lowest by score. If multiple players share the lowest score,
-    # we trigger sudden death among them regardless of latency. Latency is
-    # still used below for leaderboard ordering only (not elimination).
     min_score = round_stats.map { |s| s[:round_score] }.min
     lowest = round_stats.select { |s| s[:round_score] == min_score }
 
@@ -262,24 +256,19 @@ def round_result
       end
       eliminated_names = [ loser.name ]
     else
-      # Multiple players tied at the lowest score → sudden death among them
       next_state = :sudden_death
       sd_ids = lowest.map { |s| s[:player].id }
       @game.update!(sudden_death_player_ids: sd_ids, current_question_index: 0, question_end_at: nil)
     end
 
-    # If only one active non-host remains, finish game
     remaining = players.where(eliminated: false).count
     next_state = :finished if remaining <= 1
 
-    # persist canonical state update on game
     @game.update!(status: next_state, last_processed_round: round)
 
-    # Build leaderboard
     leaderboard = round_stats.sort_by { |s| [ -s[:round_score], s[:latency_sum] ] }
                              .map { |s| { name: s[:name], round_score: s[:round_score] } }
 
-    # CRITICAL: Include BOTH round and round_number for client compatibility
     payload = {
       round: round,
       round_number: round,
@@ -289,20 +278,16 @@ def round_result
     }
 
     rr = RoundResult.create!(game: @game, round_number: round, payload: payload)
+
+    # Return canonical response (inside transaction). Transaction will commit if no errors.
+    return ok({
+      round: rr.payload["round"],
+      round_number: rr.payload["round_number"],
+      leaderboard: rr.payload["leaderboard"],
+      eliminated_names: rr.payload["eliminated_names"],
+      next_state: rr.payload["next_state"]
+    })
   end
-
-  # CRITICAL: Broadcast AFTER transaction commits to ensure data is persisted
-  # Use after_commit callback or schedule broadcast to happen after response
-  broadcast_round_result_safely(rr)
-
-  # Return normalized response with both round and round_number
-  ok({
-    round: rr.payload["round"],
-    round_number: rr.payload["round_number"],
-    leaderboard: rr.payload["leaderboard"],
-    eliminated_names: rr.payload["eliminated_names"],
-    next_state: rr.payload["next_state"]
-  })
 end
 
 private
@@ -586,18 +571,4 @@ end
 
 
 
-      def broadcast(type, payload)
-        # Don't broadcast at all in development - ActionCable not needed for API-only mode
-
-        return unless ActionCable.server.present?
-
-        # Safely broadcast without crashing on errors
-        ActionCable.server.broadcast("game:#{@game.id}", { type: type.to_s, payload: payload })
-      rescue ArgumentError => e
-        Rails.logger.error("Broadcast failed: #{e.message}")
-      rescue => e
-        Rails.logger.error("Unexpected broadcast error: #{e.message}")
-      end
-    end
-  end
-end
+     
