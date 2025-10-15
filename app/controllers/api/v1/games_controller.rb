@@ -214,36 +214,52 @@ module Api
         return render json: { error: { code: "bad_state", message: "Not between rounds" } }, status: 422 unless @game.between_rounds?
 
         round = @game.round_number
-        qs    = questions_for_round(round)
+        rr = nil
 
-        players = @game.players.where(is_host: false)
-        active  = players.where(eliminated: false)
-
-        # Compute round-only scores (points) and tie-break by total latency_ms
-        round_stats = active.map do |p|
-          rel = Submission.where(game: @game, player: p, question: qs)
-          score = rel.where(correct: true).joins(:question).sum("questions.points")
-          latency_sum = rel.where(correct: true).sum(:latency_ms)
-          { player: p, name: p.name, round_score: score, latency_sum: latency_sum }
-        end
-
-        # Determine lowest by score, tie-break by latency (higher latency worse)
-        min_score = round_stats.map { |s| s[:round_score] }.min
-        lowest = round_stats.select { |s| s[:round_score] == min_score }
-        if lowest.size > 1
-          max_latency = lowest.map { |s| s[:latency_sum] }.max
-          lowest = lowest.select { |s| s[:latency_sum] == max_latency }
-        end
-
-        eliminated_names = []
-        next_state = :between_rounds
         ActiveRecord::Base.transaction do
+          @game.lock!
+
+          # Idempotency: if already processed, return persisted result (no re-broadcast)
+          if (existing = RoundResult.find_by(game_id: @game.id, round_number: round))
+            payload = existing.payload.deep_symbolize_keys
+            return ok({
+              round: payload[:round] || round,
+              leaderboard: payload[:leaderboard] || [],
+              eliminated_names: payload[:eliminated_names] || [],
+              next_state: payload[:next_state] || @game.status
+            })
+          end
+
+          qs = questions_for_round(round)
+
+          players = @game.players.where(is_host: false)
+          active  = players.where(eliminated: false)
+
+          # Compute round-only scores (points) and tie-break by total latency_ms
+          round_stats = active.map do |p|
+            rel = Submission.where(game: @game, player: p, question: qs)
+            score = rel.where(correct: true).joins(:question).sum("questions.points")
+            latency_sum = rel.where(correct: true).sum(:latency_ms)
+            { player: p, name: p.name, round_score: score, latency_sum: latency_sum }
+          end
+
+          # Determine lowest by score. If multiple players share the lowest score,
+          # we trigger sudden death among them regardless of latency. Latency is
+          # still used below for leaderboard ordering only (not elimination).
+          min_score = round_stats.map { |s| s[:round_score] }.min
+          lowest = round_stats.select { |s| s[:round_score] == min_score }
+
+          eliminated_names = []
+          next_state = :between_rounds
+
           if lowest.size == 1
             loser = lowest.first[:player]
-            loser.update!(eliminated: true)
+            unless loser.eliminated?
+              loser.update!(eliminated: true)
+            end
             eliminated_names = [ loser.name ]
           else
-            # still tied after latency tie-break → sudden death
+            # Multiple players tied at the lowest score → sudden death among them
             next_state = :sudden_death
             sd_ids = lowest.map { |s| s[:player].id }
             @game.update!(sudden_death_player_ids: sd_ids, current_question_index: 0, question_end_at: nil)
@@ -253,15 +269,39 @@ module Api
           remaining = players.where(eliminated: false).count
           next_state = :finished if remaining <= 1
 
-          @game.update!(status: next_state)
+          # persist canonical state update on game
+          @game.update!(status: next_state, last_processed_round: round)
+
+          # Build leaderboard
+          leaderboard = round_stats.sort_by { |s| [ -s[:round_score], s[:latency_sum] ] }
+                                   .map { |s| { name: s[:name], round_score: s[:round_score] } }
+
+          payload = {
+            round: round,
+            leaderboard: leaderboard,
+            eliminated_names: eliminated_names,
+            next_state: next_state
+          }
+
+          rr = RoundResult.create!(game: @game, round_number: round, payload: payload)
         end
 
-        leaderboard = round_stats.sort_by { |s| [ -s[:round_score], s[:latency_sum] ] }
-                                  .map { |s| { name: s[:name], round_score: s[:round_score] } }
+        # Broadcast single final result (only once) after commit
+        final_payload = rr.payload.deep_symbolize_keys
+        final_payload[:round_number] ||= final_payload[:round]
+        final_payload[:round] ||= final_payload[:round_number]
+        final_payload[:next_state] = final_payload[:next_state].to_s if final_payload[:next_state]
+        final_payload[:final] = true
+        final_payload[:result_id] = rr.id
+        broadcast(:round_result, final_payload)
 
-        broadcast(:round_result, { round: round, leaderboard: leaderboard, eliminated_names: eliminated_names, next_state: next_state })
 
-        ok({ round: round, leaderboard: leaderboard, eliminated_names: eliminated_names, next_state: next_state })
+        ok({
+          round: rr.payload[:round],
+          leaderboard: rr.payload[:leaderboard],
+          eliminated_names: rr.payload[:eliminated_names],
+          next_state: rr.payload[:next_state]
+        })
       end
 
       # POST /api/v1/games/:code/host_finish
@@ -295,8 +335,16 @@ module Api
       end
 
       def current_question
-        round_scope = @game.sudden_death? ? 4 : @game.round_number
-        Question.where(round_number: round_scope).order(:id).offset(@game.current_question_index).first
+        if @game.sudden_death?
+          sd_scope = Question.where(round_number: 4).order(:id)
+          sd_count = sd_scope.count
+          return nil if sd_count == 0
+          base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0) % sd_count
+          idx  = (base + @game.current_question_index) % sd_count
+          sd_scope.offset(idx).first
+        else
+          Question.where(round_number: @game.round_number).order(:id).offset(@game.current_question_index).first
+        end
       end
 
       def questions_for_round(round)
@@ -318,7 +366,10 @@ module Api
         })
       end
 
-      # Sudden-death driver: uses Round 4 questions and eliminates per rules
+      # Sudden-death driver: uses Round 4 questions
+      # - Ask exactly 3 questions per SD session
+      # - Do not eliminate mid-session; evaluate at the end of the 3rd question
+      # - Rotate question sets across sessions using sd_offset to avoid repeats
       def handle_sudden_death_next
   participants = Array(@game.sudden_death_player_ids).map(&:to_i).uniq
   players = participants.map { |pid| @game.players.find_by(id: pid, is_host: false) }.compact
@@ -331,6 +382,7 @@ module Api
   # Find the SD question pool (round_number 4)
   sd_questions = Question.where(round_number: 4).order(:id).to_a
 
+<<<<<<< HEAD
   # If there is no open question OR it's expired -> evaluate previous one (if any) then maybe open next
   if @game.question_end_at.blank? || Time.current >= @game.question_end_at
     # If we had an open question which just finished, evaluate its submissions
@@ -350,6 +402,80 @@ module Api
         @game.increment!(:sudden_death_attempts)
         start_current_question!
         return ok({ sudden_death_continue: true, reason: "all_wrong", index: @game.current_question_index })
+=======
+        # If no question is open, or SD question expired, evaluate last question (if any), else open next
+        if @game.question_end_at.blank? || Time.current >= @game.question_end_at
+          # If we just finished a question (question_end_at present before finishing) evaluate session progress
+          if @game.question_end_at.present?
+            # If we've just finished the 3rd question (index 2), evaluate the session
+            sd_scope = Question.where(round_number: 4).order(:id)
+            sd_count = sd_scope.count
+            base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0)
+
+            if @game.current_question_index >= 2 && sd_count > 0
+              indices = [ 0, 1, 2 ].map { |i| (base + i) % sd_count }
+              sd_questions = indices.map { |off| sd_scope.offset(off).first }
+
+              rel = Submission.where(game: @game, player_id: players.map(&:id), question: sd_questions)
+
+              stats = players.map do |p|
+                srel = rel.where(player_id: p.id)
+                score = srel.where(correct: true).joins(:question).sum("questions.points")
+                latency_sum = srel.where(correct: true).sum(:latency_ms)
+                { player: p, score: score, latency_sum: latency_sum }
+              end
+
+              min_score = stats.map { |s| s[:score] }.min
+              lowest = stats.select { |s| s[:score] == min_score }
+
+              # Advance offset for next SD session (regardless of elimination outcome)
+              new_offset = ((base % sd_count) + 3) % sd_count
+
+              if lowest.size == 1
+                loser = lowest.first[:player]
+                ActiveRecord::Base.transaction do
+                  loser.update!(eliminated: true)
+                  @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], current_question_index: 0, sd_offset: new_offset)
+                end
+                broadcast(:sudden_death_eliminated, { name: loser.name })
+                return ok({ sudden_death_ended: true, eliminated: loser.name })
+              else
+                # Tie on score; break by highest latency among tied
+                max_latency = lowest.map { |s| s[:latency_sum] }.max
+                slowest = lowest.select { |s| s[:latency_sum] == max_latency }
+
+                if slowest.size == 1
+                  loser = slowest.first[:player]
+                  ActiveRecord::Base.transaction do
+                    loser.update!(eliminated: true)
+                    @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], current_question_index: 0, sd_offset: new_offset)
+                  end
+                  broadcast(:sudden_death_eliminated, { name: loser.name, tie_breaker: "latency" })
+                  return ok({ sudden_death_ended: true, eliminated: loser.name, tie_breaker: "latency" })
+                else
+                  # Still tied → start a new SD session with the next 3 questions
+                  @game.update!(current_question_index: 0, question_end_at: nil, sd_offset: new_offset)
+                  start_current_question!
+                  return ok({ sudden_death_continue_session: true })
+                end
+              end
+            else
+              # Not yet at 3 questions → advance within session
+              @game.increment!(:current_question_index)
+              start_current_question!
+              return ok({ sudden_death_continue: true, index: @game.current_question_index })
+            end
+          end
+
+          # If a question is not open, open next SD question
+          @game.update!(current_question_index: 0) if @game.current_question_index.nil?
+          start_current_question!
+          return ok({ sudden_death_started: true })
+        end
+
+        # If a question is already open and still running, report active status
+        ok({ sudden_death_active: true, ends_at: @game.question_end_at })
+>>>>>>> 2bdebfaf6642f55ea42491eb43e930a24efe84c4
       end
 
       # 2) Exactly one wrong => eliminate that player and end SD immediately
@@ -491,9 +617,9 @@ end
 
       def broadcast(type, payload)
         # Don't broadcast at all in development - ActionCable not needed for API-only mode
-      
+
         return unless ActionCable.server.present?
-      
+
         # Safely broadcast without crashing on errors
         ActionCable.server.broadcast("game:#{@game.id}", { type: type.to_s, payload: payload })
       rescue ArgumentError => e

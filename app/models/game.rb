@@ -1,6 +1,7 @@
 class Game < ApplicationRecord
   has_many :players, dependent: :destroy
   has_many :submissions, dependent: :destroy
+  has_many :round_results, dependent: :destroy
 
   enum :status, { lobby: 0, in_round: 1, between_rounds: 2, sudden_death: 3, finished: 4 }
 
