@@ -366,11 +366,7 @@ module Api
         })
       end
 
-      # Sudden-death driver: uses Round 4 questions
-      # - Ask exactly 3 questions per SD session
-      # - Do not eliminate mid-session; evaluate at the end of the 3rd question
-      # - Rotate question sets across sessions using sd_offset to avoid repeats
-      def handle_sudden_death_next
+     def handle_sudden_death_next
   participants = Array(@game.sudden_death_player_ids).map(&:to_i).uniq
   players = participants.map { |pid| @game.players.find_by(id: pid, is_host: false) }.compact
   # If nothing to do, end SD
@@ -382,7 +378,6 @@ module Api
   # Find the SD question pool (round_number 4)
   sd_questions = Question.where(round_number: 4).order(:id).to_a
 
-<<<<<<< HEAD
   # If there is no open question OR it's expired -> evaluate previous one (if any) then maybe open next
   if @game.question_end_at.blank? || Time.current >= @game.question_end_at
     # If we had an open question which just finished, evaluate its submissions
@@ -402,80 +397,6 @@ module Api
         @game.increment!(:sudden_death_attempts)
         start_current_question!
         return ok({ sudden_death_continue: true, reason: "all_wrong", index: @game.current_question_index })
-=======
-        # If no question is open, or SD question expired, evaluate last question (if any), else open next
-        if @game.question_end_at.blank? || Time.current >= @game.question_end_at
-          # If we just finished a question (question_end_at present before finishing) evaluate session progress
-          if @game.question_end_at.present?
-            # If we've just finished the 3rd question (index 2), evaluate the session
-            sd_scope = Question.where(round_number: 4).order(:id)
-            sd_count = sd_scope.count
-            base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0)
-
-            if @game.current_question_index >= 2 && sd_count > 0
-              indices = [ 0, 1, 2 ].map { |i| (base + i) % sd_count }
-              sd_questions = indices.map { |off| sd_scope.offset(off).first }
-
-              rel = Submission.where(game: @game, player_id: players.map(&:id), question: sd_questions)
-
-              stats = players.map do |p|
-                srel = rel.where(player_id: p.id)
-                score = srel.where(correct: true).joins(:question).sum("questions.points")
-                latency_sum = srel.where(correct: true).sum(:latency_ms)
-                { player: p, score: score, latency_sum: latency_sum }
-              end
-
-              min_score = stats.map { |s| s[:score] }.min
-              lowest = stats.select { |s| s[:score] == min_score }
-
-              # Advance offset for next SD session (regardless of elimination outcome)
-              new_offset = ((base % sd_count) + 3) % sd_count
-
-              if lowest.size == 1
-                loser = lowest.first[:player]
-                ActiveRecord::Base.transaction do
-                  loser.update!(eliminated: true)
-                  @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], current_question_index: 0, sd_offset: new_offset)
-                end
-                broadcast(:sudden_death_eliminated, { name: loser.name })
-                return ok({ sudden_death_ended: true, eliminated: loser.name })
-              else
-                # Tie on score; break by highest latency among tied
-                max_latency = lowest.map { |s| s[:latency_sum] }.max
-                slowest = lowest.select { |s| s[:latency_sum] == max_latency }
-
-                if slowest.size == 1
-                  loser = slowest.first[:player]
-                  ActiveRecord::Base.transaction do
-                    loser.update!(eliminated: true)
-                    @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], current_question_index: 0, sd_offset: new_offset)
-                  end
-                  broadcast(:sudden_death_eliminated, { name: loser.name, tie_breaker: "latency" })
-                  return ok({ sudden_death_ended: true, eliminated: loser.name, tie_breaker: "latency" })
-                else
-                  # Still tied → start a new SD session with the next 3 questions
-                  @game.update!(current_question_index: 0, question_end_at: nil, sd_offset: new_offset)
-                  start_current_question!
-                  return ok({ sudden_death_continue_session: true })
-                end
-              end
-            else
-              # Not yet at 3 questions → advance within session
-              @game.increment!(:current_question_index)
-              start_current_question!
-              return ok({ sudden_death_continue: true, index: @game.current_question_index })
-            end
-          end
-
-          # If a question is not open, open next SD question
-          @game.update!(current_question_index: 0) if @game.current_question_index.nil?
-          start_current_question!
-          return ok({ sudden_death_started: true })
-        end
-
-        # If a question is already open and still running, report active status
-        ok({ sudden_death_active: true, ends_at: @game.question_end_at })
->>>>>>> 2bdebfaf6642f55ea42491eb43e930a24efe84c4
       end
 
       # 2) Exactly one wrong => eliminate that player and end SD immediately
@@ -613,6 +534,7 @@ module Api
     return ok({ sudden_death_ended: true, reason: "no_clear_loser" })
   end
 end
+
 
 
       def broadcast(type, payload)
