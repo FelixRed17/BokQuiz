@@ -363,17 +363,24 @@ module Api
           return ok({ sudden_death_ended: true, reason: "no_participants" })
         end
 
-        # Start or continue SD by opening a question if none is open
+        # If no question is open, or SD question expired, evaluate last question (if any), else open next
         if @game.question_end_at.blank? || Time.current >= @game.question_end_at
-          # If we just finished a question, evaluate it first
+          # If we just finished a question (question_end_at present before finishing) evaluate it
           if @game.question_end_at.present?
             q = current_question
             rel = Submission.where(game: @game, question: q, player_id: players.map(&:id))
             correct_ids = rel.where(correct: true).pluck(:player_id)
             wrong_ids   = players.map(&:id) - correct_ids
 
+            # 1) If all wrong -> no elimination, advance to next SD question (or continue)
+            if correct_ids.empty?
+              @game.increment!(:current_question_index)
+              start_current_question!
+              return ok({ sudden_death_continue: true, reason: "all_wrong", index: @game.current_question_index })
+            end
+
+            # 2) If exactly one wrong -> eliminate that player (they lost) and exit SD
             if wrong_ids.size == 1
-              # Exactly one wrong → eliminate that player, exit SD
               loser = @game.players.find(wrong_ids.first)
               ActiveRecord::Base.transaction do
                 loser.update!(eliminated: true)
@@ -383,44 +390,54 @@ module Api
               return ok({ sudden_death_ended: true, eliminated: loser.name })
             end
 
-            # If multiple wrong answers, eliminate the slowest among the wrong
-            if wrong_ids.size > 1
-              latencies = rel.where(player_id: wrong_ids).pluck(:player_id, :latency_ms)
-              slowest = latencies.max_by { |(_pid, latency)| latency }
-              if slowest
-                loser_id = slowest[0]
+            # 3) If exactly one correct and multiple wrong -> narrow participants to the wrong players and continue SD
+            if correct_ids.size == 1 && wrong_ids.size > 1
+              @game.update!(sudden_death_player_ids: wrong_ids)
+              @game.increment!(:current_question_index)
+              start_current_question!
+              return ok({ sudden_death_narrowed: true, remaining_count: wrong_ids.size })
+            end
+
+            # 4) Otherwise: multiple candidates remain without a single clear loser
+            #    Use latency tie-break among players that answered correctly. Eliminate the slowest.
+            #    If latencies are tied at the slowest value, continue with next SD question.
+            latencies = rel.where(player_id: correct_ids).pluck(:player_id, :latency_ms)
+
+            if latencies.present?
+              slowest_pair = latencies.max_by { |(_pid, latency)| latency }
+              slowest_latency = slowest_pair[1]
+              slowest_players = latencies.select { |(_pid, lat)| lat == slowest_latency }.map(&:first)
+
+              if slowest_players.size == 1
+                loser_id = slowest_players.first
                 loser = @game.players.find(loser_id)
                 ActiveRecord::Base.transaction do
                   loser.update!(eliminated: true)
                   @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [])
                 end
                 broadcast(:sudden_death_eliminated, { name: loser.name })
-                return ok({ sudden_death_ended: true, eliminated: loser.name, tie_breaker: "latency_wrong" })
+                return ok({ sudden_death_ended: true, eliminated: loser.name, tie_breaker: "latency" })
+              else
+                # exact latency tie among the slowest -> continue to next SD question
+                @game.increment!(:current_question_index)
+                start_current_question!
+                return ok({ sudden_death_continue: true, reason: "latency_tie", tied_player_ids: slowest_players })
               end
-            end
-
-            # Otherwise (no wrongs or ambiguous), eliminate slowest among corrects
-            latencies = rel.where(player_id: correct_ids).pluck(:player_id, :latency_ms)
-            slowest = latencies.max_by { |(_pid, latency)| latency }
-            if slowest
-              loser_id = slowest[0]
-              loser = @game.players.find(loser_id)
-              ActiveRecord::Base.transaction do
-                loser.update!(eliminated: true)
-                @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [])
-              end
-              broadcast(:sudden_death_eliminated, { name: loser.name })
-              return ok({ sudden_death_ended: true, eliminated: loser.name, tie_breaker: "latency" })
+            else
+              # No latency info present -> advance to next SD question to break the tie
+              @game.increment!(:current_question_index)
+              start_current_question!
+              return ok({ sudden_death_continue: true, reason: "no_latency_data" })
             end
           end
 
-          # Open next SD question
+          # If a question is not open, open next SD question
           @game.update!(current_question_index: 0) if @game.current_question_index.nil?
           start_current_question!
           return ok({ sudden_death_started: true })
         end
 
-        # If a question is already open, just report
+        # If a question is already open and still running, report active status
         ok({ sudden_death_active: true, ends_at: @game.question_end_at })
       end
 
