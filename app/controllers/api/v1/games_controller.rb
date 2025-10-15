@@ -208,101 +208,150 @@ module Api
         ok({ name: player.name, eliminated: player.eliminated, is_host: player.is_host, total_score: player.total_score })
       end
 
-      # GET /api/v1/games/:code/round_result
-      # Reveals end-of-round scores + who is eliminated; advances state accordingly.
-      def round_result
-        return render json: { error: { code: "bad_state", message: "Not between rounds" } }, status: 422 unless @game.between_rounds?
+     # GET /api/v1/games/:code/round_result
+# Reveals end-of-round scores + who is eliminated; advances state accordingly.
+def round_result
+  return render json: { error: { code: "bad_state", message: "Not between rounds" } }, status: 422 unless @game.between_rounds?
 
-        round = @game.round_number
-        rr = nil
+  round = @game.round_number
+  rr = nil
 
-        ActiveRecord::Base.transaction do
-          @game.lock!
+  ActiveRecord::Base.transaction do
+    @game.lock!
 
-          # Idempotency: if already processed, return persisted result (no re-broadcast)
-          if (existing = RoundResult.find_by(game_id: @game.id, round_number: round))
-            payload = existing.payload.deep_symbolize_keys
-            return ok({
-              round: payload[:round] || round,
-              leaderboard: payload[:leaderboard] || [],
-              eliminated_names: payload[:eliminated_names] || [],
-              next_state: payload[:next_state] || @game.status
-            })
-          end
+    # Idempotency: if already processed, return persisted result (no re-broadcast)
+    if (existing = RoundResult.find_by(game_id: @game.id, round_number: round))
+      payload = existing.payload.deep_symbolize_keys
+      # Ensure both round and round_number are present for client compatibility
+      normalized_payload = {
+        round: round,
+        round_number: round,
+        leaderboard: payload[:leaderboard] || [],
+        eliminated_names: payload[:eliminated_names] || [],
+        next_state: (payload[:next_state] || @game.status).to_s
+      }
+      return ok(normalized_payload)
+    end
 
-          qs = questions_for_round(round)
+    qs = questions_for_round(round)
 
-          players = @game.players.where(is_host: false)
-          active  = players.where(eliminated: false)
+    players = @game.players.where(is_host: false)
+    active  = players.where(eliminated: false)
 
-          # Compute round-only scores (points) and tie-break by total latency_ms
-          round_stats = active.map do |p|
-            rel = Submission.where(game: @game, player: p, question: qs)
-            score = rel.where(correct: true).joins(:question).sum("questions.points")
-            latency_sum = rel.where(correct: true).sum(:latency_ms)
-            { player: p, name: p.name, round_score: score, latency_sum: latency_sum }
-          end
+    # Compute round-only scores (points) and tie-break by total latency_ms
+    round_stats = active.map do |p|
+      rel = Submission.where(game: @game, player: p, question: qs)
+      score = rel.where(correct: true).joins(:question).sum("questions.points")
+      latency_sum = rel.where(correct: true).sum(:latency_ms)
+      { player: p, name: p.name, round_score: score, latency_sum: latency_sum }
+    end
 
-          # Determine lowest by score. If multiple players share the lowest score,
-          # we trigger sudden death among them regardless of latency. Latency is
-          # still used below for leaderboard ordering only (not elimination).
-          min_score = round_stats.map { |s| s[:round_score] }.min
-          lowest = round_stats.select { |s| s[:round_score] == min_score }
+    # Determine lowest by score. If multiple players share the lowest score,
+    # we trigger sudden death among them regardless of latency. Latency is
+    # still used below for leaderboard ordering only (not elimination).
+    min_score = round_stats.map { |s| s[:round_score] }.min
+    lowest = round_stats.select { |s| s[:round_score] == min_score }
 
-          eliminated_names = []
-          next_state = :between_rounds
+    eliminated_names = []
+    next_state = :between_rounds
 
-          if lowest.size == 1
-            loser = lowest.first[:player]
-            unless loser.eliminated?
-              loser.update!(eliminated: true)
-            end
-            eliminated_names = [ loser.name ]
-          else
-            # Multiple players tied at the lowest score → sudden death among them
-            next_state = :sudden_death
-            sd_ids = lowest.map { |s| s[:player].id }
-            @game.update!(sudden_death_player_ids: sd_ids, current_question_index: 0, question_end_at: nil)
-          end
-
-          # If only one active non-host remains, finish game
-          remaining = players.where(eliminated: false).count
-          next_state = :finished if remaining <= 1
-
-          # persist canonical state update on game
-          @game.update!(status: next_state, last_processed_round: round)
-
-          # Build leaderboard
-          leaderboard = round_stats.sort_by { |s| [ -s[:round_score], s[:latency_sum] ] }
-                                   .map { |s| { name: s[:name], round_score: s[:round_score] } }
-
-          payload = {
-            round: round,
-            leaderboard: leaderboard,
-            eliminated_names: eliminated_names,
-            next_state: next_state
-          }
-
-          rr = RoundResult.create!(game: @game, round_number: round, payload: payload)
-        end
-
-        # Broadcast single final result (only once) after commit
-        final_payload = rr.payload.deep_symbolize_keys
-        final_payload[:round_number] ||= final_payload[:round]
-        final_payload[:round] ||= final_payload[:round_number]
-        final_payload[:next_state] = final_payload[:next_state].to_s if final_payload[:next_state]
-        final_payload[:final] = true
-        final_payload[:result_id] = rr.id
-        broadcast(:round_result, final_payload)
-
-
-        ok({
-          round: rr.payload[:round],
-          leaderboard: rr.payload[:leaderboard],
-          eliminated_names: rr.payload[:eliminated_names],
-          next_state: rr.payload[:next_state]
-        })
+    if lowest.size == 1
+      loser = lowest.first[:player]
+      unless loser.eliminated?
+        loser.update!(eliminated: true)
       end
+      eliminated_names = [ loser.name ]
+    else
+      # Multiple players tied at the lowest score → sudden death among them
+      next_state = :sudden_death
+      sd_ids = lowest.map { |s| s[:player].id }
+      @game.update!(sudden_death_player_ids: sd_ids, current_question_index: 0, question_end_at: nil)
+    end
+
+    # If only one active non-host remains, finish game
+    remaining = players.where(eliminated: false).count
+    next_state = :finished if remaining <= 1
+
+    # persist canonical state update on game
+    @game.update!(status: next_state, last_processed_round: round)
+
+    # Build leaderboard
+    leaderboard = round_stats.sort_by { |s| [ -s[:round_score], s[:latency_sum] ] }
+                             .map { |s| { name: s[:name], round_score: s[:round_score] } }
+
+    # CRITICAL: Include BOTH round and round_number for client compatibility
+    payload = {
+      round: round,
+      round_number: round,
+      leaderboard: leaderboard,
+      eliminated_names: eliminated_names,
+      next_state: next_state.to_s
+    }
+
+    rr = RoundResult.create!(game: @game, round_number: round, payload: payload)
+  end
+
+  # CRITICAL: Broadcast AFTER transaction commits to ensure data is persisted
+  # Use after_commit callback or schedule broadcast to happen after response
+  broadcast_round_result_safely(rr)
+
+  # Return normalized response with both round and round_number
+  ok({
+    round: rr.payload["round"],
+    round_number: rr.payload["round_number"],
+    leaderboard: rr.payload["leaderboard"],
+    eliminated_names: rr.payload["eliminated_names"],
+    next_state: rr.payload["next_state"]
+  })
+end
+
+private
+
+def broadcast_round_result_safely(round_result)
+  # Use after_commit to ensure database transaction is complete
+  ActiveRecord::Base.connection.after_transaction_commit do
+    begin
+      payload = round_result.payload.deep_symbolize_keys
+      
+      # Ensure all necessary fields are present and properly formatted
+      broadcast_payload = {
+        round: payload[:round],
+        round_number: payload[:round_number],
+        leaderboard: payload[:leaderboard] || [],
+        eliminated_names: payload[:eliminated_names] || [],
+        next_state: payload[:next_state].to_s,
+        final: true,
+        result_id: round_result.id,
+        timestamp: Time.current.to_i
+      }
+      
+      Rails.logger.info("Broadcasting round_result: game=#{@game.id} round=#{payload[:round]} payload=#{broadcast_payload.inspect}")
+      
+      broadcast(:round_result, broadcast_payload)
+    rescue => e
+      Rails.logger.error("Failed to broadcast round_result: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
+    end
+  end
+end
+
+def broadcast(type, payload)
+  # Don't broadcast at all in development if ActionCable not configured
+  return unless ActionCable.server.present?
+
+  begin
+    channel_name = "game:#{@game.id}"
+    message = { type: type.to_s, payload: payload }
+    
+    Rails.logger.debug("Broadcasting to #{channel_name}: #{message.inspect}")
+    ActionCable.server.broadcast(channel_name, message)
+  rescue ArgumentError => e
+    Rails.logger.error("Broadcast failed (ArgumentError): #{e.message}")
+  rescue => e
+    Rails.logger.error("Unexpected broadcast error: #{e.class.name} - #{e.message}")
+    Rails.logger.error(e.backtrace.first(5).join("\n"))
+  end
+end
 
       # POST /api/v1/games/:code/host_finish
       def host_finish
