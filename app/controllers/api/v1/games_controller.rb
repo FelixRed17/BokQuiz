@@ -320,74 +320,174 @@ module Api
 
       # Sudden-death driver: uses Round 4 questions and eliminates per rules
       def handle_sudden_death_next
-        participants = Array(@game.sudden_death_player_ids)
-        players = participants.map { |pid| @game.players.find_by(id: pid, is_host: false) }.compact
+  participants = Array(@game.sudden_death_player_ids).map(&:to_i).uniq
+  players = participants.map { |pid| @game.players.find_by(id: pid, is_host: false) }.compact
+  # If nothing to do, end SD
+  if players.empty?
+    @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
+    return ok({ sudden_death_ended: true, reason: "no_participants" })
+  end
 
-        # No participants tracked → end sudden death
-        if players.empty?
-          @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [])
-          return ok({ sudden_death_ended: true, reason: "no_participants" })
-        end
+  # Find the SD question pool (round_number 4)
+  sd_questions = Question.where(round_number: 4).order(:id).to_a
 
-        # Start or continue SD by opening a question if none is open
-        if @game.question_end_at.blank? || Time.current >= @game.question_end_at
-          # If we just finished a question, evaluate it first
-          if @game.question_end_at.present?
-            q = current_question
-            rel = Submission.where(game: @game, question: q, player_id: players.map(&:id))
-            correct_ids = rel.where(correct: true).pluck(:player_id)
-            wrong_ids   = players.map(&:id) - correct_ids
+  # If there is no open question OR it's expired -> evaluate previous one (if any) then maybe open next
+  if @game.question_end_at.blank? || Time.current >= @game.question_end_at
+    # If we had an open question which just finished, evaluate its submissions
+    if @game.question_end_at.present?
+      q = current_question
+      # Submissions in this SD question for our participants
+      rel = Submission.where(game: @game, question: q, player_id: players.map(&:id))
+      correct_ids = rel.where(correct: true).pluck(:player_id)
+      wrong_ids   = players.map(&:id) - correct_ids
 
-            if correct_ids.empty?
-              # All wrong → continue with same set
-              @game.increment!(:current_question_index)
-              start_current_question!
-              return ok({ sudden_death_continue: true, reason: "all_wrong", index: @game.current_question_index })
-            end
+      Rails.logger.info("SD eval game=#{@game.id} q_idx=#{@game.current_question_index} correct=#{correct_ids.inspect} wrong=#{wrong_ids.inspect}")
 
-            if wrong_ids.size == 1
-              # Exactly one wrong → eliminate that player, exit SD
-              loser = @game.players.find(wrong_ids.first)
-              ActiveRecord::Base.transaction do
-                loser.update!(eliminated: true)
-                @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [])
-              end
-              broadcast(:sudden_death_eliminated, { name: loser.name })
-              return ok({ sudden_death_ended: true, eliminated: loser.name })
-            end
-
-            if correct_ids.size == 1 && wrong_ids.size > 1
-              # Narrow to the wrong players only
-              @game.update!(sudden_death_player_ids: wrong_ids)
-              @game.increment!(:current_question_index)
-              start_current_question!
-              return ok({ sudden_death_narrowed: true, remaining_count: wrong_ids.size })
-            end
-
-            # Everyone correct or multiple correct without single loser → latency tie-break among corrects
-            latencies = rel.where(player_id: correct_ids).pluck(:player_id, :latency_ms)
-            slowest = latencies.max_by { |(_pid, latency)| latency }
-            if slowest
-              loser_id = slowest[0]
-              loser = @game.players.find(loser_id)
-              ActiveRecord::Base.transaction do
-                loser.update!(eliminated: true)
-                @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [])
-              end
-              broadcast(:sudden_death_eliminated, { name: loser.name })
-              return ok({ sudden_death_ended: true, eliminated: loser.name, tie_breaker: "latency" })
-            end
-          end
-
-          # Open next SD question
-          @game.update!(current_question_index: 0) if @game.current_question_index.nil?
-          start_current_question!
-          return ok({ sudden_death_started: true })
-        end
-
-        # If a question is already open, just report
-        ok({ sudden_death_active: true, ends_at: @game.question_end_at })
+      # 1) If all wrong -> continue to next SD question (no elimination)
+      if correct_ids.empty?
+        @game.increment!(:current_question_index)
+        # increment attempts counter when we open the next question
+        @game.increment!(:sudden_death_attempts)
+        start_current_question!
+        return ok({ sudden_death_continue: true, reason: "all_wrong", index: @game.current_question_index })
       end
+
+      # 2) Exactly one wrong => eliminate that player and end SD immediately
+      if wrong_ids.size == 1
+        loser = @game.players.find(wrong_ids.first)
+        ActiveRecord::Base.transaction do
+          loser.update!(eliminated: true)
+          @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
+        end
+        broadcast(:sudden_death_eliminated, { name: loser.name })
+        return ok({ sudden_death_ended: true, eliminated: loser.name, reason: "single_wrong" })
+      end
+
+      # 3) Exactly one correct and multiple wrong -> narrow participants to wrong players, continue SD
+      if correct_ids.size == 1 && wrong_ids.size > 1
+        @game.update!(sudden_death_player_ids: wrong_ids)
+        @game.increment!(:current_question_index)
+        @game.increment!(:sudden_death_attempts)
+        start_current_question!
+        return ok({ sudden_death_narrowed: true, remaining_count: wrong_ids.size })
+      end
+
+      # 4) If multiple corrects/no single loser: try latency tie-break among correct responders
+      latencies = rel.where(player_id: correct_ids).pluck(:player_id, :latency_ms)
+      if latencies.present?
+        slowest_pair = latencies.max_by { |(_pid, latency)| latency }
+        slowest_latency = slowest_pair[1]
+        slowest_players = latencies.select { |(_pid, lat)| lat == slowest_latency }.map(&:first)
+
+        if slowest_players.size == 1
+          # Unambiguous slowest among corrects -> eliminate them
+          loser_id = slowest_players.first
+          loser = @game.players.find(loser_id)
+          ActiveRecord::Base.transaction do
+            loser.update!(eliminated: true)
+            @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
+          end
+          broadcast(:sudden_death_eliminated, { name: loser.name })
+          return ok({ sudden_death_ended: true, eliminated: loser.name, tie_breaker: "latency" })
+        else
+          # Unresolved latency tie -> proceed to next SD question (unless we've hit attempt limit)
+          @game.increment!(:current_question_index)
+          @game.increment!(:sudden_death_attempts)
+          if @game.sudden_death_attempts >= 3
+            # fall through to aggregate elimination (see below)
+          else
+            start_current_question!
+            return ok({ sudden_death_continue: true, reason: "latency_tie", tied_player_ids: slowest_players })
+          end
+        end
+      else
+        # No latency info -> proceed to next SD question (increment attempts)
+        @game.increment!(:current_question_index)
+        @game.increment!(:sudden_death_attempts)
+        if @game.sudden_death_attempts >= 3
+          # fall through to aggregate elimination
+        else
+          start_current_question!
+          return ok({ sudden_death_continue: true, reason: "no_latency_data" })
+        end
+      end
+    end
+
+    # If a question is not open, open next SD question
+    if @game.current_question_index.nil?
+      @game.update!(current_question_index: 0)
+    end
+
+    # If we have attempt limit not reached, open next SD question
+    if @game.sudden_death_attempts < 3
+      # For the first SD question, ensure attempts counter increments when we open it
+      @game.increment!(:sudden_death_attempts) if @game.sudden_death_attempts == 0
+      start_current_question!
+      return ok({ sudden_death_started: true, attempt: @game.sudden_death_attempts })
+    end
+  end
+
+  # If we reach here, it means we've exhausted attempts or need to perform aggregate elimination.
+  # Compute aggregate stats across SD attempts and eliminate worst performer.
+  # We'll base this on submissions to round 4 questions used in SD attempts.
+  attempts = @game.sudden_death_attempts
+  # guard: no attempts -> fallback to no-op
+  if attempts <= 0
+    @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
+    return ok({ sudden_death_ended: true, reason: "no_attempts" })
+  end
+
+  # Determine which SD questions were used: take first `attempts` questions from round 4 (ordered by id)
+  used_questions = sd_questions.first(attempts)
+  used_q_ids = used_questions.map(&:id)
+
+  # Aggregate per-player: correct_count and latency_sum across used_questions
+  stats = participants.each_with_object({}) do |pid, acc|
+    acc[pid] = { correct_count: 0, latency_sum: 0 }
+  end
+
+  submissions = Submission.where(game: @game, question_id: used_q_ids, player_id: participants)
+  submissions.where(correct: true).each do |s|
+    stats[s.player_id][:correct_count] += 1
+    stats[s.player_id][:latency_sum] += (s.latency_ms || 0)
+  end
+
+  Rails.logger.info("SD aggregate stats game=#{@game.id} stats=#{stats.inspect}")
+
+  # Find minimal correct_count
+  min_correct = stats.values.map { |v| v[:correct_count] }.min
+  worst = stats.select { |_pid, v| v[:correct_count] == min_correct }.to_a
+
+  if worst.size == 1
+    loser_id = worst.first[0]
+  else
+    # tie on correct_count -> pick the one with largest latency_sum
+    max_latency = worst.map { |_pid, v| v[:latency_sum] }.max
+    candidates = worst.select { |_pid, v| v[:latency_sum] == max_latency }.map(&:first)
+
+    if candidates.size == 1
+      loser_id = candidates.first
+    else
+      # If still tied (exact same correct_count and latency), pick one deterministically (e.g., lowest id)
+      loser_id = candidates.sort.first
+    end
+  end
+
+  if loser_id
+    loser = @game.players.find(loser_id)
+    ActiveRecord::Base.transaction do
+      loser.update!(eliminated: true)
+      @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
+    end
+    broadcast(:sudden_death_eliminated, { name: loser.name })
+    return ok({ sudden_death_ended: true, eliminated: loser.name, reason: "aggregate" })
+  else
+    # Fallback: mark SD ended without elimination
+    @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
+    return ok({ sudden_death_ended: true, reason: "no_clear_loser" })
+  end
+end
+
 
       def broadcast(type, payload)
         # Don't broadcast at all in development - ActionCable not needed for API-only mode
