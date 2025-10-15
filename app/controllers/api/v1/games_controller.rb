@@ -329,8 +329,16 @@ module Api
       end
 
       def current_question
-        round_scope = @game.sudden_death? ? 4 : @game.round_number
-        Question.where(round_number: round_scope).order(:id).offset(@game.current_question_index).first
+        if @game.sudden_death?
+          sd_scope = Question.where(round_number: 4).order(:id)
+          sd_count = sd_scope.count
+          return nil if sd_count == 0
+          base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0) % sd_count
+          idx  = (base + @game.current_question_index) % sd_count
+          sd_scope.offset(idx).first
+        else
+          Question.where(round_number: @game.round_number).order(:id).offset(@game.current_question_index).first
+        end
       end
 
       def questions_for_round(round)
@@ -352,7 +360,10 @@ module Api
         })
       end
 
-      # Sudden-death driver: uses Round 4 questions and eliminates per rules
+      # Sudden-death driver: uses Round 4 questions
+      # - Ask exactly 3 questions per SD session
+      # - Do not eliminate mid-session; evaluate at the end of the 3rd question
+      # - Rotate question sets across sessions using sd_offset to avoid repeats
       def handle_sudden_death_next
         participants = Array(@game.sudden_death_player_ids)
         players = participants.map { |pid| @game.players.find_by(id: pid, is_host: false) }.compact
@@ -365,69 +376,65 @@ module Api
 
         # If no question is open, or SD question expired, evaluate last question (if any), else open next
         if @game.question_end_at.blank? || Time.current >= @game.question_end_at
-          # If we just finished a question (question_end_at present before finishing) evaluate it
+          # If we just finished a question (question_end_at present before finishing) evaluate session progress
           if @game.question_end_at.present?
-            q = current_question
-            rel = Submission.where(game: @game, question: q, player_id: players.map(&:id))
-            correct_ids = rel.where(correct: true).pluck(:player_id)
-            wrong_ids   = players.map(&:id) - correct_ids
+            # If we've just finished the 3rd question (index 2), evaluate the session
+            sd_scope = Question.where(round_number: 4).order(:id)
+            sd_count = sd_scope.count
+            base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0)
 
-            # 1) If all wrong -> no elimination, advance to next SD question (or continue)
-            if correct_ids.empty?
-              @game.increment!(:current_question_index)
-              start_current_question!
-              return ok({ sudden_death_continue: true, reason: "all_wrong", index: @game.current_question_index })
-            end
+            if @game.current_question_index >= 2 && sd_count > 0
+              indices = [ 0, 1, 2 ].map { |i| (base + i) % sd_count }
+              sd_questions = indices.map { |off| sd_scope.offset(off).first }
 
-            # 2) If exactly one wrong -> eliminate that player (they lost) and exit SD
-            if wrong_ids.size == 1
-              loser = @game.players.find(wrong_ids.first)
-              ActiveRecord::Base.transaction do
-                loser.update!(eliminated: true)
-                @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [])
+              rel = Submission.where(game: @game, player_id: players.map(&:id), question: sd_questions)
+
+              stats = players.map do |p|
+                srel = rel.where(player_id: p.id)
+                score = srel.where(correct: true).joins(:question).sum("questions.points")
+                latency_sum = srel.where(correct: true).sum(:latency_ms)
+                { player: p, score: score, latency_sum: latency_sum }
               end
-              broadcast(:sudden_death_eliminated, { name: loser.name })
-              return ok({ sudden_death_ended: true, eliminated: loser.name })
-            end
 
-            # 3) If exactly one correct and multiple wrong -> narrow participants to the wrong players and continue SD
-            if correct_ids.size == 1 && wrong_ids.size > 1
-              @game.update!(sudden_death_player_ids: wrong_ids)
-              @game.increment!(:current_question_index)
-              start_current_question!
-              return ok({ sudden_death_narrowed: true, remaining_count: wrong_ids.size })
-            end
+              min_score = stats.map { |s| s[:score] }.min
+              lowest = stats.select { |s| s[:score] == min_score }
 
-            # 4) Otherwise: multiple candidates remain without a single clear loser
-            #    Use latency tie-break among players that answered correctly. Eliminate the slowest.
-            #    If latencies are tied at the slowest value, continue with next SD question.
-            latencies = rel.where(player_id: correct_ids).pluck(:player_id, :latency_ms)
+              # Advance offset for next SD session (regardless of elimination outcome)
+              new_offset = ((base % sd_count) + 3) % sd_count
 
-            if latencies.present?
-              slowest_pair = latencies.max_by { |(_pid, latency)| latency }
-              slowest_latency = slowest_pair[1]
-              slowest_players = latencies.select { |(_pid, lat)| lat == slowest_latency }.map(&:first)
-
-              if slowest_players.size == 1
-                loser_id = slowest_players.first
-                loser = @game.players.find(loser_id)
+              if lowest.size == 1
+                loser = lowest.first[:player]
                 ActiveRecord::Base.transaction do
                   loser.update!(eliminated: true)
-                  @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [])
+                  @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], current_question_index: 0, sd_offset: new_offset)
                 end
                 broadcast(:sudden_death_eliminated, { name: loser.name })
-                return ok({ sudden_death_ended: true, eliminated: loser.name, tie_breaker: "latency" })
+                return ok({ sudden_death_ended: true, eliminated: loser.name })
               else
-                # exact latency tie among the slowest -> continue to next SD question
-                @game.increment!(:current_question_index)
-                start_current_question!
-                return ok({ sudden_death_continue: true, reason: "latency_tie", tied_player_ids: slowest_players })
+                # Tie on score; break by highest latency among tied
+                max_latency = lowest.map { |s| s[:latency_sum] }.max
+                slowest = lowest.select { |s| s[:latency_sum] == max_latency }
+
+                if slowest.size == 1
+                  loser = slowest.first[:player]
+                  ActiveRecord::Base.transaction do
+                    loser.update!(eliminated: true)
+                    @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], current_question_index: 0, sd_offset: new_offset)
+                  end
+                  broadcast(:sudden_death_eliminated, { name: loser.name, tie_breaker: "latency" })
+                  return ok({ sudden_death_ended: true, eliminated: loser.name, tie_breaker: "latency" })
+                else
+                  # Still tied → start a new SD session with the next 3 questions
+                  @game.update!(current_question_index: 0, question_end_at: nil, sd_offset: new_offset)
+                  start_current_question!
+                  return ok({ sudden_death_continue_session: true })
+                end
               end
             else
-              # No latency info present -> advance to next SD question to break the tie
+              # Not yet at 3 questions → advance within session
               @game.increment!(:current_question_index)
               start_current_question!
-              return ok({ sudden_death_continue: true, reason: "no_latency_data" })
+              return ok({ sudden_death_continue: true, index: @game.current_question_index })
             end
           end
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_14_093132) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_15_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -25,10 +25,12 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_14_093132) do
     t.datetime "updated_at", null: false
     t.jsonb "sudden_death_player_ids", default: [], null: false
     t.integer "last_processed_round", default: 0, null: false
+    t.integer "sd_offset", default: 0, null: false
     t.index ["code"], name: "index_games_on_code", unique: true
     t.index ["host_token"], name: "index_games_on_host_token", unique: true
     t.index ["id"], name: "index_games_on_id", unique: true
     t.index ["last_processed_round"], name: "index_games_on_last_processed_round"
+    t.index ["sd_offset"], name: "index_games_on_sd_offset"
   end
 
   create_table "players", force: :cascade do |t|

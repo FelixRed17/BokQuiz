@@ -34,7 +34,7 @@ rounds:
         correct_index: 0
         points: 1
         time_limit: 40
-      - text: "In 2019, which Springbok scored two tries in the Rugby World Cup final against England?"
+      - text: "In 2019, which Springbok scored the first try in the Rugby World Cup final against England?"
         options: ["Cheslin Kolbe", "Makazole Mapimpi", "Willie le Roux", "Duane Vermeulen"]
         correct_index: 1
         points: 1
@@ -101,12 +101,6 @@ rounds:
       - text: "How many points is a try worth?"
         options: ["3", "4", "5", "6"]
         correct_index: 2
-        points: 1
-        time_limit: 40
-
-      - text: "What color is the Springboks’ home jersey?"
-        options: ["Blue", "Green & Gold", "Green & White", "Black"]
-        correct_index: 1
         points: 1
         time_limit: 40
 
