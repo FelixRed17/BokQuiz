@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_15_120000) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_15_145508) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -26,6 +26,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_15_120000) do
     t.jsonb "sudden_death_player_ids", default: [], null: false
     t.integer "last_processed_round", default: 0, null: false
     t.integer "sd_offset", default: 0, null: false
+    t.integer "sudden_death_attempts", default: 0, null: false
+    t.datetime "sudden_death_started_at"
     t.index ["code"], name: "index_games_on_code", unique: true
     t.index ["host_token"], name: "index_games_on_host_token", unique: true
     t.index ["id"], name: "index_games_on_id", unique: true
