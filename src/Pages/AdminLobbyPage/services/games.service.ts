@@ -1,7 +1,6 @@
 import { http } from "../../../lib/http";
 import type { GameStateResponseDTO } from "../dto/games.dto";
 import type { GameState, Player } from "../types/games";
-import axios from "axios";
 
 /**
  * map DTO -> domain model
@@ -70,39 +69,31 @@ export async function fetchQuestion(gameCode: string): Promise<QuestionResponseD
   return dto;
 }
 
-
-
-export interface LeaderboardEntry {
-  name: string;
-  round_score: number;
-}
-
-export interface RoundResultData {
-  round: number;
-  round_number: number;
-  leaderboard: LeaderboardEntry[];
+// updated RoundResultDTO
+export type RoundResultDTO = {
+  // server may include either `round` or `round_number`
+  round?: number;
+  round_number?: number;
+  leaderboard: Array<{
+    name: string;
+    round_score: number;
+  }>;
   eliminated_names: string[];
   next_state: string;
+
+  // optional: server may include the sudden-death participants (names)
   sudden_death_players?: string[];
-}
-
-export const fetchRoundResult = async (
-  gameCode: string
-): Promise<RoundResultData> => {
-  const res = await axios.get(`/api/games/${gameCode}/round_result`);
-
-  const raw = res.data; // unwrap the API response
-
-  // normalize the data shape
-  return {
-    round: raw.round_number ?? raw.round ?? 1,
-    round_number: raw.round_number ?? raw.round ?? 1,
-    leaderboard: Array.isArray(raw.leaderboard) ? raw.leaderboard : [],
-    eliminated_names: Array.isArray(raw.eliminated_names) ? raw.eliminated_names : [],
-    next_state: raw.next_state ?? "between_rounds",
-    sudden_death_players: Array.isArray(raw.sudden_death_players) ? raw.sudden_death_players : [],
-  };
 };
+
+// fetchRoundResult now returns the DTO directly (server returns { data: ... } shape)
+export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO> {
+  const ts = Date.now();
+  const path = `/api/v1/games/${encodeURIComponent(gameCode)}/round_result?ts=${ts}`;
+  const dtoContainer = await http<{ data: RoundResultDTO }>(path, { method: "GET", cache: "no-store" });
+  // If server returns data directly (not wrapped), handle that too
+  const payload = (dtoContainer && (dtoContainer.data ?? (dtoContainer as unknown as RoundResultDTO))) as RoundResultDTO;
+  return payload;
+}
 
 
 /* submit answer */
