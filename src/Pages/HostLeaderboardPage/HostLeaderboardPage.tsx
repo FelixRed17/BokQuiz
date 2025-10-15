@@ -1,3 +1,4 @@
+// File: src/Pages/HostLeaderboardPage.tsx
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchRoundResult } from "../AdminLobbyPage/services/games.service";
@@ -15,6 +16,7 @@ interface RoundResultData {
   leaderboard: LeaderboardEntry[];
   eliminated_names: string[];
   next_state: string;
+  sudden_death_players?: string[];
 }
 
 export default function HostLeaderboardPage() {
@@ -25,6 +27,23 @@ export default function HostLeaderboardPage() {
   const [data, setData] = useState<RoundResultData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  function normalizeRoundResult(dto: any): RoundResultData {
+    return {
+      round: dto?.round ?? dto?.round_number ?? 1,
+      leaderboard: Array.isArray(dto?.leaderboard) ? dto.leaderboard : [],
+      eliminated_names: Array.isArray(dto?.eliminated_names)
+        ? dto.eliminated_names
+        : [],
+      next_state: dto?.next_state ?? dto?.nextState ?? "between_rounds",
+      sudden_death_players: Array.isArray(dto?.sudden_death_players)
+        ? dto.sudden_death_players
+        : Array.isArray(dto?.sudden_death_participants)
+        ? dto.sudden_death_participants
+        : undefined,
+    };
+  }
 
   useGameChannel(gameCode, {
     onMessage: (msg) => {
@@ -34,26 +53,43 @@ export default function HostLeaderboardPage() {
           state: { question: msg.payload },
         });
       }
+
       if (msg.type === "round_result") {
+        // Treat WS as a signal and fetch canonical result (defensive)
+        console.log(
+          "Host received round_result broadcast (signal):",
+          msg.payload
+        );
         (async () => {
           try {
+            setIsProcessing(true);
             const rr = await fetchRoundResult(gameCode);
-            const roundValue = rr.round ?? (rr as any).round_number ?? 1;
-            setData({
-              round: roundValue,
-              leaderboard: Array.isArray(rr.leaderboard) ? rr.leaderboard : [],
-              eliminated_names: Array.isArray(rr.eliminated_names)
-                ? rr.eliminated_names
-                : [],
-              next_state: rr.next_state ?? "between_rounds",
-            });
+            const normalized = normalizeRoundResult(rr);
+            setData(normalized);
             setIsLoading(false);
             setError(null);
           } catch (e) {
             console.error(
-              "Failed to fetch canonical round_result after broadcast:",
+              "Failed to fetch canonical round_result after WS broadcast:",
               e
             );
+            // fall back to using the payload if it's good
+            const payload = msg.payload ?? {};
+            if (payload && Array.isArray(payload.leaderboard)) {
+              try {
+                const normalized = normalizeRoundResult(payload);
+                setData(normalized);
+                setIsLoading(false);
+                setError(null);
+              } catch (err) {
+                console.warn(
+                  "Failed to normalize WS payload as fallback:",
+                  err
+                );
+              }
+            }
+          } finally {
+            setIsProcessing(false);
           }
         })();
       }
@@ -69,17 +105,7 @@ export default function HostLeaderboardPage() {
       if (!gameCode) return;
       try {
         const result = await fetchRoundResult(gameCode);
-
-        const normalized = {
-          round: result?.round || 1,
-          leaderboard: Array.isArray(result?.leaderboard)
-            ? result.leaderboard
-            : [],
-          eliminated_names: Array.isArray(result?.eliminated_names)
-            ? result.eliminated_names
-            : [],
-          next_state: result?.next_state || "between_rounds",
-        };
+        const normalized = normalizeRoundResult(result);
 
         if (!cancelled) {
           setData(normalized);
@@ -128,6 +154,7 @@ export default function HostLeaderboardPage() {
     }
 
     try {
+      setIsProcessing(true);
       await http(`/api/v1/games/${encodeURIComponent(gameCode)}/host_next`, {
         method: "POST",
         headers: {
@@ -135,13 +162,15 @@ export default function HostLeaderboardPage() {
           Accept: "application/json",
         },
       });
-      // Navigation will happen via WebSocket message
+      // Navigation/updating will happen via WebSocket message and canonical fetch
     } catch (err: any) {
       const msg =
         err?.data?.error?.message ??
         err?.message ??
         "Failed to start next round";
       console.error(`Failed to proceed: ${msg}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -236,14 +265,50 @@ export default function HostLeaderboardPage() {
           </div>
         )}
 
-        {/* Button */}
-        <button
-          className={styles.nextButton}
-          onClick={handleNextRound}
-          disabled={data.next_state === "finished"}
-        >
-          {data.next_state === "finished" ? "Game Over" : "Next Round"}
-        </button>
+        {/* Sudden death panel or regular button */}
+        {data.next_state === "sudden_death" ? (
+          <div className={styles.suddenDeathPanel}>
+            <div className={styles.suddenDeathTitle}>
+              ⚡ Sudden Death Participants
+            </div>
+
+            <div className={styles.suddenDeathList}>
+              {(data.sudden_death_players ?? []).length > 0 ? (
+                (data.sudden_death_players ?? []).map((n, i) => (
+                  <div key={i} className={styles.suddenDeathPlayer}>
+                    {n}
+                  </div>
+                ))
+              ) : (
+                <div className="text-muted">
+                  Participants will appear shortly
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3">
+              <button
+                className={styles.nextButton}
+                onClick={handleNextRound}
+                disabled={isProcessing}
+              >
+                {isProcessing ? "Processing..." : "Start Sudden Death"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className={styles.nextButton}
+            onClick={handleNextRound}
+            disabled={data.next_state === "finished" || isProcessing}
+          >
+            {isProcessing
+              ? "Processing..."
+              : data.next_state === "finished"
+              ? "Game Over"
+              : "Next Round"}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -69,24 +69,32 @@ export async function fetchQuestion(gameCode: string): Promise<QuestionResponseD
   return dto;
 }
 
-/* fetch round result */
+// updated RoundResultDTO
 export type RoundResultDTO = {
-  round: number;
+  // server may include either `round` or `round_number`
+  round?: number;
+  round_number?: number;
   leaderboard: Array<{
     name: string;
     round_score: number;
   }>;
   eliminated_names: string[];
   next_state: string;
+
+  // optional: server may include the sudden-death participants (names)
+  sudden_death_players?: string[];
 };
 
+// fetchRoundResult now returns the DTO directly (server returns { data: ... } shape)
 export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO> {
   const ts = Date.now();
   const path = `/api/v1/games/${encodeURIComponent(gameCode)}/round_result?ts=${ts}`;
-  // ensure no-store; http() will attach API_BASE_URL
-  const dto = await http<{ data: RoundResultDTO }>(path, { method: "GET", cache: "no-store" });
-  return dto.data;
+  const dtoContainer = await http<{ data: RoundResultDTO }>(path, { method: "GET", cache: "no-store" });
+  // If server returns data directly (not wrapped), handle that too
+  const payload = (dtoContainer && (dtoContainer.data ?? (dtoContainer as unknown as RoundResultDTO))) as RoundResultDTO;
+  return payload;
 }
+
 
 /* submit answer */
 export type SubmitAnswerDTO = {

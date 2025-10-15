@@ -17,6 +17,7 @@ interface RoundResultData {
   leaderboard: LeaderboardEntry[];
   eliminated_names: string[];
   next_state: string;
+  sudden_death_players?: string[];
 }
 
 export default function PlayerRoundResultPage() {
@@ -40,16 +41,50 @@ export default function PlayerRoundResultPage() {
       if (msg.type === "round_result") {
         // Receive round result data from WebSocket broadcast
         console.log("Received round_result broadcast:", msg.payload);
-        const payload = msg.payload;
-        if (payload && payload.leaderboard) {
+        const payload = msg.payload ?? {};
+
+        const hasParticipants =
+          Array.isArray(payload.sudden_death_players) &&
+          payload.sudden_death_players.length > 0;
+
+        if (
+          payload &&
+          payload.leaderboard &&
+          (hasParticipants || payload.next_state !== "sudden_death")
+        ) {
           setData({
-            round: payload.round || 1,
-            leaderboard: payload.leaderboard || [],
-            eliminated_names: payload.eliminated_names || [],
-            next_state: payload.next_state || "between_rounds",
+            round: payload.round ?? payload.round_number ?? 1,
+            leaderboard: payload.leaderboard ?? [],
+            eliminated_names: payload.eliminated_names ?? [],
+            next_state: payload.next_state ?? "between_rounds",
+            sudden_death_players:
+              payload.sudden_death_players ??
+              payload.sudden_death_participants ??
+              [],
           });
           setIsLoading(false);
           setError(null);
+        } else {
+          // Fallback: fetch canonical round result if payload lacks SD participants
+          (async () => {
+            try {
+              const rr = await fetchRoundResult(gameCode);
+              setData({
+                round: rr.round ?? rr.round_number ?? 1,
+                leaderboard: rr.leaderboard ?? [],
+                eliminated_names: rr.eliminated_names ?? [],
+                next_state: rr.next_state ?? "between_rounds",
+                sudden_death_players: (rr as any).sudden_death_players ?? [],
+              });
+              setIsLoading(false);
+              setError(null);
+            } catch (e) {
+              console.warn(
+                "Failed to fetch round_result during SD fallback:",
+                e
+              );
+            }
+          })();
         }
       }
     },
@@ -86,10 +121,11 @@ export default function PlayerRoundResultPage() {
             const rr = await fetchRoundResult(gameCode);
             if (!cancelled && rr && Array.isArray(rr.leaderboard)) {
               setData({
-                round: rr.round || 1,
-                leaderboard: rr.leaderboard || [],
-                eliminated_names: rr.eliminated_names || [],
-                next_state: rr.next_state || "between_rounds",
+                round: rr.round ?? rr.round_number ?? 1,
+                leaderboard: rr.leaderboard ?? [],
+                eliminated_names: rr.eliminated_names ?? [],
+                next_state: rr.next_state ?? "between_rounds",
+                sudden_death_players: (rr as any).sudden_death_players ?? [],
               });
               setIsLoading(false);
               setError(null);
@@ -254,6 +290,22 @@ export default function PlayerRoundResultPage() {
           <div className={styles.suddenDeathAlert}>
             <strong>⚡ Sudden Death Next!</strong>
             <p>Get ready for a tie-breaker round!</p>
+
+            {/* show participants list if available */}
+            {(data.sudden_death_players ?? []).length > 0 ? (
+              <div className={styles.suddenDeathList}>
+                <strong>Participants:</strong>
+                <ul>
+                  {data.sudden_death_players!.map((n, idx) => (
+                    <li key={idx}>{n}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="text-muted">
+                Participants will be announced shortly.
+              </div>
+            )}
           </div>
         )}
 
