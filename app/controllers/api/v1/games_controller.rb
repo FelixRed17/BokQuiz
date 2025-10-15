@@ -308,32 +308,32 @@ end
 private
 
 def broadcast_round_result_safely(round_result)
-  # Use after_commit to ensure database transaction is complete
-  ActiveRecord::Base.connection.after_transaction_commit do
-    begin
-      payload = round_result.payload.deep_symbolize_keys
-      
-      # Ensure all necessary fields are present and properly formatted
-      broadcast_payload = {
-        round: payload[:round],
-        round_number: payload[:round_number],
-        leaderboard: payload[:leaderboard] || [],
-        eliminated_names: payload[:eliminated_names] || [],
-        next_state: payload[:next_state].to_s,
-        final: true,
-        result_id: round_result.id,
-        timestamp: Time.current.to_i
-      }
-      
-      Rails.logger.info("Broadcasting round_result: game=#{@game.id} round=#{payload[:round]} payload=#{broadcast_payload.inspect}")
-      
-      broadcast(:round_result, broadcast_payload)
-    rescue => e
-      Rails.logger.error("Failed to broadcast round_result: #{e.message}")
-      Rails.logger.error(e.backtrace.join("\n"))
-    end
+  begin
+    payload = round_result.payload.deep_symbolize_keys rescue {}
+    # normalize fields safely
+    round_val = payload[:round] || payload[:round_number] || @game.round_number
+    round_number_val = payload[:round_number] || payload[:round] || @game.round_number
+
+    broadcast_payload = {
+      round: round_val,
+      round_number: round_number_val,
+      leaderboard: payload[:leaderboard] || [],
+      eliminated_names: payload[:eliminated_names] || [],
+      next_state: (payload[:next_state] || @game.status).to_s,
+      final: true,
+      result_id: round_result.id,
+      timestamp: Time.current.to_i
+    }
+
+    Rails.logger.info("Broadcasting round_result: game=#{@game.id} round=#{round_val} result_id=#{round_result.id}")
+    broadcast(:round_result, broadcast_payload)
+  rescue => e
+    Rails.logger.error("Failed to broadcast round_result (safely): #{e.class.name}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n"))
+    # Do NOT re-raise — keep API response stable for clients.
   end
 end
+
 
 def broadcast(type, payload)
   # Don't broadcast at all in development if ActionCable not configured
