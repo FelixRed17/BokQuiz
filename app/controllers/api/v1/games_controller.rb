@@ -287,8 +287,14 @@ module Api
         end
 
         # Broadcast single final result (only once) after commit
-        final_payload = rr.payload.merge(final: true, result_id: rr.id)
+        final_payload = rr.payload.deep_symbolize_keys
+        final_payload[:round_number] ||= final_payload[:round]
+        final_payload[:round] ||= final_payload[:round_number]
+        final_payload[:next_state] = final_payload[:next_state].to_s if final_payload[:next_state]
+        final_payload[:final] = true
+        final_payload[:result_id] = rr.id
         broadcast(:round_result, final_payload)
+
 
         ok({
           round: rr.payload[:round],
