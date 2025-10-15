@@ -24,6 +24,7 @@ export default function QuizPage() {
   const [wsConnected, setWsConnected] = useState(false);
   const [currentRound, setCurrentRound] = useState(question?.round_number ?? 0);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [sdQuestionCount, setSdQuestionCount] = useState(0);
 
   // Use the WebSocket hook
   useGameChannel(gameCode, {
@@ -33,19 +34,33 @@ export default function QuizPage() {
         setQuestion(newQuestion);
         setHasSubmitted(false); // Reset submission state for new question
 
-        if (
+        // Track SD questions (round_number = 4)
+        if (newQuestion.round_number === 4) {
+          setSdQuestionCount((prev) => prev + 1);
+          setShowQuiz(true); // Go straight to quiz in SD
+        } else if (
           newQuestion.index === 0 &&
           newQuestion.round_number !== currentRound
         ) {
+          // New regular round - show countdown
           setShowQuiz(false);
           setCurrentRound(newQuestion.round_number);
+          setSdQuestionCount(0); // Reset SD counter
         } else {
           setShowQuiz(true);
         }
         setWsConnected(true);
       }
+
       if (msg.type === "round_ended") {
         console.log("Round ended - navigating to player results");
+        setSdQuestionCount(0); // Reset SD counter
+        navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
+      }
+
+      if (msg.type === "sudden_death_eliminated") {
+        console.log("SD elimination - navigating to player results");
+        setSdQuestionCount(0); // Reset SD counter
         navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
       }
     },
@@ -59,7 +74,7 @@ export default function QuizPage() {
       try {
         const data = await fetchQuestion(gameCode);
         setQuestion(data);
-        setWsConnected(true); // Stop polling once we get data
+        setWsConnected(true);
       } catch (err) {
         console.log("Question not ready yet, will retry...");
       }
@@ -102,6 +117,11 @@ export default function QuizPage() {
       );
       console.log("Answer submitted successfully:", selectedIndex);
       setHasSubmitted(true);
+
+      // In SD, show waiting message after submission
+      if (question?.round_number === 4) {
+        console.log(`SD Question ${sdQuestionCount} of 3 submitted`);
+      }
     } catch (err: any) {
       const msg =
         err?.data?.error?.message ?? err?.message ?? "Failed to submit answer";
@@ -121,10 +141,12 @@ export default function QuizPage() {
   const questionText = question.text ?? "Question Text Missing";
   const questionIndex = typeof question.index === "number" ? question.index : 0;
   const questionOptions = question.options ?? [];
+  const roundNumber = question.round_number ?? 1;
 
   const questionData = {
     question: questionText,
     options: questionOptions,
+    round_number: roundNumber,
   };
 
   return (
