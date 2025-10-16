@@ -19,6 +19,21 @@ interface RoundResultData {
   sudden_death_players?: string[];
 }
 
+function useHostWinnerNavigationFromState(nextState: string | undefined) {
+  const navigate = useNavigate();
+  const { code } = useParams<{ code: string }>();
+
+  useEffect(() => {
+    if (nextState === "finished") {
+      const timer = setTimeout(() => {
+        navigate(`/game/${encodeURIComponent(code ?? "")}/winner`);
+      }, 4000); // 4 seconds for host to see final leaderboard
+
+      return () => clearTimeout(timer);
+    }
+  }, [nextState, navigate, code]);
+}
+
 export default function HostLeaderboardPage() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
@@ -28,6 +43,9 @@ export default function HostLeaderboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [roundResult] = useState<any>(null);
+
+  useHostWinnerNavigationFromState(roundResult?.next_state);
 
   function normalizeRoundResult(dto: any): RoundResultData {
     return {
@@ -52,6 +70,12 @@ export default function HostLeaderboardPage() {
         navigate(`/game/${encodeURIComponent(gameCode)}/host`, {
           state: { question: msg.payload },
         });
+      }
+
+      if (msg.type === "game_finished") {
+        setTimeout(() => {
+          navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+        }, 4000);
       }
       // Insert/replace your round_result handler with this
 

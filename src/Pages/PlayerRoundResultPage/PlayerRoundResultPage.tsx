@@ -21,6 +21,22 @@ interface RoundResultData {
   sudden_death_players?: string[];
 }
 
+function useWinnerNavigation(gameStatus: string | undefined) {
+  const navigate = useNavigate();
+  const { code } = useParams<{ code: string }>();
+
+  useEffect(() => {
+    if (gameStatus === "finished") {
+      // Navigate to winner page after a short delay to show final results
+      const timer = setTimeout(() => {
+        navigate(`/game/${encodeURIComponent(code ?? "")}/winner`);
+      }, 3000); // 3 second delay
+
+      return () => clearTimeout(timer);
+    }
+  }, [gameStatus, navigate, code]);
+}
+
 export default function PlayerRoundResultPage() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
@@ -30,10 +46,13 @@ export default function PlayerRoundResultPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState<string>("");
+  const [roundResult] = useState<any>(null);
 
   // Track if we've already fetched to prevent duplicate requests
   const hasFetchedRef = useRef(false);
   const isUnmountedRef = useRef(false);
+
+  useWinnerNavigation(roundResult?.next_state);
 
   useGameChannel(gameCode, {
     onMessage: (msg) => {
