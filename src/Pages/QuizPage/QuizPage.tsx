@@ -25,6 +25,7 @@ export default function QuizPage() {
   const [currentRound, setCurrentRound] = useState(question?.round_number ?? 0);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [sdQuestionCount, setSdQuestionCount] = useState(0);
+  const [playerName, setPlayerName] = useState<string>("");
 
   // Use the WebSocket hook
   useGameChannel(gameCode, {
@@ -84,6 +85,15 @@ export default function QuizPage() {
     const interval = setInterval(pollQuestion, 2000);
     return () => clearInterval(interval);
   }, [gameCode, question, wsConnected]);
+
+  // Load player name for display during questions
+  useEffect(() => {
+    const storedName =
+      sessionStorage.getItem("playerName") ??
+      localStorage.getItem("playerName") ??
+      "";
+    setPlayerName(storedName);
+  }, []);
 
   const handleCountdownComplete = () => {
     setShowQuiz(true);
@@ -154,12 +164,28 @@ export default function QuizPage() {
       {!showQuiz ? (
         <CountDown onComplete={handleCountdownComplete} />
       ) : (
-        <QuizScreen
-          questionData={questionData}
-          questionNumber={questionIndex + 1}
-          onNext={handleSubmitAnswer}
-          hasSubmitted={hasSubmitted}
-        />
+        <>
+          {playerName && (
+            <div
+              style={{
+                position: "fixed",
+                top: 12,
+                left: 16,
+                color: "#FFFFFF",
+                fontWeight: 900,
+                zIndex: 1000,
+              }}
+            >
+              {playerName}
+            </div>
+          )}
+          <QuizScreen
+            questionData={questionData}
+            questionNumber={questionIndex + 1}
+            onNext={handleSubmitAnswer}
+            hasSubmitted={hasSubmitted}
+          />
+        </>
       )}
     </div>
   );
