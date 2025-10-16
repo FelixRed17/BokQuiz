@@ -10,10 +10,11 @@ import HostQuizView from "./Pages/HostQuizPage/HostQuizView";
 import HostLeaderboardPage from "./Pages/HostLeaderboardPage/HostLeaderboardPage";
 import PlayerRoundResultPage from "./Pages/PlayerRoundResultPage/PlayerRoundResultPage";
 import WinnerPage from "./Pages/WinnerPage/WinnerPage";
+import WaitingSuddenDeathPage from "./Pages/WaitingSuddenDeathPage/WaitingSuddenDeathPage";
 
 function App() {
   return (
-    <BrowserRouter>
+    /*<BrowserRouter>
       <Routes>
         <Route path="/" element={<WelcomePageWrapper />} />
         <Route path="/admin" element={<SpringbokGameHost />} />
@@ -32,7 +33,9 @@ function App() {
         />
         <Route path="/game/:code/winner" element={<WinnerPage />} />
       </Routes>
-    </BrowserRouter>
+    </BrowserRouter>*/
+    <WaitingSuddenDeathPage />
+
   );
 }
 
