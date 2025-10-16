@@ -43,9 +43,8 @@ export default function HostLeaderboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [roundResult] = useState<any>(null);
 
-  useHostWinnerNavigationFromState(roundResult?.next_state);
+  useHostWinnerNavigationFromState(data?.next_state);
 
   function normalizeRoundResult(dto: any): RoundResultData {
     return {

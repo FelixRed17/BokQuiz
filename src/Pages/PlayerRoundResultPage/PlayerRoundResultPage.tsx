@@ -46,13 +46,11 @@ export default function PlayerRoundResultPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState<string>("");
-  const [roundResult] = useState<any>(null);
 
   // Track if we've already fetched to prevent duplicate requests
   const hasFetchedRef = useRef(false);
   const isUnmountedRef = useRef(false);
-
-  useWinnerNavigation(roundResult?.next_state);
+  useWinnerNavigation(data?.next_state);
 
   useGameChannel(gameCode, {
     onMessage: (msg) => {
