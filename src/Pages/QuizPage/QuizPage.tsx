@@ -6,6 +6,7 @@ import { useGameChannel } from "../../hooks/useGameChannel";
 import {
   fetchQuestion,
   submitAnswer,
+  fetchGameState,
 } from "../AdminLobbyPage/services/games.service";
 
 type LocationState = { question?: any };
@@ -25,12 +26,50 @@ export default function QuizPage() {
   const [currentRound, setCurrentRound] = useState(question?.round_number ?? 0);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [sdQuestionCount, setSdQuestionCount] = useState(0);
+  const [playerName, setPlayerName] = useState<string>("");
 
   // Use the WebSocket hook
   useGameChannel(gameCode, {
     onMessage: (msg) => {
       if (msg.type === "question_started") {
         const newQuestion = msg.payload;
+
+        // If sudden death round begins and this player is not a participant, redirect to waiting page
+        if (newQuestion?.round_number === 4) {
+          const inSudden = sessionStorage.getItem("inSuddenDeath") === "true";
+          if (!inSudden) {
+            (async () => {
+              try {
+                const s = await fetchGameState(gameCode);
+                const me = (
+                  (sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "") as string
+                )
+                  .toString()
+                  .trim()
+                  .toLowerCase();
+                const raw = s?.suddenDeathParticipants ?? [];
+                const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
+                  (typeof p === "string" ? p : p?.name ?? "")
+                    .toString()
+                    .trim()
+                    .toLowerCase()
+                );
+                if (me && normalized.includes(me)) {
+                  sessionStorage.setItem("inSuddenDeath", "true");
+                } else {
+                  sessionStorage.setItem("inSuddenDeath", "false");
+                  setShowQuiz(false);
+                  navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
+                  return;
+                }
+              } catch {
+                setShowQuiz(false);
+                navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
+                return;
+              }
+            })();
+          }
+        }
         setQuestion(newQuestion);
         setHasSubmitted(false); // Reset submission state for new question
 
@@ -84,6 +123,15 @@ export default function QuizPage() {
     const interval = setInterval(pollQuestion, 2000);
     return () => clearInterval(interval);
   }, [gameCode, question, wsConnected]);
+
+  // Load player name for display during questions
+  useEffect(() => {
+    const storedName =
+      sessionStorage.getItem("playerName") ??
+      localStorage.getItem("playerName") ??
+      "";
+    setPlayerName(storedName);
+  }, []);
 
   const handleCountdownComplete = () => {
     setShowQuiz(true);
@@ -154,12 +202,28 @@ export default function QuizPage() {
       {!showQuiz ? (
         <CountDown onComplete={handleCountdownComplete} />
       ) : (
-        <QuizScreen
-          questionData={questionData}
-          questionNumber={questionIndex + 1}
-          onNext={handleSubmitAnswer}
-          hasSubmitted={hasSubmitted}
-        />
+        <>
+          {playerName && (
+            <div
+              style={{
+                position: "fixed",
+                top: 12,
+                left: 16,
+                color: "#FFFFFF",
+                fontWeight: 900,
+                zIndex: 1000,
+              }}
+            >
+              {playerName}
+            </div>
+          )}
+          <QuizScreen
+            questionData={questionData}
+            questionNumber={questionIndex + 1}
+            onNext={handleSubmitAnswer}
+            hasSubmitted={hasSubmitted}
+          />
+        </>
       )}
     </div>
   );

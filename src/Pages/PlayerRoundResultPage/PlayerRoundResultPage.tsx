@@ -56,10 +56,59 @@ export default function PlayerRoundResultPage() {
     onMessage: (msg) => {
       if (isUnmountedRef.current) return;
 
+      // Defensive: if any message carries sudden-death participants, set the flag immediately
+      try {
+        const raw = (msg?.payload?.sudden_death_participants ?? msg?.payload?.sudden_death_players) as any[] | undefined;
+        const status = msg?.payload?.status as string | undefined;
+        if (Array.isArray(raw) && (status === "sudden_death" || data?.next_state === "sudden_death")) {
+          const name = (playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "").toString();
+          const me = name.trim().toLowerCase();
+          const normalized = raw.map((p: any) => (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase());
+          const isInSd = me.length > 0 && normalized.includes(me);
+          sessionStorage.setItem("inSuddenDeath", isInSd ? "true" : "false");
+        }
+      } catch {}
+
       if (msg.type === "question_started") {
-        navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
-          state: { question: msg.payload },
-        });
+        const nextRound = msg?.payload?.round_number;
+        const inSudden = sessionStorage.getItem("inSuddenDeath") === "true";
+        if (nextRound === 4 && !inSudden) {
+          // Double-check participation via a one-off state fetch to beat races
+          (async () => {
+            try {
+              const s = await fetchGameState(gameCode);
+              const me = (
+                (playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "") as string
+              )
+                .toString()
+                .trim()
+                .toLowerCase();
+              const raw = s?.suddenDeathParticipants ?? [];
+              const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
+                (typeof p === "string" ? p : p?.name ?? "")
+                  .toString()
+                  .trim()
+                  .toLowerCase()
+              );
+              if (me && normalized.includes(me)) {
+                sessionStorage.setItem("inSuddenDeath", "true");
+                navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
+                  state: { question: msg.payload },
+                });
+              } else {
+                sessionStorage.setItem("inSuddenDeath", "false");
+                navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
+              }
+            } catch (_) {
+              // Fallback to waiting if we cannot confirm participation
+              navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
+            }
+          })();
+        } else {
+          navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
+            state: { question: msg.payload },
+          });
+        }
         return;
       }
 
@@ -90,6 +139,10 @@ export default function PlayerRoundResultPage() {
           setIsLoading(false);
           setError(null);
           hasFetchedRef.current = true;
+          // If we are not going into sudden death, clear flag
+          if ((normalized.next_state ?? "") !== "sudden_death") {
+            sessionStorage.removeItem("inSuddenDeath");
+          }
           return;
         }
 
@@ -108,6 +161,22 @@ export default function PlayerRoundResultPage() {
       "";
     setPlayerName(storedName);
   }, []);
+
+  // Persist whether this player is in sudden death when data loads
+  useEffect(() => {
+    const name = playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "";
+    const raw = data?.sudden_death_players ?? [];
+    const me = name.trim().toLowerCase();
+    const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
+      (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase()
+    );
+    const shouldFlag = data?.next_state === "sudden_death" && me.length > 0 && normalized.includes(me);
+    if (shouldFlag) {
+      sessionStorage.setItem("inSuddenDeath", "true");
+    } else if (data?.next_state === "sudden_death") {
+      sessionStorage.setItem("inSuddenDeath", "false");
+    }
+  }, [data, playerName]);
 
   // Centralized fetch function with retry logic
   const fetchResultsFromAPI = async () => {
@@ -213,6 +282,18 @@ export default function PlayerRoundResultPage() {
 
         console.log("Game state:", gameState?.status);
 
+        // If server indicates sudden death, set the participation flag early from state
+        if (gameState?.status === "sudden_death") {
+          const name = playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "";
+          const me = name.toString().trim().toLowerCase();
+          const raw = gameState?.suddenDeathParticipants ?? [];
+          const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
+            (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase()
+          );
+          const isInSd = me.length > 0 && normalized.includes(me);
+          sessionStorage.setItem("inSuddenDeath", isInSd ? "true" : "false");
+        }
+
         // Check if results should be available
         if (
           gameState?.status === "between_rounds" ||
@@ -247,6 +328,31 @@ export default function PlayerRoundResultPage() {
       if (initialTimer) clearTimeout(initialTimer);
     };
   }, [gameCode, data]);
+
+  // One-off check after we know playerName: snapshot state to flag sudden death participation ASAP
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const s = await fetchGameState(gameCode);
+        if (cancelled) return;
+        if (s?.status === "sudden_death") {
+          const name = playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "";
+          const me = name.toString().trim().toLowerCase();
+          const raw = s.suddenDeathParticipants ?? [];
+          const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
+            (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase()
+          );
+          const isInSd = me.length > 0 && normalized.includes(me);
+          sessionStorage.setItem("inSuddenDeath", isInSd ? "true" : "false");
+        }
+      } catch {}
+    };
+    if (playerName) check();
+    return () => {
+      cancelled = true;
+    };
+  }, [playerName, gameCode]);
 
   if (isLoading) {
     return (
