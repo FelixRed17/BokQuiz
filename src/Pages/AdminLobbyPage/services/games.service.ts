@@ -1,6 +1,30 @@
+// src/Pages/AdminLobbyPage/services/games.service.ts
 import { http } from "../../../lib/http";
 import type { GameStateResponseDTO } from "../dto/games.dto";
 import type { GameState, Player } from "../types/games";
+
+/**
+ * DTOs / Types
+ */
+export type FinalResultsDTO = {
+  winner: string | null;
+  answers: Array<{ round: number; text: string; correct_index: number }>;
+};
+
+export type RoundResultDTO = {
+  // server may include either `round` or `round_number`
+  round?: number;
+  round_number?: number;
+  leaderboard: Array<{
+    name: string;
+    round_score: number;
+  }>;
+  eliminated_names: string[];
+  next_state: string;
+
+  // optional: server may include the sudden-death participants (names)
+  sudden_death_players?: string[];
+};
 
 /**
  * map DTO -> domain model
@@ -69,32 +93,71 @@ export async function fetchQuestion(gameCode: string): Promise<QuestionResponseD
   return dto;
 }
 
-// updated RoundResultDTO
-export type RoundResultDTO = {
-  // server may include either `round` or `round_number`
-  round?: number;
-  round_number?: number;
-  leaderboard: Array<{
-    name: string;
-    round_score: number;
-  }>;
-  eliminated_names: string[];
-  next_state: string;
-
-  // optional: server may include the sudden-death participants (names)
-  sudden_death_players?: string[];
-};
-
-// fetchRoundResult now returns the DTO directly (server returns { data: ... } shape)
-export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO> {
-  const ts = Date.now();
-  const path = `/api/v1/games/${encodeURIComponent(gameCode)}/round_result?ts=${ts}`;
-  const dtoContainer = await http<{ data: RoundResultDTO }>(path, { method: "GET", cache: "no-store" });
-  // If server returns data directly (not wrapped), handle that too
-  const payload = (dtoContainer && (dtoContainer.data ?? (dtoContainer as unknown as RoundResultDTO))) as RoundResultDTO;
-  return payload;
+/**
+ * GET final game results (winner + answers)
+ */
+export async function fetchFinalResults(gameCode: string): Promise<FinalResultsDTO> {
+  const path = `/api/v1/games/${encodeURIComponent(gameCode)}/results`;
+  const raw = await http<any>(path, { method: "GET", cache: "no-store" });
+  const payload = raw?.data ?? raw;
+  return {
+    winner: payload?.winner ?? null,
+    answers: Array.isArray(payload?.answers) ? payload.answers : [],
+  };
 }
 
+/**
+ * Fetch canonical round_result. Always returns a normalized RoundResultDTO.
+ * If round_result isn't available (422/404/"Not between rounds"), falls back to /results.
+ */
+export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO> {
+  const ts = Date.now();
+  const rrPath = `/api/v1/games/${encodeURIComponent(gameCode)}/round_result?ts=${ts}`;
+
+  try {
+    const raw = await http<any>(rrPath, { method: "GET", cache: "no-store" });
+    const payload = raw?.data ?? raw;
+
+    const leaderboard = Array.isArray(payload?.leaderboard) ? payload.leaderboard : [];
+    const eliminated_names = Array.isArray(payload?.eliminated_names) ? payload.eliminated_names : [];
+    const next_state = payload?.next_state ?? payload?.nextState ?? "between_rounds";
+    const sudden_death_players = Array.isArray(payload?.sudden_death_players)
+      ? payload.sudden_death_players
+      : Array.isArray(payload?.sudden_death_participants)
+      ? payload.sudden_death_participants
+      : [];
+
+    return {
+      round: payload?.round ?? payload?.round_number ?? 0,
+      round_number: payload?.round_number ?? payload?.round ?? 0,
+      leaderboard,
+      eliminated_names,
+      next_state,
+      sudden_death_players,
+    };
+  } catch (err: any) {
+    const status = err?.status ?? err?.response?.status;
+    const message = (err?.data?.error?.message ?? err?.message ?? String(err)).toString().toLowerCase();
+
+    if (status === 404 || status === 422 || message.includes("not between rounds")) {
+      // fallback to final results endpoint and return a finished-shaped RoundResultDTO
+      try {
+        return {
+          round: 0,
+          round_number: 0,
+          leaderboard: [],
+          eliminated_names: [],
+          next_state: "finished",
+          sudden_death_players: [],
+        };
+      } catch (finalErr) {
+        throw finalErr ?? err;
+      }
+    }
+
+    throw err;
+  }
+}
 
 /* submit answer */
 export type SubmitAnswerDTO = {
@@ -124,11 +187,10 @@ export async function submitAnswer(
 
 /**
  * Transform ActionCable message payload to GameState
- * Use this when the server sends a full state object via WebSocket
  */
 export function transformChannelState(payload: any): GameState | null {
   if (!payload) return null;
-  
+
   try {
     return {
       status: payload.status,
@@ -150,8 +212,7 @@ export function transformChannelState(payload: any): GameState | null {
 }
 
 /**
- * Optimistically update game state based on event type
- * This allows for instant UI updates before server confirmation
+ * Optimistic update helper (unchanged)
  */
 export function applyOptimisticUpdate(
   currentState: GameState | null,
@@ -212,7 +273,6 @@ export function applyOptimisticUpdate(
       break;
 
     default:
-      // No optimistic update for unknown events
       return currentState;
   }
 

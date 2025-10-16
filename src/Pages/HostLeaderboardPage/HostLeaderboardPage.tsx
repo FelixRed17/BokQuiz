@@ -76,7 +76,6 @@ export default function HostLeaderboardPage() {
           navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
         }, 4000);
       }
-      // Insert/replace your round_result handler with this
 
       if (msg.type === "round_result") {
         console.log("Received round_result broadcast:", msg.payload);
@@ -105,7 +104,7 @@ export default function HostLeaderboardPage() {
           return;
         }
 
-        // If server explicitly marked final, do a single fetch (should succeed)
+        // If server explicitly marked final or included a result id, do a single fetch (should succeed).
         if (payload.final || payload.result_id) {
           (async () => {
             try {
@@ -119,11 +118,25 @@ export default function HostLeaderboardPage() {
               });
               setIsLoading(false);
               setError(null);
-            } catch (e) {
+            } catch (e: any) {
               console.warn(
-                "fetchRoundResult failed even though payload was final:",
+                "fetchRoundResult failed even though payload was final — trying fallback to /results:",
                 e
               );
+              // fallback to /results
+              try {
+                setData({
+                  round: 0,
+                  leaderboard: [],
+                  eliminated_names: [],
+                  next_state: "finished",
+                  sudden_death_players: [],
+                });
+                setIsLoading(false);
+                setError(null);
+              } catch (finalErr) {
+                console.error("Fallback to /results also failed:", finalErr);
+              }
             }
           })();
           return;
@@ -149,12 +162,17 @@ export default function HostLeaderboardPage() {
               setError(null);
               return;
             } catch (err: any) {
-              const msg =
-                err?.data?.error?.message ?? err?.message ?? String(err);
+              const msg = (
+                err?.data?.error?.message ??
+                err?.message ??
+                (String(err) || "")
+              ).toString();
               // If server responds 'Not between rounds' / 422, wait and retry.
               if (
                 msg.toLowerCase().includes("not between rounds") ||
-                err?.status === 422
+                err?.status === 422 ||
+                err?.response?.status === 422 ||
+                err?.response?.status === 404
               ) {
                 console.debug(
                   `round_result not ready (attempt ${attempt}). Will retry in ${delayMs}ms.`
@@ -174,6 +192,26 @@ export default function HostLeaderboardPage() {
               }
             }
           }
+
+          // If we exhausted polling attempts, try final /results as a last-resort fallback:
+          try {
+            setData({
+              round: 0,
+              leaderboard: [],
+              eliminated_names: [],
+              next_state: "finished",
+              sudden_death_players: [],
+            });
+            setIsLoading(false);
+            setError(null);
+            return;
+          } catch (finalErr) {
+            console.warn(
+              "round_result canonical not available after retries; fallback to /results failed as well.",
+              finalErr
+            );
+          }
+
           console.warn(
             "round_result canonical not available after retries; will wait for next broadcast."
           );
@@ -199,27 +237,49 @@ export default function HostLeaderboardPage() {
           setError(null);
         }
       } catch (err: any) {
-        const msg = err?.data?.error?.message ?? err?.message ?? String(err);
+        const msg = (
+          err?.data?.error?.message ??
+          err?.message ??
+          String(err)
+        ).toString();
         console.warn("Round result fetch failed:", msg);
 
-        // If server says not between rounds, don't hammer it — wait for websocket or polite retry
+        // If server says not between rounds, don't hammer it — try fallback to final results once.
         if (
           msg.toLowerCase().includes("not between rounds") ||
-          err?.status === 422
+          err?.status === 422 ||
+          err?.response?.status === 422 ||
+          err?.response?.status === 404
         ) {
-          if (!cancelled) {
-            // polite re-check once after 5s in case broadcast was missed
-            retryTimer = setTimeout(() => {
-              if (!cancelled) tryFetchOnce();
-            }, 5000);
+          // polite re-check once after 5s in case broadcast was missed, and also attempt final /results fallback right away.
+          try {
+            if (!cancelled) {
+              setData({
+                round: 0,
+                leaderboard: [],
+                eliminated_names: [],
+                next_state: "finished",
+                sudden_death_players: [],
+              });
+              setIsLoading(false);
+              setError(null);
+              return;
+            }
+          } catch (finalErr) {
+            // didn't get final results either - schedule a polite retry of round_result
+            if (!cancelled) {
+              retryTimer = setTimeout(() => {
+                if (!cancelled) tryFetchOnce();
+              }, 5000);
+            }
+            return;
           }
-          return;
-        }
-
-        // For other errors, surface to UI
-        if (!cancelled) {
-          setError(msg);
-          setIsLoading(false);
+        } else {
+          // For other errors, surface to UI
+          if (!cancelled) {
+            setError(msg);
+            setIsLoading(false);
+          }
         }
       }
     };
