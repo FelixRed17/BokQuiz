@@ -32,7 +32,10 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
 }) => {
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [remoteLottie, setRemoteLottie] = useState<LottieData | null>(null);
-  const lottieData = useMemo<LottieData>(() => remoteLottie ?? (trophyAnimation as LottieData), [remoteLottie]);
+  const lottieData = useMemo<LottieData>(
+    () => remoteLottie ?? (trophyAnimation as LottieData),
+    [remoteLottie]
+  );
 
   // Update window size for confetti
   useEffect(() => {
@@ -49,8 +52,11 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
     if (!lottieUrl) return;
     (async () => {
       try {
-        const response = await fetch(lottieUrl, { headers: { Accept: "application/json" } });
-        if (!response.ok) throw new Error(`Failed to load Lottie: ${response.status}`);
+        const response = await fetch(lottieUrl, {
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok)
+          throw new Error(`Failed to load Lottie: ${response.status}`);
         const json = (await response.json()) as LottieData;
         if (isActive) setRemoteLottie(json);
       } catch (error) {
@@ -63,7 +69,10 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
     };
   }, [lottieUrl]);
 
-  const backgroundImageUrl = background && background.trim().length > 0 ? background.trim() : backgroundImg;
+  const backgroundImageUrl =
+    background && background.trim().length > 0
+      ? background.trim()
+      : backgroundImg;
 
   const styleVars = {
     "--primary": primaryColor,
@@ -85,7 +94,9 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
       />
 
       <div className="title-block">
-        <div className="title" style={{ color: primaryColor }}>{title}</div>
+        <div className="title" style={{ color: primaryColor }}>
+          {title}
+        </div>
         {name ? <div className="name">{name}</div> : null}
         {message ? <div className="message">{message}</div> : null}
       </div>
