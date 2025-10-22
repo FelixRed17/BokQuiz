@@ -1,3 +1,4 @@
+// File: src/Pages/HostLeaderboardPage.tsx
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchRoundResult } from "../AdminLobbyPage/services/games.service";
@@ -15,6 +16,22 @@ interface RoundResultData {
   leaderboard: LeaderboardEntry[];
   eliminated_names: string[];
   next_state: string;
+  sudden_death_players?: string[];
+}
+
+function useHostWinnerNavigationFromState(nextState: string | undefined) {
+  const navigate = useNavigate();
+  const { code } = useParams<{ code: string }>();
+
+  useEffect(() => {
+    if (nextState === "finished") {
+      const timer = setTimeout(() => {
+        navigate(`/game/${encodeURIComponent(code ?? "")}/winner`);
+      }, 4000); // 4 seconds for host to see final leaderboard
+
+      return () => clearTimeout(timer);
+    }
+  }, [nextState, navigate, code]);
 }
 
 export default function HostLeaderboardPage() {
@@ -25,6 +42,25 @@ export default function HostLeaderboardPage() {
   const [data, setData] = useState<RoundResultData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  useHostWinnerNavigationFromState(data?.next_state);
+
+  function normalizeRoundResult(dto: any): RoundResultData {
+    return {
+      round: dto?.round ?? dto?.round_number ?? 1,
+      leaderboard: Array.isArray(dto?.leaderboard) ? dto.leaderboard : [],
+      eliminated_names: Array.isArray(dto?.eliminated_names)
+        ? dto.eliminated_names
+        : [],
+      next_state: dto?.next_state ?? dto?.nextState ?? "between_rounds",
+      sudden_death_players: Array.isArray(dto?.sudden_death_players)
+        ? dto.sudden_death_players
+        : Array.isArray(dto?.sudden_death_participants)
+        ? dto.sudden_death_participants
+        : undefined,
+    };
+  }
 
   useGameChannel(gameCode, {
     onMessage: (msg) => {
@@ -34,56 +70,226 @@ export default function HostLeaderboardPage() {
           state: { question: msg.payload },
         });
       }
+
+      if (msg.type === "game_finished") {
+        setTimeout(() => {
+          navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+        }, 4000);
+      }
+
       if (msg.type === "round_result") {
-        // Update data if received via WebSocket (shouldn't happen for host, but handle it)
-        console.log("Host received round_result broadcast:", msg.payload);
-        const payload = msg.payload;
-        if (payload && payload.leaderboard) {
-          setData({
-            round: payload.round || 1,
-            leaderboard: payload.leaderboard || [],
-            eliminated_names: payload.eliminated_names || [],
-            next_state: payload.next_state || "between_rounds",
-          });
+        console.log("Received round_result broadcast:", msg.payload);
+
+        const payload = msg.payload ?? {};
+
+        // If payload already contains a full leaderboard, use it immediately.
+        if (
+          Array.isArray(payload.leaderboard) &&
+          payload.leaderboard.length > 0
+        ) {
+          const normalized = {
+            round: payload.round ?? payload.round_number ?? 1,
+            leaderboard: payload.leaderboard,
+            eliminated_names: payload.eliminated_names ?? [],
+            next_state:
+              payload.next_state ?? payload.nextState ?? "between_rounds",
+            sudden_death_players:
+              payload.sudden_death_players ??
+              payload.sudden_death_participants ??
+              [],
+          };
+          setData(normalized);
           setIsLoading(false);
+          setError(null);
+          return;
         }
+
+        // If server explicitly marked final or included a result id, do a single fetch (should succeed).
+        if (payload.final || payload.result_id) {
+          (async () => {
+            try {
+              const rr = await fetchRoundResult(gameCode);
+              setData({
+                round: rr.round ?? rr.round_number ?? 1,
+                leaderboard: rr.leaderboard ?? [],
+                eliminated_names: rr.eliminated_names ?? [],
+                next_state: rr.next_state ?? "between_rounds",
+                sudden_death_players: (rr as any).sudden_death_players ?? [],
+              });
+              setIsLoading(false);
+              setError(null);
+            } catch (e: any) {
+              console.warn(
+                "fetchRoundResult failed even though payload was final — trying fallback to /results:",
+                e
+              );
+              // fallback to /results
+              try {
+                setData({
+                  round: 0,
+                  leaderboard: [],
+                  eliminated_names: [],
+                  next_state: "finished",
+                  sudden_death_players: [],
+                });
+                setIsLoading(false);
+                setError(null);
+              } catch (finalErr) {
+                console.error("Fallback to /results also failed:", finalErr);
+              }
+            }
+          })();
+          return;
+        }
+
+        // Otherwise: payload appears to be a *signal* (no full data). Poll canonical endpoint with polite retries.
+        (async () => {
+          const maxAttempts = 5;
+          let attempt = 0;
+          let delayMs = 300; // start small (server might be committing)
+          while (attempt < maxAttempts) {
+            attempt += 1;
+            try {
+              const rr = await fetchRoundResult(gameCode);
+              setData({
+                round: rr.round ?? rr.round_number ?? 1,
+                leaderboard: rr.leaderboard ?? [],
+                eliminated_names: rr.eliminated_names ?? [],
+                next_state: rr.next_state ?? "between_rounds",
+                sudden_death_players: (rr as any).sudden_death_players ?? [],
+              });
+              setIsLoading(false);
+              setError(null);
+              return;
+            } catch (err: any) {
+              const msg = (
+                err?.data?.error?.message ??
+                err?.message ??
+                (String(err) || "")
+              ).toString();
+              // If server responds 'Not between rounds' / 422, wait and retry.
+              if (
+                msg.toLowerCase().includes("not between rounds") ||
+                err?.status === 422 ||
+                err?.response?.status === 422 ||
+                err?.response?.status === 404
+              ) {
+                console.debug(
+                  `round_result not ready (attempt ${attempt}). Will retry in ${delayMs}ms.`
+                );
+                await new Promise((res) => setTimeout(res, delayMs));
+                delayMs = Math.min(2000, Math.round(delayMs * 1.8)); // exponential backoff cap 2s
+                continue;
+              } else {
+                // non-422: surface error and stop retrying
+                console.warn("fetchRoundResult failed:", err);
+                if (!data) {
+                  // only set error if we don't already have results
+                  setError(msg);
+                  setIsLoading(false);
+                }
+                return;
+              }
+            }
+          }
+
+          // If we exhausted polling attempts, try final /results as a last-resort fallback:
+          try {
+            setData({
+              round: 0,
+              leaderboard: [],
+              eliminated_names: [],
+              next_state: "finished",
+              sudden_death_players: [],
+            });
+            setIsLoading(false);
+            setError(null);
+            return;
+          } catch (finalErr) {
+            console.warn(
+              "round_result canonical not available after retries; fallback to /results failed as well.",
+              finalErr
+            );
+          }
+
+          console.warn(
+            "round_result canonical not available after retries; will wait for next broadcast."
+          );
+        })();
       }
     },
   });
 
   useEffect(() => {
-    const loadRoundResult = async () => {
-      let attempts = 0;
-      const maxAttempts = 5;
-      const delayMs = 1000;
+    // New behavior: try one immediate fetch, then rely on websocket.
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-      while (attempts < maxAttempts) {
-        try {
-          // Wait before attempting (gives backend time to transition state)
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-          
-          console.log(`Attempting to fetch round result (attempt ${attempts + 1}/${maxAttempts})`);
-          const result = await fetchRoundResult(gameCode);
-          setData(result);
+    const tryFetchOnce = async () => {
+      if (!gameCode) return;
+      try {
+        const result = await fetchRoundResult(gameCode);
+        const normalized = normalizeRoundResult(result);
+
+        if (!cancelled) {
+          setData(normalized);
           setIsLoading(false);
-          console.log("Successfully loaded round result:", result);
-          return; // Success, exit
-        } catch (err: any) {
-          attempts++;
-          const msg = err?.data?.error?.message ?? err?.message ?? "Failed to load results";
-          console.error(`Attempt ${attempts} failed:`, msg);
-          
-          if (attempts >= maxAttempts) {
-            // All attempts failed
+          setError(null);
+        }
+      } catch (err: any) {
+        const msg = (
+          err?.data?.error?.message ??
+          err?.message ??
+          String(err)
+        ).toString();
+        console.warn("Round result fetch failed:", msg);
+
+        // If server says not between rounds, don't hammer it — try fallback to final results once.
+        if (
+          msg.toLowerCase().includes("not between rounds") ||
+          err?.status === 422 ||
+          err?.response?.status === 422 ||
+          err?.response?.status === 404
+        ) {
+          // polite re-check once after 5s in case broadcast was missed, and also attempt final /results fallback right away.
+          try {
+            if (!cancelled) {
+              setData({
+                round: 0,
+                leaderboard: [],
+                eliminated_names: [],
+                next_state: "finished",
+                sudden_death_players: [],
+              });
+              setIsLoading(false);
+              setError(null);
+              return;
+            }
+          } catch (finalErr) {
+            // didn't get final results either - schedule a polite retry of round_result
+            if (!cancelled) {
+              retryTimer = setTimeout(() => {
+                if (!cancelled) tryFetchOnce();
+              }, 5000);
+            }
+            return;
+          }
+        } else {
+          // For other errors, surface to UI
+          if (!cancelled) {
             setError(msg);
             setIsLoading(false);
           }
-          // Otherwise, loop will retry
         }
       }
     };
 
-    loadRoundResult();
+    tryFetchOnce();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [gameCode]);
 
   const handleNextRound = async () => {
@@ -94,6 +300,7 @@ export default function HostLeaderboardPage() {
     }
 
     try {
+      setIsProcessing(true);
       await http(`/api/v1/games/${encodeURIComponent(gameCode)}/host_next`, {
         method: "POST",
         headers: {
@@ -101,11 +308,15 @@ export default function HostLeaderboardPage() {
           Accept: "application/json",
         },
       });
-      // Navigation will happen via WebSocket message
+      // Navigation/updating will happen via WebSocket message and canonical fetch
     } catch (err: any) {
       const msg =
-        err?.data?.error?.message ?? err?.message ?? "Failed to start next round";
+        err?.data?.error?.message ??
+        err?.message ??
+        "Failed to start next round";
       console.error(`Failed to proceed: ${msg}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -162,8 +373,10 @@ export default function HostLeaderboardPage() {
 
         {/* Leaderboard Table */}
         <div className={styles.tableBody}>
-          {data.leaderboard.map((entry, index) => {
-            const isEliminated = data.eliminated_names.includes(entry.name);
+          {(data?.leaderboard ?? []).map((entry, index) => {
+            const isEliminated = (data?.eliminated_names ?? []).includes(
+              entry.name
+            );
             return (
               <div
                 key={index}
@@ -187,7 +400,8 @@ export default function HostLeaderboardPage() {
         {/* Next State Info */}
         {data.next_state === "sudden_death" && (
           <div className={styles.suddenDeathAlert}>
-            <strong>⚡ Sudden Death!</strong> Multiple players tied - sudden death round next
+            <strong>⚡ Sudden Death!</strong> Multiple players tied - sudden
+            death round next
           </div>
         )}
 
@@ -197,16 +411,51 @@ export default function HostLeaderboardPage() {
           </div>
         )}
 
-        {/* Button */}
-        <button
-          className={styles.nextButton}
-          onClick={handleNextRound}
-          disabled={data.next_state === "finished"}
-        >
-          {data.next_state === "finished" ? "Game Over" : "Next Round"}
-        </button>
+        {/* Sudden death panel or regular button */}
+        {data.next_state === "sudden_death" ? (
+          <div className={styles.suddenDeathPanel}>
+            <div className={styles.suddenDeathTitle}>
+              ⚡ Sudden Death Participants
+            </div>
+
+            <div className={styles.suddenDeathList}>
+              {(data.sudden_death_players ?? []).length > 0 ? (
+                (data.sudden_death_players ?? []).map((n, i) => (
+                  <div key={i} className={styles.suddenDeathPlayer}>
+                    {n}
+                  </div>
+                ))
+              ) : (
+                <div className="text-muted">
+                  Participants will appear shortly
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3">
+              <button
+                className={styles.nextButton}
+                onClick={handleNextRound}
+                disabled={isProcessing}
+              >
+                {isProcessing ? "Processing..." : "Start Sudden Death"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className={styles.nextButton}
+            onClick={handleNextRound}
+            disabled={data.next_state === "finished" || isProcessing}
+          >
+            {isProcessing
+              ? "Processing..."
+              : data.next_state === "finished"
+              ? "Game Over"
+              : "Next Round"}
+          </button>
+        )}
       </div>
     </div>
   );
 }
-

@@ -79,9 +79,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       }
 
       // Store player credentials in localStorage for API calls
-      localStorage.setItem("playerId", String(response.player_id));
-      localStorage.setItem("reconnectToken", response.reconnect_token);
-      localStorage.setItem("playerName", playerName.trim());
+      sessionStorage.setItem("playerId", String(response.player_id));
+      sessionStorage.setItem("reconnectToken", response.reconnect_token);
+      sessionStorage.setItem("playerName", playerName.trim());
       localStorage.setItem("gameCode", gameCode.trim());
       // Clear amHost flag - this is a regular player, not the host
       localStorage.setItem("amHost", "false");

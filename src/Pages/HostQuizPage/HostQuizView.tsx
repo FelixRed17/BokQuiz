@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
-import { http } from "../../lib/http";
 import CountDown from "../CountDownPage/CountDown"; // Import the CountDown component
 import "./HostQuizView.css";
 
@@ -27,6 +26,10 @@ export default function HostQuizView() {
   const [timeLeft, setTimeLeft] = useState<number>(25);
   const [showQuiz, setShowQuiz] = useState(false);
   const currentRoundRef = useRef(initialQuestion?.round_number || 0);
+  const lastQuestionIndexRef = useRef<number | null>(
+    typeof initialQuestion?.index === "number" ? initialQuestion.index : null
+  );
+  // We no longer track per-question answered state for host UI
 
   const { state } = useGameState(gameCode, { pollIntervalMs: 2000 });
 
@@ -40,6 +43,15 @@ export default function HostQuizView() {
           index: newQuestion.index,
           round_number: newQuestion.round_number,
         });
+
+        // Reset timer based on server-provided time remaining
+        lastQuestionIndexRef.current =
+          typeof newQuestion.index === "number" ? newQuestion.index : null;
+        const ms = (newQuestion?.time_remaining_ms ??
+          newQuestion?.timeRemainingMs ??
+          state?.timeRemainingMs ??
+          30000) as number;
+        setTimeLeft(Math.ceil(ms / 1000));
 
         if (
           newQuestion.index === 0 &&
@@ -66,6 +78,16 @@ export default function HostQuizView() {
       return () => clearInterval(timer);
     }
   }, [showQuiz, timeLeft]);
+
+  // When canonical game state moves to a new question, reset timer
+  useEffect(() => {
+    const idx = state?.currentQuestionIndex;
+    if (typeof idx === "number" && idx !== lastQuestionIndexRef.current) {
+      const ms = (state?.timeRemainingMs ?? 30000) as number;
+      setTimeLeft(Math.ceil(ms / 1000));
+      lastQuestionIndexRef.current = idx;
+    }
+  }, [state?.currentQuestionIndex, state?.timeRemainingMs]);
 
   const handleCountdownComplete = () => {
     setShowQuiz(true);
@@ -168,9 +190,6 @@ export default function HostQuizView() {
               {activePlayers.map((player) => (
                 <div key={player.name} className="player-card">
                   <div className="player-name">{player.name}</div>
-                  <div className="player-status">
-                    {player.ready ? "✓ Answered" : "⏳ Thinking..."}
-                  </div>
                 </div>
               ))}
             </div>
