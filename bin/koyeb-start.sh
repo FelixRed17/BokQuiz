@@ -7,6 +7,7 @@ export RAILS_ENV="${RAILS_ENV:-production}"
 # Run DB migrations (idempotent)
 bundle exec rails db:migrate
 
+
 if [ "${RESEED_QUESTIONS:-}" = "1" ]; then
   bundle exec rails runner 'RoundResult.delete_all; Submission.delete_all; Game.delete_all; Question.delete_all; load Rails.root.join("db","seeds.rb")'
 fi
