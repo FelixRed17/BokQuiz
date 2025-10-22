@@ -34,8 +34,8 @@ rounds:
         correct_index: 0
         points: 1
         time_limit: 25
-      - text: "In 2019, which Springbok scored the first try in the Rugby World Cup final against England?"
-        options: ["Cheslin Kolbe", "Makazole Mapimpi", "Willie le Roux", "Duane Vermeulen"]
+      - text: "Which player scored the first ever Springbok try in a Rugby World Cup Final?"
+        options: ["Cheslin Kolbe", "Makazole Mapimpi", "Willie le Roux", "Bryan Habana"]
         correct_index: 1
         points: 1
         time_limit: 25
