@@ -23,7 +23,7 @@ export default function HostQuizView() {
   const [question, setQuestion] = useState<QuestionData | null>(
     initialQuestion
   );
-  const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [timeLeft, setTimeLeft] = useState<number>(25);
   const [showQuiz, setShowQuiz] = useState(false);
   const currentRoundRef = useRef(initialQuestion?.round_number || 0);
   const lastQuestionIndexRef = useRef<number | null>(
@@ -47,11 +47,10 @@ export default function HostQuizView() {
         // Reset timer based on server-provided time remaining
         lastQuestionIndexRef.current =
           typeof newQuestion.index === "number" ? newQuestion.index : null;
-        const ms =
-          (newQuestion?.time_remaining_ms ??
-            newQuestion?.timeRemainingMs ??
-            state?.timeRemainingMs ??
-            30000) as number;
+        const ms = (newQuestion?.time_remaining_ms ??
+          newQuestion?.timeRemainingMs ??
+          state?.timeRemainingMs ??
+          30000) as number;
         setTimeLeft(Math.ceil(ms / 1000));
 
         if (

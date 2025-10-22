@@ -24,7 +24,7 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
   hasSubmitted = false,
 }) => {
   const [selected, setSelected] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [timeLeft, setTimeLeft] = useState<number>(25);
   const [startTime, setStartTime] = useState<number>(Date.now());
 
   const isSuddenDeath = questionData.round_number === 4;
@@ -32,7 +32,7 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
   // Reset selected answer when question changes
   useEffect(() => {
     setSelected(null); // Clear selection for new question
-    setTimeLeft(30);
+    setTimeLeft(25);
     setStartTime(Date.now());
     const t = setInterval(() => setTimeLeft((p) => (p > 0 ? p - 1 : 0)), 1000);
     return () => clearInterval(t);
