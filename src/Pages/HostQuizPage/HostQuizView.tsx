@@ -24,7 +24,7 @@ export default function HostQuizView() {
   const [question, setQuestion] = useState<QuestionData | null>(
     initialQuestion
   );
-  const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [timeLeft, setTimeLeft] = useState<number>(25);
   const [showQuiz, setShowQuiz] = useState(false);
   const currentRoundRef = useRef(initialQuestion?.round_number || 0);
 
