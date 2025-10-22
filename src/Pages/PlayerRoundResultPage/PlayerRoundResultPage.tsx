@@ -112,6 +112,14 @@ export default function PlayerRoundResultPage() {
         return;
       }
 
+      // If server announces game finished explicitly, navigate to winner page.
+      if (msg.type === "game_finished") {
+        setTimeout(() => {
+          navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+        }, 3000);
+        return;
+      }
+
       if (msg.type === "round_result") {
         console.log("Received round_result broadcast:", msg.payload);
 
@@ -161,6 +169,55 @@ export default function PlayerRoundResultPage() {
       "";
     setPlayerName(storedName);
   }, []);
+
+  // One-time opportunistic fetch similar to host to avoid races where status isn't yet "between_rounds"
+  useEffect(() => {
+    let cancelled = false;
+
+    const tryFetchOnce = async () => {
+      if (!gameCode || hasFetchedRef.current || data) return;
+      try {
+        const rr = await fetchRoundResult(gameCode);
+        if (cancelled) return;
+
+        if (rr && Array.isArray(rr.leaderboard) && rr.leaderboard.length > 0) {
+          const roundNum = rr.round_number ?? rr.round ?? 1;
+          const normalized: RoundResultData = {
+            round: roundNum,
+            round_number: roundNum,
+            leaderboard: rr.leaderboard,
+            eliminated_names: rr.eliminated_names ?? [],
+            next_state: rr.next_state ?? "between_rounds",
+            sudden_death_players: (rr as any).sudden_death_players ?? [],
+          };
+          setData(normalized);
+          setIsLoading(false);
+          setError(null);
+          hasFetchedRef.current = true;
+        }
+      } catch (err: any) {
+        const msg = (err?.data?.error?.message ?? err?.message ?? String(err)).toString();
+        const status = err?.status ?? err?.data?.status ?? err?.response?.status;
+        // If not-between-rounds (422/404), allow existing polling/backoff logic to proceed silently.
+        if (
+          (typeof msg === "string" && msg.toLowerCase().includes("not between rounds")) ||
+          status === 422 ||
+          status === 404
+        ) {
+          return;
+        }
+        if (!cancelled && !data) {
+          setError(msg);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    tryFetchOnce();
+    return () => {
+      cancelled = true;
+    };
+  }, [gameCode, data]);
 
   // Persist whether this player is in sudden death when data loads
   useEffect(() => {
