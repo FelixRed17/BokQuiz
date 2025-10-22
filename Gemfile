@@ -47,4 +47,6 @@ group :development, :test do
 
   # New gems added for the Boz Quiz
   gem "redis"
+
+  ruby "3.3.9"
 end
