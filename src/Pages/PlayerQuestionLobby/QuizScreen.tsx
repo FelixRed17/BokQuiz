@@ -3,11 +3,13 @@ import "./QuizScreen.css";
 import Timer from "./components/Timer.tsx";
 import QuestionCard from "./components/QuestionCard.tsx";
 import OptionButton from "./components/OptionButton.tsx";
+import { useSyncedTimer } from "../../hooks/useSyncedTimer";
 
 interface QuestionData {
   question: string;
   options: string[];
   round_number?: number;
+  ends_at?: string | null;
 }
 
 export interface QuizScreenProps {
@@ -24,19 +26,27 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
   hasSubmitted = false,
 }) => {
   const [selected, setSelected] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(25);
   const [startTime, setStartTime] = useState<number>(Date.now());
+  const [localSubmitted, setLocalSubmitted] = useState<boolean>(false);
 
   const isSuddenDeath = questionData.round_number === 4;
+  
+  // Use synchronized timer based on server's ends_at timestamp
+  const timeLeft = useSyncedTimer(questionData.ends_at, 20);
 
-  // Reset selected answer when question changes
+  // Reset selected answer and start time when question changes
   useEffect(() => {
-    setSelected(null); // Clear selection for new question
-    setTimeLeft(25);
+    setSelected(null);
     setStartTime(Date.now());
-    const t = setInterval(() => setTimeLeft((p) => (p > 0 ? p - 1 : 0)), 1000);
-    return () => clearInterval(t);
-  }, [questionData]);
+    setLocalSubmitted(false);
+  }, [questionNumber, isSuddenDeath]);
+
+  // Sync localSubmitted with parent's hasSubmitted to prevent stuck state
+  useEffect(() => {
+    if (!hasSubmitted) {
+      setLocalSubmitted(false);
+    }
+  }, [hasSubmitted]);
 
   useEffect(() => {
     if (timeLeft === 0 && onNext) {
@@ -51,16 +61,13 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
   const handleSubmit = () => {
     if (!onNext) return;
     const latency = Date.now() - startTime;
+    setLocalSubmitted(true);
     onNext(selected, latency);
   };
 
   return (
     <div className={`quiz-screen ${isSuddenDeath ? "sudden-death" : ""}`}>
-      {isSuddenDeath && (
-        <div className="sudden-death-banner">
-          ⚡ SUDDEN DEATH — Answer All 3 Questions!
-        </div>
-      )}
+      {isSuddenDeath }
       <Timer timeLeft={timeLeft} />
       <div className="quiz-container">
         <QuestionCard
@@ -75,7 +82,11 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
               option={opt}
               index={idx}
               isSelected={selected === idx}
-              onClick={setSelected}
+              onClick={(i) => {
+                if (localSubmitted || hasSubmitted || timeLeft === 0) return;
+                setSelected(i);
+              }}
+              disabled={localSubmitted || hasSubmitted || timeLeft === 0}
             />
           ))}
         </div>
@@ -83,7 +94,7 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
           <button
             className="quiz-submit"
             onClick={handleSubmit}
-            disabled={hasSubmitted || selected === null}
+            disabled={hasSubmitted || localSubmitted || selected === null}
           >
             {hasSubmitted ? "Submitted ✓" : "Submit"}
           </button>

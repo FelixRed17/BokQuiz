@@ -18,6 +18,13 @@
 .option-button.selected { background: var(--quiz-yellow); transform: translateY(-3px); }
 .option-button.selected:hover { background: var(--quiz-yellow); }
 
+/* Disabled state: no interactions, dimmed cursor */
+.option-button.disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
 .option-letter {
   min-width: 36px;
   height: 36px;

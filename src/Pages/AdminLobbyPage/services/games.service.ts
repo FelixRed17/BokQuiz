@@ -136,25 +136,8 @@ export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO
       sudden_death_players,
     };
   } catch (err: any) {
-    const status = err?.status ?? err?.response?.status;
-    const message = (err?.data?.error?.message ?? err?.message ?? String(err)).toString().toLowerCase();
-
-    if (status === 404 || status === 422 || message.includes("not between rounds")) {
-      // fallback to final results endpoint and return a finished-shaped RoundResultDTO
-      try {
-        return {
-          round: 0,
-          round_number: 0,
-          leaderboard: [],
-          eliminated_names: [],
-          next_state: "finished",
-          sudden_death_players: [],
-        };
-      } catch (finalErr) {
-        throw finalErr ?? err;
-      }
-    }
-
+    // Let callers handle readiness races with their own retry policy.
+    // Do not synthesize a 'finished' state here; it causes premature navigation.
     throw err;
   }
 }
@@ -173,14 +156,14 @@ export async function submitAnswer(
   const path = `/api/v1/games/${encodeURIComponent(gameCode)}/submit`;
   const dto = await http<SubmitAnswerDTO>(path, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+    keepalive: true,
+    timeoutMs: 2500,
+    retry: 1,
+    json: {
       player_id: playerId,
       reconnect_token: reconnectToken,
       selected_index: selectedIndex,
-    }),
+    },
   });
   return dto;
 }
