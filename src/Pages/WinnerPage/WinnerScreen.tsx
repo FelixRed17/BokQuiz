@@ -97,8 +97,9 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
         <div className="title" style={{ color: primaryColor }}>
           {title}
         </div>
-        {name ? <div className="name">{name}</div> : null}
         {message ? <div className="message">{message}</div> : null}
+
+        <div>{name ? <div className="name">{name}</div> : null}</div>
       </div>
 
       <div className="lottie-wrapper">

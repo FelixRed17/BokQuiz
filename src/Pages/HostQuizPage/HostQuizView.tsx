@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
-import CountDown from "../CountDownPage/CountDown"; // Import the CountDown component
+import { useSyncedTimer } from "../../hooks/useSyncedTimer";
+import CountDown from "../CountDownPage/CountDown";
 import "./HostQuizView.css";
 
 interface QuestionData {
@@ -10,6 +11,8 @@ interface QuestionData {
   options: string[];
   index: number;
   round_number: number;
+  ends_at?: string;
+  time_remaining_ms?: number;
 }
 
 export default function HostQuizView() {
@@ -23,7 +26,6 @@ export default function HostQuizView() {
   const [question, setQuestion] = useState<QuestionData | null>(
     initialQuestion
   );
-  const [timeLeft, setTimeLeft] = useState<number>(30);
   const [showQuiz, setShowQuiz] = useState(false);
   const currentRoundRef = useRef(initialQuestion?.round_number || 0);
   const lastQuestionIndexRef = useRef<number | null>(
@@ -42,17 +44,12 @@ export default function HostQuizView() {
           options: newQuestion.options || [],
           index: newQuestion.index,
           round_number: newQuestion.round_number,
+          ends_at: newQuestion.ends_at,
+          time_remaining_ms: newQuestion.time_remaining_ms ?? newQuestion.timeRemainingMs,
         });
 
-        // Reset timer based on server-provided time remaining
         lastQuestionIndexRef.current =
           typeof newQuestion.index === "number" ? newQuestion.index : null;
-        const ms =
-          (newQuestion?.time_remaining_ms ??
-            newQuestion?.timeRemainingMs ??
-            state?.timeRemainingMs ??
-            30000) as number;
-        setTimeLeft(Math.ceil(ms / 1000));
 
         if (
           newQuestion.index === 0 &&
@@ -68,27 +65,21 @@ export default function HostQuizView() {
         console.log("Round ended - navigating to leaderboard");
         navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
       }
+      if (msg.type === "sudden_death_eliminated") {
+        console.log("Sudden death ended - navigating to leaderboard");
+        navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
+      }
+      if (msg.type === "game_finished") {
+        console.log("Game finished - navigating to winner page");
+        navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+      }
     },
   });
 
-  useEffect(() => {
-    if (showQuiz && timeLeft > 0) {
-      const timer = setInterval(() => {
-        setTimeLeft((prev) => Math.max(0, prev - 1));
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [showQuiz, timeLeft]);
-
-  // When canonical game state moves to a new question, reset timer
-  useEffect(() => {
-    const idx = state?.currentQuestionIndex;
-    if (typeof idx === "number" && idx !== lastQuestionIndexRef.current) {
-      const ms = (state?.timeRemainingMs ?? 30000) as number;
-      setTimeLeft(Math.ceil(ms / 1000));
-      lastQuestionIndexRef.current = idx;
-    }
-  }, [state?.currentQuestionIndex, state?.timeRemainingMs]);
+  // Use synchronized timer - calculate ends_at from time_remaining_ms if needed
+  const endsAt = question?.ends_at || 
+    (question?.time_remaining_ms ? new Date(Date.now() + question.time_remaining_ms).toISOString() : null);
+  const timeLeft = useSyncedTimer(endsAt, 20);
 
   const handleCountdownComplete = () => {
     setShowQuiz(true);

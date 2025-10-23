@@ -35,9 +35,10 @@
 }
 
 .name {
-  font-size: 2rem;
-  margin-top: 8px;
-  color: #ffffff;
+  font-size: 8rem;
+  margin-top: 450px;
+  font-weight: bold;
+   color: #ffffff;
   text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
 }
 
@@ -57,4 +58,3 @@
   height: 500px;
   z-index: 1;
 }
-

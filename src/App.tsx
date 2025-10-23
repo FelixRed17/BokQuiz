@@ -10,6 +10,7 @@ import HostQuizView from "./Pages/HostQuizPage/HostQuizView";
 import HostLeaderboardPage from "./Pages/HostLeaderboardPage/HostLeaderboardPage";
 import PlayerRoundResultPage from "./Pages/PlayerRoundResultPage/PlayerRoundResultPage";
 import WinnerPage from "./Pages/WinnerPage/WinnerPage";
+import WaitingSuddenDeathPage from "./Pages/WaitingSuddenDeathPage/WaitingSuddenDeathPage";
 
 function App() {
   return (
@@ -30,6 +31,10 @@ function App() {
           path="/game/:code/round-result"
           element={<PlayerRoundResultPage />}
         />
+        <Route
+          path="/game/:code/sudden-death-wait"
+          element={<WaitingSuddenDeathPage />}
+        />
         <Route path="/game/:code/winner" element={<WinnerPage />} />
       </Routes>
     </BrowserRouter>
@@ -37,3 +42,4 @@ function App() {
 }
 
 export default App;
+

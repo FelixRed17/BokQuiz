@@ -5,6 +5,7 @@ import {
   fetchGameState,
 } from "../AdminLobbyPage/services/games.service";
 import { useGameChannel } from "../../hooks/useGameChannel";
+import { fetchFinalResults } from "../AdminLobbyPage/services/games.service";
 import styles from "./PlayerRoundResultPage.module.css";
 
 interface LeaderboardEntry {
@@ -27,12 +28,48 @@ function useWinnerNavigation(gameStatus: string | undefined) {
 
   useEffect(() => {
     if (gameStatus === "finished") {
-      // Navigate to winner page after a short delay to show final results
-      const timer = setTimeout(() => {
-        navigate(`/game/${encodeURIComponent(code ?? "")}/winner`);
-      }, 3000); // 3 second delay
-
-      return () => clearTimeout(timer);
+      let cancelled = false;
+      const tryNavigate = async () => {
+        const gameCode = code ?? "";
+        const maxAttempts = 8;
+        let attempt = 0;
+        let delayMs = 500;
+        while (!cancelled && attempt < maxAttempts) {
+          attempt += 1;
+          try {
+            await fetchFinalResults(gameCode);
+            if (!cancelled) {
+              navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+            }
+            return;
+          } catch (err: any) {
+            const status = err?.status ?? err?.response?.status;
+            const msg = err?.data?.error?.message ?? err?.message ?? String(err);
+            if (
+              status === 422 ||
+              status === 404 ||
+              (typeof msg === "string" && msg.toLowerCase().includes("not between rounds"))
+            ) {
+              const jitter = Math.floor(Math.random() * 300);
+              const wait = delayMs + jitter;
+              await new Promise((res) => setTimeout(res, wait));
+              delayMs = Math.min(3000, Math.round(delayMs * 1.6));
+              continue;
+            } else {
+              // For other errors, break and still navigate to avoid being stuck
+              break;
+            }
+          }
+        }
+        if (!cancelled) {
+          // Fallback: navigate after attempts to avoid hanging on results page
+          navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+        }
+      };
+      tryNavigate();
+      return () => {
+        cancelled = true;
+      };
     }
   }, [gameStatus, navigate, code]);
 }
@@ -56,10 +93,67 @@ export default function PlayerRoundResultPage() {
     onMessage: (msg) => {
       if (isUnmountedRef.current) return;
 
+      // Defensive: if any message carries sudden-death participants, set the flag immediately
+      try {
+        const raw = (msg?.payload?.sudden_death_participants ?? msg?.payload?.sudden_death_players) as any[] | undefined;
+        const status = msg?.payload?.status as string | undefined;
+        if (Array.isArray(raw) && (status === "sudden_death" || data?.next_state === "sudden_death")) {
+          const name = (playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "").toString();
+          const me = name.trim().toLowerCase();
+          const normalized = raw.map((p: any) => (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase());
+          const isInSd = me.length > 0 && normalized.includes(me);
+          sessionStorage.setItem("inSuddenDeath", isInSd ? "true" : "false");
+        }
+      } catch {}
+
       if (msg.type === "question_started") {
-        navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
-          state: { question: msg.payload },
-        });
+        const nextRound = msg?.payload?.round_number;
+        const inSudden = sessionStorage.getItem("inSuddenDeath") === "true";
+        if (nextRound === 4 && !inSudden) {
+          // Double-check participation via a one-off state fetch to beat races
+          (async () => {
+            try {
+              const s = await fetchGameState(gameCode);
+              const me = (
+                (playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "") as string
+              )
+                .toString()
+                .trim()
+                .toLowerCase();
+              const raw = s?.suddenDeathParticipants ?? [];
+              const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
+                (typeof p === "string" ? p : p?.name ?? "")
+                  .toString()
+                  .trim()
+                  .toLowerCase()
+              );
+              if (me && normalized.includes(me)) {
+                sessionStorage.setItem("inSuddenDeath", "true");
+                navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
+                  state: { question: msg.payload },
+                });
+              } else {
+                sessionStorage.setItem("inSuddenDeath", "false");
+                navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
+              }
+            } catch (_) {
+              // Fallback to waiting if we cannot confirm participation
+              navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
+            }
+          })();
+        } else {
+          navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
+            state: { question: msg.payload },
+          });
+        }
+        return;
+      }
+
+      // If server announces game finished explicitly, navigate to winner page.
+      if (msg.type === "game_finished") {
+        setTimeout(() => {
+          navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+        }, 3000);
         return;
       }
 
@@ -90,6 +184,27 @@ export default function PlayerRoundResultPage() {
           setIsLoading(false);
           setError(null);
           hasFetchedRef.current = true;
+          // If we are not going into sudden death, clear flag
+          if ((normalized.next_state ?? "") !== "sudden_death") {
+            sessionStorage.removeItem("inSuddenDeath");
+          }
+          return;
+        }
+
+        // If payload indicates finished, accept minimal data to allow winner navigation
+        if ((payload.next_state ?? payload.nextState) === "finished") {
+          const normalized: RoundResultData = {
+            round: roundNum,
+            round_number: roundNum,
+            leaderboard: Array.isArray(payload.leaderboard) ? payload.leaderboard : [],
+            eliminated_names: payload.eliminated_names ?? [],
+            next_state: "finished",
+            sudden_death_players: payload.sudden_death_players ?? payload.sudden_death_participants ?? [],
+          };
+          setData(normalized);
+          setIsLoading(false);
+          setError(null);
+          hasFetchedRef.current = true;
           return;
         }
 
@@ -109,6 +224,71 @@ export default function PlayerRoundResultPage() {
     setPlayerName(storedName);
   }, []);
 
+  // One-time opportunistic fetch similar to host to avoid races where status isn't yet "between_rounds"
+  useEffect(() => {
+    let cancelled = false;
+
+    const tryFetchOnce = async () => {
+      if (!gameCode || hasFetchedRef.current || data) return;
+      try {
+        const rr = await fetchRoundResult(gameCode);
+        if (cancelled) return;
+
+        if (rr && Array.isArray(rr.leaderboard) && rr.leaderboard.length > 0) {
+          const roundNum = rr.round_number ?? rr.round ?? 1;
+          const normalized: RoundResultData = {
+            round: roundNum,
+            round_number: roundNum,
+            leaderboard: rr.leaderboard,
+            eliminated_names: rr.eliminated_names ?? [],
+            next_state: rr.next_state ?? "between_rounds",
+            sudden_death_players: (rr as any).sudden_death_players ?? [],
+          };
+          setData(normalized);
+          setIsLoading(false);
+          setError(null);
+          hasFetchedRef.current = true;
+        }
+      } catch (err: any) {
+        const msg = (err?.data?.error?.message ?? err?.message ?? String(err)).toString();
+        const status = err?.status ?? err?.data?.status ?? err?.response?.status;
+        // If not-between-rounds (422/404), allow existing polling/backoff logic to proceed silently.
+        if (
+          (typeof msg === "string" && msg.toLowerCase().includes("not between rounds")) ||
+          status === 422 ||
+          status === 404
+        ) {
+          return;
+        }
+        if (!cancelled && !data) {
+          setError(msg);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    tryFetchOnce();
+    return () => {
+      cancelled = true;
+    };
+  }, [gameCode, data]);
+
+  // Persist whether this player is in sudden death when data loads
+  useEffect(() => {
+    const name = playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "";
+    const raw = data?.sudden_death_players ?? [];
+    const me = name.trim().toLowerCase();
+    const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
+      (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase()
+    );
+    const shouldFlag = data?.next_state === "sudden_death" && me.length > 0 && normalized.includes(me);
+    if (shouldFlag) {
+      sessionStorage.setItem("inSuddenDeath", "true");
+    } else if (data?.next_state === "sudden_death") {
+      sessionStorage.setItem("inSuddenDeath", "false");
+    }
+  }, [data, playerName]);
+
   // Centralized fetch function with retry logic
   const fetchResultsFromAPI = async () => {
     if (hasFetchedRef.current || isUnmountedRef.current) {
@@ -116,9 +296,9 @@ export default function PlayerRoundResultPage() {
       return;
     }
 
-    const maxAttempts = 8;
+    const maxAttempts = 15; // allow a wider window for slower commits
     let attempt = 0;
-    let delayMs = 500;
+    let delayMs = 450; // base backoff
 
     while (attempt < maxAttempts && !isUnmountedRef.current) {
       attempt++;
@@ -150,6 +330,23 @@ export default function PlayerRoundResultPage() {
           setError(null);
           hasFetchedRef.current = true;
           return;
+        } else if (rr?.next_state === "finished") {
+          // Accept finished state even without a leaderboard to allow winner flow
+          const roundNum = rr.round_number ?? rr.round ?? 1;
+          const normalized: RoundResultData = {
+            round: roundNum,
+            round_number: roundNum,
+            leaderboard: Array.isArray(rr.leaderboard) ? rr.leaderboard : [],
+            eliminated_names: rr.eliminated_names ?? [],
+            next_state: "finished",
+            sudden_death_players: (rr as any).sudden_death_players ?? [],
+          };
+          console.log("Results indicate finished; proceeding to winner flow.");
+          setData(normalized);
+          setIsLoading(false);
+          setError(null);
+          hasFetchedRef.current = true;
+          return;
         } else {
           console.warn(`Attempt ${attempt}: Invalid data structure`, rr);
         }
@@ -159,21 +356,23 @@ export default function PlayerRoundResultPage() {
 
         console.log(`Attempt ${attempt} failed:`, msg, `(status: ${status})`);
 
-        // If it's a 422 "Not between rounds", the server isn't ready yet
+        // If it's a 422/404 or "Not between rounds", the server isn't ready yet -> backoff with jitter and retry
         if (
           status === 422 ||
-          msg.toLowerCase().includes("not between rounds")
+          status === 404 ||
+          (typeof msg === "string" && msg.toLowerCase().includes("not between rounds"))
         ) {
           if (attempt < maxAttempts) {
-            console.log(`Waiting ${delayMs}ms before retry...`);
-            await new Promise((resolve) => setTimeout(resolve, delayMs));
-            delayMs = Math.min(3000, Math.round(delayMs * 1.5));
+            const jitter = Math.floor(Math.random() * 250);
+            const wait = delayMs + jitter;
+            console.log(`Waiting ${wait}ms before retry...`);
+            await new Promise((resolve) => setTimeout(resolve, wait));
+            delayMs = Math.min(3500, Math.round(delayMs * 1.5));
             continue;
           }
         }
 
-        // For other errors, show error and stop retrying
-        console.error("Failed to fetch round result:", err);
+        // For other errors or if attempts exhausted, surface error and stop
         if (!isUnmountedRef.current && !data) {
           setError(msg);
           setIsLoading(false);
@@ -213,6 +412,35 @@ export default function PlayerRoundResultPage() {
 
         console.log("Game state:", gameState?.status);
 
+        // If server indicates sudden death, set the participation flag early from state
+        if (gameState?.status === "sudden_death") {
+          const name = playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "";
+          const me = name.toString().trim().toLowerCase();
+          const raw = gameState?.suddenDeathParticipants ?? [];
+          const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
+            (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase()
+          );
+          const isInSd = me.length > 0 && normalized.includes(me);
+          sessionStorage.setItem("inSuddenDeath", isInSd ? "true" : "false");
+        }
+
+        // If game has finished, set minimal data to trigger winner navigation
+        if (gameState?.status === "finished") {
+          console.log("Game state indicates finished; preparing winner flow...");
+          setData({
+            round: gameState?.roundNumber ?? 0,
+            round_number: gameState?.roundNumber ?? 0,
+            leaderboard: [],
+            eliminated_names: [],
+            next_state: "finished",
+            sudden_death_players: [],
+          });
+          setIsLoading(false);
+          setError(null);
+          hasFetchedRef.current = true; // prevent further fetch loops
+          return;
+        }
+
         // Check if results should be available
         if (
           gameState?.status === "between_rounds" ||
@@ -224,21 +452,25 @@ export default function PlayerRoundResultPage() {
           return;
         } else {
           // Not ready yet, poll again
-          console.log(`Status is ${gameState?.status}, polling again in 2s...`);
+          // small jitter around 2s to avoid synchronized bursts
+          const jitter = Math.floor(Math.random() * 300);
+          const nextDelay = 2000 + jitter;
+          console.log(`Status is ${gameState?.status}, polling again in ${nextDelay}ms...`);
           if (!cancelled) {
-            pollTimer = setTimeout(pollGameState, 2000);
+            pollTimer = setTimeout(pollGameState, nextDelay);
           }
         }
       } catch (err) {
         console.warn("Failed to fetch game state:", err);
         if (!cancelled) {
-          pollTimer = setTimeout(pollGameState, 3000);
+          const jitter = Math.floor(Math.random() * 400);
+          pollTimer = setTimeout(pollGameState, 3000 + jitter);
         }
       }
     };
 
     // Start polling after a short delay to give WebSocket a chance
-    const initialTimer = setTimeout(pollGameState, 1000);
+    const initialTimer = setTimeout(pollGameState, 800 + Math.floor(Math.random() * 400));
 
     return () => {
       cancelled = true;
@@ -247,6 +479,70 @@ export default function PlayerRoundResultPage() {
       if (initialTimer) clearTimeout(initialTimer);
     };
   }, [gameCode, data]);
+
+  // Watchdog: if still loading after a few seconds, force a fetch attempt
+  useEffect(() => {
+    if (!isLoading || hasFetchedRef.current) return;
+    const watchdog = setTimeout(async () => {
+      if (!hasFetchedRef.current && isLoading) {
+        try {
+          const s = await fetchGameState(gameCode);
+          const st = s?.status;
+          if (
+            st === "between_rounds" ||
+            st === "round_ended" ||
+            st === "results_available"
+          ) {
+            console.log("Watchdog: state indicates results available. Forcing fetch...");
+            await fetchResultsFromAPI();
+          } else if (st === "finished") {
+            console.log("Watchdog: state is finished; setting minimal data to trigger winner flow.");
+            setData({
+              round: s?.roundNumber ?? 0,
+              round_number: s?.roundNumber ?? 0,
+              leaderboard: [],
+              eliminated_names: [],
+              next_state: "finished",
+              sudden_death_players: [],
+            });
+            setIsLoading(false);
+            setError(null);
+            hasFetchedRef.current = true;
+          } else {
+            console.log(`Watchdog: state is '${st}', skipping forced fetch.`);
+          }
+        } catch (e) {
+          console.warn("Watchdog: failed to get state, skipping forced fetch.");
+        }
+      }
+    }, 3500 + Math.floor(Math.random() * 1000));
+    return () => clearTimeout(watchdog);
+  }, [isLoading, gameCode]);
+
+  // One-off check after we know playerName: snapshot state to flag sudden death participation ASAP
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const s = await fetchGameState(gameCode);
+        if (cancelled) return;
+        if (s?.status === "sudden_death") {
+          const name = playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "";
+          const me = name.toString().trim().toLowerCase();
+          const raw = s.suddenDeathParticipants ?? [];
+          const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
+            (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase()
+          );
+          const isInSd = me.length > 0 && normalized.includes(me);
+          sessionStorage.setItem("inSuddenDeath", isInSd ? "true" : "false");
+        }
+      } catch {}
+    };
+    if (playerName) check();
+    return () => {
+      cancelled = true;
+    };
+  }, [playerName, gameCode]);
 
   if (isLoading) {
     return (
