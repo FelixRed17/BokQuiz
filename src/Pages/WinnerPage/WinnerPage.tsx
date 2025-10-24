@@ -24,16 +24,43 @@ export default function WinnerPage() {
 
   useEffect(() => {
     const fetchResults = async () => {
-      try {
-        const path = `/api/v1/games/${encodeURIComponent(gameCode)}/results`;
-        const response = await http<GameResultsDTO>(path, { method: "GET" });
-        setWinner(response.data.winner);
-        setIsLoading(false);
-      } catch (err: any) {
-        console.error("Failed to fetch results:", err);
-        setError(err?.data?.error?.message ?? "Failed to load winner");
-        setIsLoading(false);
+      const path = `/api/v1/games/${encodeURIComponent(gameCode)}/results`;
+      const maxAttempts = 10;
+      let attempt = 0;
+      let delayMs = 400;
+      while (attempt < maxAttempts) {
+        attempt += 1;
+        try {
+          const response = await http<GameResultsDTO>(path, { method: "GET", cache: "no-store" });
+          setWinner(response.data.winner);
+          setIsLoading(false);
+          return;
+        } catch (err: any) {
+          const status = err?.status ?? err?.response?.status;
+          const msg = err?.data?.error?.message ?? err?.message ?? String(err);
+          console.warn(`Winner fetch failed (attempt ${attempt}/${maxAttempts}):`, msg, `(status: ${status})`);
+          // If results not ready (422/404), backoff with jitter and retry
+          if (
+            status === 422 ||
+            status === 404 ||
+            (typeof msg === "string" && msg.toLowerCase().includes("not between rounds"))
+          ) {
+            if (attempt < maxAttempts) {
+              const jitter = Math.floor(Math.random() * 300);
+              const wait = delayMs + jitter;
+              await new Promise((res) => setTimeout(res, wait));
+              delayMs = Math.min(3000, Math.round(delayMs * 1.5));
+              continue;
+            }
+          }
+          setError(msg);
+          setIsLoading(false);
+          return;
+        }
       }
+      // Exhausted attempts
+      setError("Winner results not ready yet. Please try again shortly.");
+      setIsLoading(false);
     };
 
     if (gameCode) {
@@ -94,9 +121,9 @@ export default function WinnerPage() {
 
   return (
     <WinnerScreen
-      title="🏆 SPRINGBOK CHAMPION 🏆"
-      name={winner ?? "No Winner"}
+      title="🏆BokQuiz CHAMPION 🏆"
       message={winner ? "Congratulations on your victory!" : "Game completed"}
+       name={winner ?? "No Winner"}
       primaryColor="#FFB302"
       secondaryColor="#213A35"
       overlayOpacity={0.4}

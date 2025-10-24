@@ -94,7 +94,12 @@ export default function QuizPage() {
       if (msg.type === "round_ended") {
         console.log("Round ended - navigating to player results");
         setSdQuestionCount(0); // Reset SD counter
-        navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
+        // Add a small randomized delay to allow server to commit results
+        const jitter = Math.floor(Math.random() * 400); // 0-399ms
+        const wait = 700 + jitter; // 700-1099ms total
+        setTimeout(() => {
+          navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
+        }, wait);
       }
 
       if (msg.type === "sudden_death_eliminated") {
@@ -114,6 +119,7 @@ export default function QuizPage() {
         const data = await fetchQuestion(gameCode);
         setQuestion(data);
         setWsConnected(true);
+        setHasSubmitted(false); // Reset submission state for polled question
       } catch (err) {
         console.log("Question not ready yet, will retry...");
       }
@@ -123,6 +129,13 @@ export default function QuizPage() {
     const interval = setInterval(pollQuestion, 2000);
     return () => clearInterval(interval);
   }, [gameCode, question, wsConnected]);
+
+  // Safety: Reset hasSubmitted when question changes (covers edge cases)
+  useEffect(() => {
+    if (question) {
+      setHasSubmitted(false);
+    }
+  }, [question?.index, question?.round_number]);
 
   // Load player name for display during questions
   useEffect(() => {
@@ -156,6 +169,8 @@ export default function QuizPage() {
       return;
     }
 
+    // Optimistic UI: mark as submitted immediately to avoid UI delay
+    setHasSubmitted(true);
     try {
       await submitAnswer(
         gameCode,
@@ -164,13 +179,14 @@ export default function QuizPage() {
         selectedIndex
       );
       console.log("Answer submitted successfully:", selectedIndex);
-      setHasSubmitted(true);
 
       // In SD, show waiting message after submission
       if (question?.round_number === 4) {
         console.log(`SD Question ${sdQuestionCount} of 3 submitted`);
       }
     } catch (err: any) {
+      // Revert optimistic update on failure
+      setHasSubmitted(false);
       const msg =
         err?.data?.error?.message ?? err?.message ?? "Failed to submit answer";
       console.error("Failed to submit answer:", msg);
@@ -190,11 +206,13 @@ export default function QuizPage() {
   const questionIndex = typeof question.index === "number" ? question.index : 0;
   const questionOptions = question.options ?? [];
   const roundNumber = question.round_number ?? 1;
+  const endsAt = question.ends_at ?? null;
 
   const questionData = {
     question: questionText,
     options: questionOptions,
     round_number: roundNumber,
+    ends_at: endsAt,
   };
 
   return (
@@ -218,6 +236,7 @@ export default function QuizPage() {
             </div>
           )}
           <QuizScreen
+            key={`q-${roundNumber}-${questionIndex}`}
             questionData={questionData}
             questionNumber={questionIndex + 1}
             onNext={handleSubmitAnswer}

@@ -1,7 +1,7 @@
 // File: src/Pages/HostLeaderboardPage.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { fetchRoundResult } from "../AdminLobbyPage/services/games.service";
+import { fetchRoundResult, fetchGameState, fetchFinalResults } from "../AdminLobbyPage/services/games.service";
 import { http } from "../../lib/http";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import styles from "./HostLeaderboardPage.module.css";
@@ -43,6 +43,11 @@ export default function HostLeaderboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const hasNavigatedRef = useRef(false as boolean);
+
+  // Detect if we're showing sudden death results
+  const isShowingSuddenDeathResults = data?.round === 4 || 
+    (data?.next_state === "finished" && data?.sudden_death_players && data.sudden_death_players.length > 0);
 
   useHostWinnerNavigationFromState(data?.next_state);
 
@@ -62,6 +67,34 @@ export default function HostLeaderboardPage() {
     };
   }
 
+  // Special fetch for sudden death results
+  const fetchSuddenDeathResults = async () => {
+    try {
+      console.log("Host: Fetching sudden death results from final results endpoint...");
+      await fetchFinalResults(gameCode);
+      
+      // Try to get more detailed results from round_result as fallback
+      const rr = await fetchRoundResult(gameCode);
+      
+      if (rr && Array.isArray(rr.leaderboard) && rr.leaderboard.length > 0) {
+        const normalized = normalizeRoundResult({
+          ...rr,
+          round: rr.round_number ?? rr.round ?? 4,
+          round_number: rr.round_number ?? rr.round ?? 4,
+        });
+
+        console.log("Host: Successfully fetched sudden death results:", normalized);
+        setData(normalized);
+        setIsLoading(false);
+        setError(null);
+        return;
+      }
+    } catch (err: any) {
+      console.warn("Host: Failed to fetch sudden death results:", err);
+      // Fall back to regular fetch - this will be handled by the main fetch logic
+    }
+  };
+
   useGameChannel(gameCode, {
     onMessage: (msg) => {
       if (msg.type === "question_started") {
@@ -72,9 +105,33 @@ export default function HostLeaderboardPage() {
       }
 
       if (msg.type === "game_finished") {
-        setTimeout(() => {
-          navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
-        }, 4000);
+        if (!hasNavigatedRef.current) {
+          hasNavigatedRef.current = true;
+          setTimeout(() => {
+            navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+          }, 4000);
+        }
+      }
+
+      if (msg.type === "sudden_death_eliminated") {
+        console.log("Received sudden_death_eliminated, checking if game is finished...");
+        // After SD elimination, check game state and navigate to winner if finished
+        (async () => {
+          try {
+            // Small delay to allow server to update game state
+            await new Promise(res => setTimeout(res, 500));
+            const s = await fetchGameState(gameCode);
+            if (s?.status === "finished" && !hasNavigatedRef.current) {
+              hasNavigatedRef.current = true;
+              console.log("Game is finished after SD elimination, navigating to winner");
+              setTimeout(() => {
+                navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+              }, 3000);
+            }
+          } catch (err) {
+            console.warn("Failed to check game state after SD elimination:", err);
+          }
+        })();
       }
 
       if (msg.type === "round_result") {
@@ -228,6 +285,14 @@ export default function HostLeaderboardPage() {
     const tryFetchOnce = async () => {
       if (!gameCode) return;
       try {
+        // Check if we should fetch sudden death results
+        const gameState = await fetchGameState(gameCode);
+        if (gameState?.status === "finished" && gameState?.roundNumber === 4) {
+          console.log("Host: Game finished after sudden death, fetching sudden death results...");
+          await fetchSuddenDeathResults();
+          return;
+        }
+
         const result = await fetchRoundResult(gameCode);
         const normalized = normalizeRoundResult(result);
 
@@ -291,6 +356,35 @@ export default function HostLeaderboardPage() {
       if (retryTimer) clearTimeout(retryTimer);
     };
   }, [gameCode]);
+
+  // Fallback: poll game state to detect finished and navigate if WS missed or payload incomplete
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const poll = async () => {
+      if (cancelled || hasNavigatedRef.current) return;
+      try {
+        const s = await fetchGameState(gameCode);
+        if (cancelled || hasNavigatedRef.current) return;
+        if (s?.status === "finished") {
+          hasNavigatedRef.current = true;
+          setTimeout(() => {
+            if (!cancelled) {
+              navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+            }
+          }, 2000);
+          return;
+        }
+      } catch {}
+      const jitter = Math.floor(Math.random() * 400);
+      timer = setTimeout(poll, 1800 + jitter);
+    };
+    poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [gameCode, navigate]);
 
   const handleNextRound = async () => {
     const hostToken = localStorage.getItem("hostToken");
@@ -358,9 +452,13 @@ export default function HostLeaderboardPage() {
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerIcon}>🏉</div>
-          <h2 className={styles.title}>Round {data.round} Results</h2>
+          <h2 className={styles.title}>
+            {isShowingSuddenDeathResults ? "⚡ Sudden Death Results" : `Round ${data.round} Results`}
+          </h2>
         </div>
-        <p className={styles.subtitle}>Leaderboard</p>
+        <p className={styles.subtitle}>
+          {isShowingSuddenDeathResults ? "Final Standings" : "Leaderboard"}
+        </p>
 
         <hr className={styles.divider} />
 
@@ -391,7 +489,9 @@ export default function HostLeaderboardPage() {
                     <span className={styles.eliminatedBadge}>Eliminated</span>
                   )}
                 </span>
-                <span className={styles.dataScore}>{entry.round_score}</span>
+                <span className={styles.dataScore}>
+                  {isShowingSuddenDeathResults ? `${entry.round_score} (SD)` : entry.round_score}
+                </span>
               </div>
             );
           })}
