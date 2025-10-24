@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
 import Confetti from "react-confetti";
 import trophyAnimation from "./Trophy.json";
@@ -30,12 +31,17 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
   confettiPieces = 200,
   lottieUrl,
 }) => {
+  const navigate = useNavigate();
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [remoteLottie, setRemoteLottie] = useState<LottieData | null>(null);
   const lottieData = useMemo<LottieData>(
     () => remoteLottie ?? (trophyAnimation as LottieData),
     [remoteLottie]
   );
+
+  const handleReturnHome = () => {
+    navigate("/");
+  };
 
   // Update window size for confetti
   useEffect(() => {
@@ -104,6 +110,16 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
 
       <div className="lottie-wrapper">
         <Lottie animationData={lottieData} loop={true} />
+      </div>
+
+      {/* Home Button */}
+      <div className="home-button-container">
+        <button 
+          className="home-button"
+          onClick={handleReturnHome}
+        >
+          🏠 Return to Home
+        </button>
       </div>
     </div>
   );
