@@ -500,6 +500,12 @@ module Api
           if next_status == :finished
             winner = @game.players.where(is_host: false, eliminated: false).first
             broadcast(:game_finished, { winner: winner&.name })
+          else
+            # Game continues - broadcast updated round result without SD info
+            broadcast(:sudden_death_complete, { 
+              eliminated: loser.name,
+              round_number: @game.round_number
+            })
           end
           
           return ok({ 
