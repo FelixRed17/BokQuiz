@@ -32,10 +32,19 @@ export default function CountDown({ seconds = 3, onComplete }: Props) {
 
   return (
     <div className="countdown-container">
+      <video
+        className="countdown-bg-video"
+        src="/purplebackground.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
+
       <div className="countdown-card">
         <div className="countdown-header">
-          <div className="countdown-header-icon">🏉</div>
-          <h1 className="countdown-heading">Springbok Quiz</h1>
+          <div className="countdown-header-icon">🤖</div>
+          <h1 className="countdown-heading">AI Quiz</h1>
         </div>
 
         <p className="next-round">NEXT ROUND</p>
