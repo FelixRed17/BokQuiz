@@ -493,6 +493,17 @@ module Api
               sudden_death_started_at: nil
             )
           end
+
+          # Update the existing RoundResult to reflect the SD elimination
+            # This ensures round_result endpoint returns fresh data after SD completes
+            round_result = RoundResult.find_by(game_id: @game.id, round_number: @game.round_number)
+            if round_result
+              updated_payload = round_result.payload.deep_dup
+              updated_payload["eliminated_names"] = [loser.name]
+              updated_payload["sudden_death_players"] = []
+              updated_payload["next_state"] = next_status.to_s
+              round_result.update!(payload: updated_payload)
+            end
           
           broadcast(:sudden_death_eliminated, { name: loser.name })
           
