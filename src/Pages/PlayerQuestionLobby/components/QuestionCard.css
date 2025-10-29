@@ -7,7 +7,7 @@
 }
 
 .question-header { 
-    background: var(--quiz-top-green); 
+    background: #4A277B; 
     color: #fff; 
     padding: 10px 20px; 
     border-radius: 15px 15px 15px 15px; 
@@ -16,7 +16,7 @@
 }
 
 .question-text { 
-    background: var(--quiz-top-green); 
+    background: #4A277B; 
     color: #fff; 
     width: 100%; 
     text-align: center; 

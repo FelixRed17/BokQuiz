@@ -4,7 +4,7 @@
   gap: 12px;
   padding: 14px 18px;
   margin-bottom: 12px;
-  background: var(--quiz-option-bg);
+  background: #4A277B;
   color: #fff;
   border-radius: 12px;
   cursor: pointer;
@@ -14,9 +14,9 @@
   transition: background 160ms ease, transform 140ms ease;
 }
 
-.option-button:hover { background: var(--quiz-option-bg-hover); }
-.option-button.selected { background: var(--quiz-yellow); transform: translateY(-3px); }
-.option-button.selected:hover { background: var(--quiz-yellow); }
+.option-button:hover { background: #8A5CF6; }
+.option-button.selected { background: #8A5CF6; transform: translateY(-3px); }
+.option-button.selected:hover { background: #8A5CF6; }
 
 /* Disabled state: no interactions, dimmed cursor */
 .option-button.disabled {
