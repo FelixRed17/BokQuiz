@@ -5,14 +5,19 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--quiz-top-green);
+  background: #0C081A;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
   font-size: 1.6rem;
-  color: var(--quiz-yellow);
-  box-shadow: var(--quiz-timer-shadow);
+  color: #4BC9E5;
   z-index: 2;
-}
 
+  /* Glow effect */
+  box-shadow: 
+    0 0 15px rgba(75, 201, 229, 0.6),
+    0 0 25px rgba(75, 201, 229, 0.5),
+    0 0 45px rgba(75, 201, 229, 0.4),
+    0 0 65px rgba(75, 201, 229, 0.3);
+}

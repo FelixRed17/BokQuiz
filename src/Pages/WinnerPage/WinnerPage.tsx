@@ -79,7 +79,7 @@ export default function WinnerPage() {
           background: "#213A35",
         }}
       >
-        <div style={{ color: "#FFB302", fontSize: "24px" }}>
+        <div style={{ color: "#0C081A", fontSize: "24px" }}>
           Loading results...
         </div>
       </div>
@@ -99,13 +99,13 @@ export default function WinnerPage() {
           gap: "20px",
         }}
       >
-        <div style={{ color: "#FFB302", fontSize: "24px" }}>Error: {error}</div>
+        <div style={{ color: "#0C081A", fontSize: "24px" }}>Error: {error}</div>
         <button
           onClick={() => navigate("/")}
           style={{
             padding: "12px 24px",
-            background: "#FFB302",
-            color: "#213A35",
+            background: "#0C081A",
+            color: "#1A1230",
             border: "none",
             borderRadius: "8px",
             fontSize: "16px",
@@ -121,11 +121,11 @@ export default function WinnerPage() {
 
   return (
     <WinnerScreen
-      title="🏆BokQuiz CHAMPION 🏆"
+      title="🏆AIQuiz CHAMPION 🏆"
       message={winner ? "Congratulations on your victory!" : "Game completed"}
        name={winner ?? "No Winner"}
-      primaryColor="#FFB302"
-      secondaryColor="#213A35"
+      primaryColor="#0C081A"
+      secondaryColor="#30D5C8"
       overlayOpacity={0.4}
       confettiPieces={300}
     />
