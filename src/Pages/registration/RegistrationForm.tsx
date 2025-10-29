@@ -117,8 +117,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         alignItems: "center",
         justifyContent: "center",
         width: "100%",
-        maxWidth: "450px",
-        margin: "0 auto",
+        maxWidth: "500px",
+        margin: "2rem auto",
+        padding: "2.5rem",
+        borderRadius: "12px",
+        border: "2px solid #DCFFE1",
+        boxShadow: "0 0 15px rgba(220, 255, 225, 0.7)",
+        backgroundColor: "rgba(10, 3, 104, 0.17)",
       }}
     >
       <div style={{ width: "100%", marginBottom: "20px" }}>

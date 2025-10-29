@@ -31,19 +31,27 @@ export default function WinnerPage() {
       while (attempt < maxAttempts) {
         attempt += 1;
         try {
-          const response = await http<GameResultsDTO>(path, { method: "GET", cache: "no-store" });
+          const response = await http<GameResultsDTO>(path, {
+            method: "GET",
+            cache: "no-store",
+          });
           setWinner(response.data.winner);
           setIsLoading(false);
           return;
         } catch (err: any) {
           const status = err?.status ?? err?.response?.status;
           const msg = err?.data?.error?.message ?? err?.message ?? String(err);
-          console.warn(`Winner fetch failed (attempt ${attempt}/${maxAttempts}):`, msg, `(status: ${status})`);
+          console.warn(
+            `Winner fetch failed (attempt ${attempt}/${maxAttempts}):`,
+            msg,
+            `(status: ${status})`
+          );
           // If results not ready (422/404), backoff with jitter and retry
           if (
             status === 422 ||
             status === 404 ||
-            (typeof msg === "string" && msg.toLowerCase().includes("not between rounds"))
+            (typeof msg === "string" &&
+              msg.toLowerCase().includes("not between rounds"))
           ) {
             if (attempt < maxAttempts) {
               const jitter = Math.floor(Math.random() * 300);
@@ -76,7 +84,7 @@ export default function WinnerPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#213A35",
+          backgroundColor: "linear-gradient(to top, #0C081A, #4800a7ff)",
         }}
       >
         <div style={{ color: "#0C081A", fontSize: "24px" }}>
@@ -123,7 +131,7 @@ export default function WinnerPage() {
     <WinnerScreen
       title="🏆AIQuiz CHAMPION 🏆"
       message={winner ? "Congratulations on your victory!" : "Game completed"}
-       name={winner ?? "No Winner"}
+      name={winner ?? "No Winner"}
       primaryColor="#0C081A"
       secondaryColor="#30D5C8"
       overlayOpacity={0.4}
