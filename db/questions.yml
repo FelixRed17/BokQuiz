@@ -2,8 +2,8 @@ rounds:
   - number: 1
     questions:
       - text: "In what year did OpenAI first release the GPT-3 language model?"
-        options: ["2019", "2020", "2021", "2022"]
-        correct_index: 1
+        options: ["2019", "2021", "2020", "2022"]
+        correct_index: 2
         points: 1
         time_limit: 20
 
@@ -14,8 +14,8 @@ rounds:
         time_limit: 20
 
       - text: "Which practice helps reduce hallucinations in AI responses?"
-        options: ["Adding vague prompts", "Using clear and specific instructions", "Increasing temperature", "Randomizing output"]
-        correct_index: 1
+        options: ["Adding vague prompts", "Increasing temperature", "Randomizing output", "Using clear and specific instructions"]
+        correct_index: 3
         points: 1
         time_limit: 20
 
@@ -26,22 +26,22 @@ rounds:
         time_limit: 20
 
       - text: "What technique improves prompt effectiveness by including examples?"
-        options: ["Prompt compression", "Few-shot prompting", "Token expansion", "Chain skipping"]
-        correct_index: 1
+        options: ["Few-shot prompting", "Prompt compression", "Token expansion", "Chain skipping"]
+        correct_index: 0
         points: 1
         time_limit: 20
 
   - number: 2
     questions:
       - text: "What is ‘zero-shot prompting’?"
-        options: ["Training a model without data", "Asking the model to perform a task without examples", "Providing multiple examples", "Using reinforcement learning"]
-        correct_index: 1
+        options: ["Training a model without data", "Providing multiple examples", "Using reinforcement learning", "Asking the model to perform a task without examples"]
+        correct_index: 3
         points: 1
         time_limit: 20
 
       - text: "Which practice helps ensure consistent formatting in AI outputs?"
-        options: ["Leaving format open-ended", "Defining the desired output structure in the prompt", "Using shorter prompts", "Increasing model randomness"]
-        correct_index: 1
+        options: ["Leaving format open-ended", "Using shorter prompts", "Defining the desired output structure in the prompt","Increasing model randomness"]
+        correct_index: 2
         points: 1
         time_limit: 20
 
@@ -66,14 +66,14 @@ rounds:
   - number: 3
     questions:
       - text: "What does it mean to 'ground' a model's output?"
-        options: ["Connect it to reliable data sources", "Shorten its response", "Increase randomness", "Limit temperature"]
-        correct_index: 0
+        options: ["Shorten its response", "Increase randomness", "Limit temperature", "Connect it to reliable data sources"]
+        correct_index: 3
         points: 1
         time_limit: 20
 
       - text: "What is one benefit of giving AI models role-based prompts (e.g., 'You are a data analyst')?"
-        options: ["It increases randomness", "It sets the context and tone for better responses", "It decreases token usage", "It bypasses filters"]
-        correct_index: 1
+        options: ["It increases randomness", "It decreases token usage", "It sets the context and tone for better responses", "It bypasses filters"]
+        correct_index: 2
         points: 1
         time_limit: 20
 
@@ -100,14 +100,14 @@ rounds:
   - number: 4
     questions:
       - text: "What is the main drawback of a small context window?"
-        options: ["Lower reasoning ability", "Limited memory of earlier input", "Increased cost", "Unstable responses"]
-        correct_index: 1
+        options: ["Limited memory of earlier input", "Lower reasoning ability", "Increased cost", "Unstable responses"]
+        correct_index: 0
         points: 1
         time_limit: 15
 
       - text: "Which model parameter controls randomness in outputs?"
-        options: ["Max tokens", "Temperature", "Top-p", "Frequency penalty"]
-        correct_index: 1
+        options: ["Max tokens", "Top-p",  "Temperature","Frequency penalty"]
+        correct_index: 2
         points: 1
         time_limit: 15
 
@@ -120,14 +120,14 @@ rounds:
   - number: 5
     questions:
       - text: "What is one best practice when giving examples in a prompt?"
-        options: ["Keep them irrelevant", "Ensure they match the desired style and format", "Add too many examples", "Use random cases"]
-        correct_index: 1
+        options: ["Ensure they match the desired style and format","Keep them irrelevant", "Add too many examples", "Use random cases"]
+        correct_index: 0
         points: 1
         time_limit: 15
 
       - text: "How can you reduce token costs in an AI app?"
-        options: ["Use shorter, focused prompts", "Increase temperature", "Add detailed context", "Repeat instructions"]
-        correct_index: 0
+        options: ["Increase temperature", "Add detailed context", "Repeat instructions", "Use shorter, focused prompts"]
+        correct_index: 3
         points: 1
         time_limit: 15
 
