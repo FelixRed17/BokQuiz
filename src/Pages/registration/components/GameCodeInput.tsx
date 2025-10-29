@@ -62,7 +62,7 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
     } else if (value.trim()) {
       classes += " border-green-500 bg-white";
     } else {
-      classes += " border-yellow-400";
+      classes += " border-teal-400";
     }
 
     return classes;
@@ -83,7 +83,7 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
         htmlFor="gameCode"
         style={{
           display: "block",
-          color: "#FFD700",
+          color: "#00aeff",
           fontSize: "1.1rem",
           fontWeight: "700",
           marginBottom: "15px",
@@ -106,11 +106,17 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
           maxLength={12}
           disabled={disabled}
           autoComplete="off"
+          onMouseEnter={(e) => {
+            if (!e.currentTarget.matches(':focus')) {
+              e.currentTarget.style.borderColor = "#467acfff";
+              e.currentTarget.style.boxShadow =
+                "0 0 0 3px rgba(68, 39, 96, 0.3)";
+            }
+          }}
           onFocus={(e) => {
             e.target.style.backgroundColor = "white";
-            e.target.style.borderColor = "#FFD700";
-            e.target.style.boxShadow =
-              "0 0 0 3px rgba(255, 215, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1)";
+            e.target.style.borderColor = "#442760";
+            e.target.style.boxShadow = "0 0 0 3px #442760";
             e.target.style.transform = "translateY(-1px)";
             e.target.style.animation = "none";
           }}
@@ -131,8 +137,8 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
             fontWeight: "500",
             height: "48px",
             backgroundColor: "#f8f9fa",
-            color: "#1C352D",
-            borderColor: "#FFD700",
+            color: "#00aeff",
+            borderColor: "#0029bb",
             borderRadius: "8px",
             width: "100%",
             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -144,7 +150,7 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
         <div
           className="absolute bottom-0 left-1/2 w-0 h-0.5 transition-all duration-300 transform -translate-x-1/2 focus-within:w-full"
           style={{
-            background: "linear-gradient(90deg, #FFD700, #006633)",
+            background: "linear-gradient(90deg, #00aeff, #0029bb)",
             height: "2px",
           }}
         ></div>

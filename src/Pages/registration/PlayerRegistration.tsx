@@ -29,7 +29,7 @@ export function PlayerRegistration({
         <div className={styles.header}>
           <h1 className={styles.title}>Join the QUIZ</h1>
           <p className={styles.subtitle}>
-            Ready to test your Springbok knowledge?
+            Ready to test your AI knowledge?
           </p>
         </div>
 
@@ -37,7 +37,7 @@ export function PlayerRegistration({
 
         <div className={styles.footer}>
           <p className={styles.footerText}>
-            🏆 Challenge yourself with Springbok trivia!
+            🏆 Challenge yourself with AI trivia!
           </p>
         </div>
       </div>
