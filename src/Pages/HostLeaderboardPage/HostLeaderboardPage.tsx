@@ -446,12 +446,12 @@ export default function HostLeaderboardPage() {
         muted
         loop
         playsInline
-        src="/Celebration.mp4"
+        src="/purplebackground.mp4"
       />
       <div className={styles.card}>
         {/* Header */}
         <div className={styles.header}>
-          <div className={styles.headerIcon}>🏉</div>
+          <div className={styles.headerIcon}>🧠</div>
           <h2 className={styles.title}>
             {isShowingSuddenDeathResults ? "⚡ Sudden Death Results" : `Round ${data.round} Results`}
           </h2>

@@ -1,99 +1,131 @@
 body, html {
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-  }
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  /* Deep navy primary background */
+  background: linear-gradient(180deg, #1A1230 0%, #0C081A 100%);
+  color: #FFFFFF;
+  height: 100%;
+}
 
   .countdown-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background-color: #065f46;
-    position: relative; 
-    overflow: hidden;
-  }
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
 
-  .countdown-header {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #ffffff;
-    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-  }
+/* subtle animated neon background layers */
+.countdown-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 10% 20%, rgba(160,96,255,0.12) 0%, transparent 20%),
+              radial-gradient(ellipse at 90% 80%, rgba(75,201,229,0.08) 0%, transparent 25%);
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(40px);
+  animation: floatGlows 8s ease-in-out infinite;
+}
 
-  .countdown-header-icon {
-    width: 60px;
-    height: 60px;
-    font-size: 40px;
-    background-color: #c1a33b; 
-    border-radius: 50%;
-    display: flex;
-    justify-content:center;
-    align-items: center;
-    margin-right: 20px;
-  }
+@keyframes floatGlows {
+  0% { transform: translateY(-6px) scale(1); }
+  50% { transform: translateY(6px) scale(1.02); }
+  100% { transform: translateY(-6px) scale(1); }
+}
 
-  .countdown-card {
-    background-color: #002d1e; 
-    color: white;
-    border-radius: 1rem;
-    padding: 24px;
-    width: 50%;
-    height: 700px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    position: relative; /* above video */
-    z-index: 1;
-  }
+.countdown-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #FFFFFF;
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+
+.countdown-header-icon {
+  width: 60px;
+  height: 60px;
+  font-size: 40px;
+  background: linear-gradient(135deg, rgba(160,103,255,1) 0%, rgba(75,201,229,1) 100%);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-right: 20px;
+  box-shadow: 0 8px 24px rgba(160,103,255,0.28), 0 0 14px rgba(75,201,229,0.12) inset;
+}
+
+.countdown-card {
+  background: linear-gradient(180deg, rgba(26,18,48,0.78) 0%, rgba(10,6,22,0.6) 100%);
+  color: #FFFFFF;
+  border-radius: 1rem;
+  padding: 24px;
+  width: 50%;
+  height: 700px;
+  box-shadow: 0 12px 40px rgba(24,10,48,0.7), 0 0 30px rgba(160,103,255,0.08);
+  border: 1px solid rgba(160,103,255,0.12);
+  backdrop-filter: blur(6px) saturate(120%);
+  position: relative; /* above video */
+  z-index: 1;
+}
 
 .countdown-bg-video {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    min-width: 100%;
-    min-height: 100%;
-    width: auto;
-    height: auto;
-    transform: translate(-50%, -50%);
-    object-fit: cover;
-    z-index: 0;
-    opacity: 0.35; 
-  }
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 100%;
+  min-height: 100%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+  object-fit: cover;
+  z-index: 0;
+  opacity: 0.28;
+}
 
 .countdown-heading{
-    font-size: 60px;
+  font-size: 60px;
+  color: #A067FF; /* primary accent */
+  text-shadow: 0 6px 28px rgba(160,103,255,0.18), 0 2px 6px rgba(75,201,229,0.06);
+  letter-spacing: 1px;
 }
 
 .countdown-divider{
-    border:0;
-    border-top: 2px solid #deb923;
-    margin-bottom: 16px;
+  border: 0;
+  border-top: 2px solid rgba(75,201,229,0.95); /* secondary accent */
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(75,201,229,0.06);
 }
   
 .next-round{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 25px;
-    color: #ffffff;
-    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 25px;
+  color: #FFFFFF;
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  opacity: 0.95;
 }
 
 .countdown{
-    display: flex;
-    justify-content: center;
-    font-size: 300px;
-    color: #deb923;
-    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-
+  display: flex;
+  justify-content: center;
+  font-size: 300px;
+  color: #A067FF; /* primary accent */
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+  text-shadow: 0 8px 48px rgba(160,103,255,0.22), 0 2px 10px rgba(75,201,229,0.06);
+  -webkit-font-smoothing: antialiased;
 }
 
 .begins-in{
-    display: flex;
-    justify-content: center;
-    font-size: 60px;
-    color: #deb923;
-    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-
+  display: flex;
+  justify-content: center;
+  font-size: 60px;
+  color: #4BC9E5; /* secondary accent */
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+  text-shadow: 0 6px 22px rgba(75,201,229,0.18);
 }

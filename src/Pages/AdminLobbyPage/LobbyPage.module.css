@@ -1,3 +1,15 @@
+:root {
+  /* Your Futuristic Palette */
+  --bg-deep-navy: #1A1230;
+  --bg-darker-navy: #0C081A;
+  --accent-purple: #A067FF;
+  --accent-purple-darker: #8A5CF6;
+  --accent-teal: #4BC9E5;
+  --accent-teal-darker: #30D5C8;
+  --text-white: #FFFFFF;
+  --text-light-grey: #EAEAEA;
+}
+
 .pageBg {
   min-height: 100vh;
   display: flex;

@@ -65,7 +65,7 @@ function LobbyScreen() {
           </div>
           <div>
             <h1 className={`fw-bold mb-2 ${styles.title}`}>
-              Springbok Quiz – Admin Lobby
+              AI Quiz – Admin Lobby
             </h1>
             <p className={`fs-5 mb-0 ${styles.subtitle}`}>
               Manage players and start the match

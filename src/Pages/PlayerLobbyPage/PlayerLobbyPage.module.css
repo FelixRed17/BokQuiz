@@ -8,12 +8,30 @@
 }
 
 .lobby-message {
-  font-size: 1.5rem;
+  /* Futuristic Font - Roboto is a modern, geometric font, good fallback */
+  font-family: 'Orbitron', 'Electrolize', 'Rajdhani', Roboto, sans-serif;
+  
+  /* Increased size for presence */
+  font-size: 3.8rem;
+  
   margin-bottom: 2rem;
-  color: #ffffff;
+  
+  /* Vibrant, high-tech color (Neon Cyan) */
+  color: #91f6f6;
+  
+  /* Text Shadow for a classic 'neon glow' effect */
+  text-shadow: 0 0 10px #9dc9df, /* Primary glow */
+               0 0 20px rgba(166, 246, 246, 0.6), /* Secondary, wider glow */
+               0 0 30px rgba(0, 255, 255, 0.4); /* Fainter, distant glow */
+  
+  /* Optional: Stronger text weight */
+  font-weight: 700;
+  
+  /* Optional: Subtle letter spacing for a 'digital' look */
+  letter-spacing: 0.15em;
 }
 
 .lottie-container {
-  width: 150px;
-  height: 150px;
+  width: 350px;
+  height: 350px;
 }
