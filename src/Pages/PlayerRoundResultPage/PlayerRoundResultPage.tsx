@@ -681,12 +681,12 @@ export default function PlayerRoundResultPage() {
         muted
         loop
         playsInline
-        src="/Celebration.mp4"
+        src="/purplebackground.mp4"
       />
       <div className={styles.card}>
         {/* Header */}
         <div className={styles.header}>
-          <div className={styles.headerIcon}>🏉</div>
+          <div className={styles.headerIcon}>🤖</div>
           <h2 className={styles.title}>
             {isShowingSuddenDeathResults ? "⚡ Sudden Death Results!" : `Round ${data.round_number ?? data.round} Complete!`}
           </h2>
@@ -703,7 +703,7 @@ export default function PlayerRoundResultPage() {
           </div>
         ) : (
           <div className={styles.qualifiedStatus}>
-            <div className={styles.statusIcon}>🎉</div>
+            <div className={styles.statusIcon}>🚀</div>
             <h3 className={styles.statusTitle}>You Qualified!</h3>
             <p className={styles.statusMessage}>
               Great job! You're moving on to the next round.
