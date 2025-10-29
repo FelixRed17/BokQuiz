@@ -17,7 +17,7 @@
   justify-content: center;
   padding: 1.5rem;
   /* Deep Navy gradient for a sense of depth */
-  background: image("/purplebackground.mp4");
+  background: linear-gradient(to bottom right, var(--bg-deep-navy), var(--bg-darker-navy));
 }
 
 .cardShell {
@@ -30,14 +30,6 @@
   box-shadow: 0 0 15px rgba(160, 103, 255, 0.5); /* Soft purple glow */
   border-radius: 1rem;
   backdrop-filter: blur(5px); /* Optional: Adds a subtle frosted glass effect */
-}
-
-.logoCircle {
-  width: 4rem;
-  height: 4rem;
-  border-radius: 9999px;
-  background-color: #eab308;
-  border: 4px solid #facc15;
 }
 
 .title {
