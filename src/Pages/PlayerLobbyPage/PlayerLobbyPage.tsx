@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Lottie from "lottie-react";
-import LoadingAnimation from "./loading_gray.json";
+import LoadingAnimation from "./Robot run.json";
 import styles from "./PlayerLobbyPage.module.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
@@ -16,10 +16,11 @@ export interface PlayerLobbyPageProps {
 
 function PlayerLobbyPage({
   message = "Waiting for game to start...",
-  backgroundColor = "#1B3838",
+  backgroundColor = "linear-gradient(to top, #0C081A, #4800a7ff)",
   lottieUrl,
 }: PlayerLobbyPageProps) {
   const [remoteLottie, setRemoteLottie] = useState<LottieData | null>(null);
+  
   const lottieData = useMemo<LottieData>(
     () => remoteLottie ?? (LoadingAnimation as LottieData),
     [remoteLottie]
@@ -29,7 +30,6 @@ function PlayerLobbyPage({
   const gameCode = code ?? "";
   const navigate = useNavigate();
   const { state, reload } = useGameState(gameCode, { pollIntervalMs: 3000 });
-
   const amHost = localStorage.getItem("amHost") === "true";
 
   useGameChannel(gameCode, {
@@ -40,14 +40,14 @@ function PlayerLobbyPage({
     onMessage: (msg) => {
       console.log("GameChannel message:", msg);
       if (!msg?.type) return;
-
+      
       if (msg.type === "question_started") {
         console.log("Received question_started broadcast. Navigating to quiz.");
         navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
           state: { question: msg.payload },
         });
       }
-
+      
       if (
         msg.type === "player_joined" ||
         msg.type === "player_ready" ||
@@ -60,11 +60,10 @@ function PlayerLobbyPage({
 
   useEffect(() => {
     if (!state) return;
-
     console.log(
       `Polling state update: status=${state.status}, amHost=${amHost}`
     );
-
+    
     if (state.status !== "lobby") {
       console.log(
         `Game status changed to ${state.status}. Navigating to quiz.`
@@ -76,6 +75,7 @@ function PlayerLobbyPage({
   useEffect(() => {
     let isActive = true;
     if (!lottieUrl) return;
+    
     (async () => {
       try {
         const response = await fetch(lottieUrl, {
@@ -89,15 +89,18 @@ function PlayerLobbyPage({
         console.warn(error);
       }
     })();
+    
     return () => {
       isActive = false;
     };
   }, [lottieUrl]);
 
   return (
-    <div className={styles["player-lobby"]} style={{ backgroundColor }}>
+    <div 
+      className={styles["player-lobby"]} 
+      style={{ background: backgroundColor }}
+    >
       <p className={styles["lobby-message"]}>{message}</p>
-
       <div className={styles["lottie-container"]}>
         <Lottie animationData={lottieData} loop />
       </div>

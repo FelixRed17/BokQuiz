@@ -58,17 +58,17 @@ function LobbyScreen() {
       <div className={`p-4 w-100 shadow-lg ${styles.cardShell}`}>
         {/* Header */}
         <div className="d-flex align-items-center mb-4">
-          <div
+          {/* <div
             className={`d-flex align-items-center justify-content-center me-3 border border-4 ${styles.logoCircle}`}
           >
-            <div className="text-dark fw-bold fs-4">🏉</div>
-          </div>
+            <div className="text-dark fw-bold fs-4">🧠</div>
+          </div> */}
           <div>
             <h1 className={`fw-bold mb-2 ${styles.title}`}>
-              Springbok Quiz – Admin Lobby
+              AI Quiz – Admin Lobby
             </h1>
             <p className={`text-light fs-5 mb-0 ${styles.subtitle}`}>
-              Manage players and start the match
+              Manage players and start the quiz
             </p>
           </div>
         </div>

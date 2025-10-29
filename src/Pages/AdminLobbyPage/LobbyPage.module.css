@@ -1,18 +1,35 @@
+:root {
+  /* Your Futuristic Palette */
+  --bg-deep-navy: #1A1230;
+  --bg-darker-navy: #0C081A;
+  --accent-purple: #A067FF;
+  --accent-purple-darker: #8A5CF6;
+  --accent-teal: #4BC9E5;
+  --accent-teal-darker: #30D5C8;
+  --text-white: #FFFFFF;
+  --text-light-grey: #EAEAEA;
+}
+
 .pageBg {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: linear-gradient(to bottom right, #166534, #14532d);
+  /* Deep Navy gradient for a sense of depth */
+  background: image("/purplebackground.mp4");
 }
 
 .cardShell {
   max-width: 42rem;
   width: 100%;
-  background-color: #166534;
-  border: 2px solid rgba(25, 135, 84, 0.25);
+  /* Slightly transparent card over the dark BG */
+  background-color: rgba(26, 18, 48, 0.7); /* Based on --bg-deep-navy */
+  /* Purple glow border */
+  border: 2px solid var(--accent-purple-darker);
+  box-shadow: 0 0 15px rgba(160, 103, 255, 0.5); /* Soft purple glow */
   border-radius: 1rem;
+  backdrop-filter: blur(5px); /* Optional: Adds a subtle frosted glass effect */
 }
 
 .logoCircle {
@@ -24,64 +41,29 @@
 }
 
 .title {
-  color: #ffffff;
+  color: var(--text-white);
   font-weight: 700;
   margin-bottom: .5rem;
   font-size: 2.25rem;
+  /* Subtle purple text shadow for presence */
+  text-shadow: 0 0 5px var(--accent-purple-darker);
 }
 
 .subtitle {
-  color: #86efac;
+  /* Use the bright teal for contrast */
+  color: var(--accent-teal);
+  text-shadow: 0 0 3px var(--accent-teal-darker);
 }
 
 .playersHeader {
-  color: #ffffff;
+  color: var(--text-light-grey);
   font-weight: 700;
   margin: 0;
   font-size: 1.5rem;
 }
 
-.codeBox {
-  border: 2px solid #facc15;
-  background-color: transparent;
-  border-radius: .5rem;
-  padding: .5rem .75rem;
-}
-
-.codeLabel {
-  color: #facc15;
-  font-weight: 700;
-  font-size: 1.125rem;
-}
-
-.codeValue {
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 1.125rem;
-}
-
-.playerItem {
-  background-color: #fef3c7;
-  border-radius: .75rem;
-  padding: .75rem;
-}
-
-.statusDot {
-  width: 1rem;
-  height: 1rem;
-  border-radius: 9999px;
-}
-
-.statusOnline {
-  background-color: #22c55e;
-}
-
-.statusOffline {
-  background-color: #9ca3af;
-}
-
 .statTitle {
-  color: #ffffff;
+  color: var(--text-white);
   font-weight: 700;
   margin-bottom: .25rem;
   font-size: 1.5rem;
@@ -89,10 +71,69 @@
 }
 
 .statValue {
-  color: #ffffff;
+  color: var(--accent-teal); /* Teal for key data */
   font-weight: 700;
   font-size: 1.875rem;
   text-align: center;
+}
+
+.codeBox {
+  /* Teal border for the code box */
+  border: 2px solid var(--accent-teal);
+  background-color: rgba(60, 205, 200, 0.1); /* Subtle teal background */
+  border-radius: .5rem;
+  padding: .5rem .75rem;
+  /* Optional: Strong inner shadow to look recessed */
+  box-shadow: inset 0 0 5px var(--accent-teal-darker);
+}
+
+.codeLabel {
+  color: var(--accent-teal);
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.codeValue {
+  color: var(--text-white);
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.playerItem {
+  /* Very dark, almost transparent background for the list items */
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: .75rem;
+  padding: .75rem;
+  border-left: 4px solid var(--accent-purple); /* Highlight stripe */
+}
+
+.logoCircle {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 9999px;
+  /* Purple accent color */
+  background-color: var(--accent-purple);
+  /* Teal border glow */
+  border: 4px solid var(--accent-teal);
+  box-shadow: 0 0 8px var(--accent-teal);
+}
+
+.statusDot {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  border: 2px solid var(--text-white); /* White ring for contrast */
+}
+
+.statusOnline {
+  /* Keep green for "online" but a more vibrant, high-tech green */
+  background-color: #00FF7F; 
+  box-shadow: 0 0 5px #00FF7F;
+}
+
+.statusOffline {
+  /* Dark grey/red for "offline" */
+  background-color: #4A4A4A; 
 }
 
 .startBtn {
@@ -108,6 +149,3 @@
 .startBtn:hover {
   background-color: #f1c21a;
 }
-
-
-
