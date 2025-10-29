@@ -41,7 +41,6 @@ function App() {
       </Routes>
     </BrowserRouter>
   );
-  //<PlayerQuizView questionData={mockQuestion} />
 }
 
 export default App;
