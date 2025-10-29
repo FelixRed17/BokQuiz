@@ -1,5 +1,5 @@
 import SpringboksImage from "../../assets/glucode2.png";
-import SpringBackground from "../../assets/BG2.png"; // add this so webpack/vite can resolve it
+import SpringBackground from "../../assets/B1.png"; // add this so webpack/vite can resolve it
 import styles from "./WelcomePage.module.css";
 
 interface WelcomePageProps {

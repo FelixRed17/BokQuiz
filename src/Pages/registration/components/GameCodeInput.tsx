@@ -49,20 +49,20 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
   const getInputClasses = () => {
     let classes =
       "w-full h-12 px-4 rounded-lg border-2 transition-all duration-300 text-center uppercase tracking-wider";
-    classes += " text-gray-800 text-base font-medium bg-gray-50";
-    classes += " box-border";
+    classes += " text-white text-base font-medium bg-transparent";
+    classes += " box-border placeholder-gray-400";
 
     if (error) {
-      classes += " border-red-500 bg-red-50";
+      classes += " border-red-500 bg-red-900 bg-opacity-20";
     } else if (
       value.trim() &&
       ValidationService.validateGameCode(value).isValid
     ) {
-      classes += " border-green-500 bg-green-50";
+      classes += " border-green-400 bg-green-900 bg-opacity-20";
     } else if (value.trim()) {
-      classes += " border-green-500 bg-white";
+      classes += " border-purple-400 bg-transparent";
     } else {
-      classes += " border-teal-400";
+      classes += " border-purple-400";
     }
 
     return classes;
@@ -83,15 +83,16 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
         htmlFor="gameCode"
         style={{
           display: "block",
-          color: "#00aeff",
+          color: "#a78bfa",
           fontSize: "1.1rem",
           fontWeight: "700",
           marginBottom: "15px",
           textAlign: "center",
           width: "100%",
+          textShadow: "0 0 8px rgba(167, 139, 250, 0.4)",
         }}
       >
-        Enter Game Code
+        ENTER GAME CODE
       </label>
       <div className="relative mb-2" style={{ width: "100%" }}>
         <input
