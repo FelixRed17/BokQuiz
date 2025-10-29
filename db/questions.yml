@@ -117,6 +117,8 @@ rounds:
         points: 1
         time_limit: 15
 
+  - number: 5
+    questions:
       - text: "What is one best practice when giving examples in a prompt?"
         options: ["Keep them irrelevant", "Ensure they match the desired style and format", "Add too many examples", "Use random cases"]
         correct_index: 1
@@ -135,6 +137,8 @@ rounds:
         points: 1
         time_limit: 15
 
+  - number: 6
+    questions:
       - text: "What does 'fine-tuning' do?"
         options: ["Improves inference speed", "Adapts a model to specific data or style", "Reduces model size", "Increases randomness"]
         correct_index: 1

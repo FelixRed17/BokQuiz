@@ -361,7 +361,8 @@ module Api
 
       def current_question
         if @game.sudden_death?
-          sd_scope = Question.where(round_number: 4).order(:id)
+          sd_round = sudden_death_round_for(@game.round_number)
+          sd_scope = Question.where(round_number: sd_round).order(:id)
           sd_count = sd_scope.count
           return nil if sd_count == 0
           base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0) % sd_count
@@ -383,7 +384,7 @@ module Api
         new_status = @game.sudden_death? ? :sudden_death : :in_round
         @game.update!(question_end_at: ends_at, status: new_status)
         broadcast(:question_started, {
-          round_number: (@game.sudden_death? ? 4 : @game.round_number),
+          round_number: (@game.sudden_death? ? sudden_death_round_for(@game.round_number) : @game.round_number),
           index: @game.current_question_index,
           text: q.text,
           options: q.options,
@@ -402,8 +403,9 @@ module Api
           return ok({ sudden_death_ended: true, reason: "no_participants" })
         end
 
-        # SD question pool (round_number = 4)
-        sd_questions = Question.where(round_number: 4).order(:id).to_a
+        # SD question pool based on the round SD was triggered in
+        sd_round = sudden_death_round_for(@game.round_number)
+        sd_questions = Question.where(round_number: sd_round).order(:id).to_a
         if sd_questions.empty?
           Rails.logger.error("handle_sudden_death_next: no SD questions configured for game=#{@game.id}")
           @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
@@ -423,19 +425,21 @@ module Api
           @game.update!(current_question_index: attempts) if @game.current_question_index != attempts
           @game.increment!(:sudden_death_attempts)
           start_current_question!
-          
+
           new_attempts = @game.reload.sudden_death_attempts
-          return ok({ 
-            sudden_death_continue: true, 
+          return ok({
+            sudden_death_continue: true,
             attempt: new_attempts,
-            question_index: @game.current_question_index 
+            question_index: @game.current_question_index
           })
         end
 
         # Case 3: All 3 attempts exhausted - time to eliminate
-        # Collect the 3 SD questions used
-        used_questions = sd_questions.first(3)
-        used_q_ids = used_questions.map(&:id)
+        # Collect the 3 SD questions actually used (respect sd_offset rotation)
+        sd_count = sd_questions.length
+        base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0)
+        used_indices = 3.times.map { |i| ((base + i) % sd_count) }
+        used_q_ids = used_indices.map { |i| sd_questions[i].id }
 
         if used_q_ids.empty?
           Rails.logger.warn("handle_sudden_death_next: no used SD questions for game=#{@game.id}")
@@ -478,57 +482,68 @@ module Api
 
         if loser_id
           loser = @game.players.find(loser_id)
-          
+
           # Check if only 1 player will remain after elimination
           remaining_after_elimination = @game.players.where(is_host: false, eliminated: false).where.not(id: loser_id).count
           next_status = remaining_after_elimination <= 1 ? :finished : :between_rounds
-          
+
           ActiveRecord::Base.transaction do
             loser.update!(eliminated: true)
             @game.update!(
-              status: next_status, 
-              question_end_at: nil, 
-              sudden_death_player_ids: [], 
-              sudden_death_attempts: 0, 
+              status: next_status,
+              question_end_at: nil,
+              sudden_death_player_ids: [],
+              sudden_death_attempts: 0,
               sudden_death_started_at: nil
             )
           end
 
-          # Update the existing RoundResult to reflect the SD elimination
+            # Update the existing RoundResult to reflect the SD elimination
             # This ensures round_result endpoint returns fresh data after SD completes
             round_result = RoundResult.find_by(game_id: @game.id, round_number: @game.round_number)
             if round_result
               updated_payload = round_result.payload.deep_dup
-              updated_payload["eliminated_names"] = [loser.name]
+              updated_payload["eliminated_names"] = [ loser.name ]
               updated_payload["sudden_death_players"] = []
               updated_payload["next_state"] = next_status.to_s
               round_result.update!(payload: updated_payload)
             end
-          
+
           broadcast(:sudden_death_eliminated, { name: loser.name })
-          
+
           # If game is finished, broadcast that too
           if next_status == :finished
             winner = @game.players.where(is_host: false, eliminated: false).first
             broadcast(:game_finished, { winner: winner&.name })
           else
             # Game continues - broadcast updated round result without SD info
-            broadcast(:sudden_death_complete, { 
+            broadcast(:sudden_death_complete, {
               eliminated: loser.name,
               round_number: @game.round_number
             })
           end
-          
-          return ok({ 
-            sudden_death_ended: true, 
-            eliminated: loser.name, 
+
+          ok({
+            sudden_death_ended: true,
+            eliminated: loser.name,
             reason: "aggregate",
-            next_status: next_status.to_s 
+            next_status: next_status.to_s
           })
         else
           # Fallback: no clear loser
           @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
-          return ok({ sudden_death_ended: true, reason: "no_clear_loser" })
+          ok({ sudden_death_ended: true, reason: "no_clear_loser" })
+        end
+      end
+
+      def sudden_death_round_for(base_round)
+        case base_round.to_i
+        when 1
+          4
+        when 2
+          5
+        else
+          6
         end
       end
 
@@ -552,4 +567,3 @@ module Api
     end
   end
 end
-
