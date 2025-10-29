@@ -46,7 +46,7 @@
 .top-section {
   position: relative;
   z-index: 2;
-  background: white;
+  background: #000000;
   padding: 3.5rem 0 3rem 0;
   border-radius: 0 0 0 100px;
   margin-bottom: 0;
@@ -136,15 +136,15 @@
 }
 
 .cta-button.primary {
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-  color: #1C352D;
-  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3);
+  background: #A067FF;
+  color: #FFFFFF;
+  box-shadow: 0 8px 25px rgba(160, 103, 255, 0.3);
 }
 
 .cta-button.primary:hover {
   transform: translateY(-5px) scale(1.05);
-  box-shadow: 0 15px 40px rgba(255, 215, 0, 0.5);
-  background: linear-gradient(135deg, #FFA500 0%, #FFD700 100%);
+  box-shadow: 0 15px 40px rgba(160, 103, 255, 0.5);
+  background: #B07AFF;
   animation: none;
 }
 

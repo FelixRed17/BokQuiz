@@ -7,7 +7,7 @@ export interface SubmissionControlsProps {
 }
 
 export const SubmissionControls: React.FC<SubmissionControlsProps> = ({ onSubmit, isSubmitting, canSubmit }) => {
-  const buttonText = isSubmitting ? 'Joining Game...' : 'Start Quiz 🏉'
+  const buttonText = isSubmitting ? 'Joining Game...' : 'Start Quiz'
 
   return (
     <div 
@@ -21,7 +21,7 @@ export const SubmissionControls: React.FC<SubmissionControlsProps> = ({ onSubmit
       <button
         onClick={onSubmit}
         disabled={!canSubmit || isSubmitting}
-        className="px-6 py-3 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black font-bold rounded-lg transition-all duration-300 hover:from-yellow-500 hover:to-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-6 py-3 text-white font-bold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
           padding: '15px 40px',
           minWidth: '200px',
@@ -34,11 +34,11 @@ export const SubmissionControls: React.FC<SubmissionControlsProps> = ({ onSubmit
           borderRadius: '12px',
           cursor: canSubmit && !isSubmitting ? 'pointer' : 'not-allowed',
           background: canSubmit && !isSubmitting 
-            ? 'linear-gradient(135deg, #FFD700, #FFA500)' 
+            ? '#442760'
             : 'linear-gradient(135deg, #ccc, #999)',
-          color: canSubmit && !isSubmitting ? '#000' : '#666',
+          color: canSubmit && !isSubmitting ? '#fff' : '#666',
           boxShadow: canSubmit && !isSubmitting 
-            ? '0 4px 15px rgba(255, 215, 0, 0.3)' 
+            ? '0 4px 15px rgba(68, 39, 96, 0.4)'
             : '0 2px 8px rgba(0, 0, 0, 0.1)',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           opacity: canSubmit && !isSubmitting ? 1 : 0.6
@@ -46,7 +46,7 @@ export const SubmissionControls: React.FC<SubmissionControlsProps> = ({ onSubmit
         onMouseEnter={(e) => {
           if (canSubmit && !isSubmitting) {
             e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 215, 0, 0.4)'
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(68, 39, 96, 0.5)'
           }
         }}
         onMouseLeave={(e) => {
