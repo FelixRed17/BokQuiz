@@ -84,7 +84,7 @@ export default function WinnerPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#213A35",
+          backgroundColor: "linear-gradient(to top, #0C081A, #4800a7ff)",
         }}
       >
         <div style={{ color: "#0C081A", fontSize: "24px" }}>
