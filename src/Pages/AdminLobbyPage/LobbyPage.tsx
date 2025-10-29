@@ -58,11 +58,11 @@ function LobbyScreen() {
       <div className={`p-4 w-100 shadow-lg ${styles.cardShell}`}>
         {/* Header */}
         <div className="d-flex align-items-center mb-4">
-          <div
+          {/* <div
             className={`d-flex align-items-center justify-content-center me-3 ${styles.logoCircle}`}
           >
-            <div className="fw-bold fs-4 text-white">🏉</div>
-          </div>
+            <div className="fw-bold fs-4 text-white"></div>
+          </div> */}
           <div>
             <h1 className={`fw-bold mb-2 ${styles.title}`}>
               AI Quiz – Admin Lobby
