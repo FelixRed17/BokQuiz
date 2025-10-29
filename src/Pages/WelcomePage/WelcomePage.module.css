@@ -136,15 +136,17 @@
 }
 
 .cta-button.primary {
-  background: #A067FF;
-  color: #FFFFFF;
-  box-shadow: 0 8px 25px rgba(160, 103, 255, 0.3);
+  background: #FFD300;
+  color: #000000;
+  box-shadow: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
 .cta-button.primary:hover {
   transform: translateY(-5px) scale(1.05);
-  box-shadow: 0 15px 40px rgba(160, 103, 255, 0.5);
-  background: #B07AFF;
+  box-shadow: none;
+  background: #FFDD33;
   animation: none;
 }
 
