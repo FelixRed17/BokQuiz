@@ -9,8 +9,10 @@ import QuizPage from "./Pages/QuizPage/QuizPage";
 import HostQuizView from "./Pages/HostQuizPage/HostQuizView";
 import HostLeaderboardPage from "./Pages/HostLeaderboardPage/HostLeaderboardPage";
 import PlayerRoundResultPage from "./Pages/PlayerRoundResultPage/PlayerRoundResultPage";
-import WinnerPage from "./Pages/WinnerPage/WinnerPage";
+import WinnerPage from "./Pages/WinnerPage/WinnerScreen";
 import WaitingSuddenDeathPage from "./Pages/WaitingSuddenDeathPage/WaitingSuddenDeathPage";
+
+
 
 function App() {
   return (
@@ -42,4 +44,3 @@ function App() {
 }
 
 export default App;
-

@@ -1,5 +1,5 @@
-import SpringboksImage from "../../assets/Springboks.png";
-import SpringBackground from "../../assets/spring.png"; // add this so webpack/vite can resolve it
+import SpringboksImage from "../../assets/glucode2.png";
+import SpringBackground from "../../assets/BG2.png"; // add this so webpack/vite can resolve it
 import styles from "./WelcomePage.module.css";
 
 interface WelcomePageProps {
@@ -12,7 +12,14 @@ export function WelcomePage({ onStartQuiz, onAdmin }: WelcomePageProps) {
     <div
       className={styles["app-container"]}
       // prefer setting background via inline style so bundler handles the image path
-      style={{ backgroundImage: `url(${SpringBackground})` }}
+      style={{ 
+        backgroundImage: `url(${SpringBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#213A35',
+        backgroundAttachment: 'fixed'
+      }}
     >
       {/* Top Section with Image */}
       <header className={styles["top-section"]}>

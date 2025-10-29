@@ -43,7 +43,7 @@ function LobbyScreen() {
 
     try {
       await hostStart(gameCode, hostToken);
-      // Don't navigate here - the WebSocket message handler will navigate when question_started arrives
+      // Don't navigate here - WebSocket message handler will navigate
     } catch (err: any) {
       const msg =
         err?.data?.error?.message ?? err?.message ?? "Failed to start game";
@@ -58,24 +58,24 @@ function LobbyScreen() {
       <div className={`p-4 w-100 shadow-lg ${styles.cardShell}`}>
         {/* Header */}
         <div className="d-flex align-items-center mb-4">
-          {/* <div
-            className={`d-flex align-items-center justify-content-center me-3 border border-4 ${styles.logoCircle}`}
+          <div
+            className={`d-flex align-items-center justify-content-center me-3 ${styles.logoCircle}`}
           >
-            <div className="text-dark fw-bold fs-4">🧠</div>
-          </div> */}
+            <div className="fw-bold fs-4 text-white">🏉</div>
+          </div>
           <div>
             <h1 className={`fw-bold mb-2 ${styles.title}`}>
               AI Quiz – Admin Lobby
             </h1>
-            <p className={`text-light fs-5 mb-0 ${styles.subtitle}`}>
-              Manage players and start the quiz
+            <p className={`fs-5 mb-0 ${styles.subtitle}`}>
+              Manage players and start the match
             </p>
           </div>
         </div>
 
         {/* Header / Code */}
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h2 className={`${styles.playersHeader}`}>PLAYER</h2>
+          <h2 className={`${styles.playersHeader}`}>PLAYERS</h2>
           <div className={styles.codeBox}>
             <span className={styles.codeLabel}>CODE: </span>
             <span className={styles.codeValue}>{gameCode || "—"}</span>
@@ -84,13 +84,13 @@ function LobbyScreen() {
 
         {/* Loading / Error */}
         {isLoading && (
-          <div className="mb-3">
-            <small className="text-muted">Loading lobby…</small>
+          <div className="mb-3 text-info">
+            <small>Loading lobby…</small>
           </div>
         )}
         {error && (
-          <div className="mb-3">
-            <small className="text-danger">Error: {error}</small>
+          <div className="mb-3 text-danger">
+            <small>Error: {error}</small>
           </div>
         )}
 
@@ -112,24 +112,50 @@ function LobbyScreen() {
                       p.eliminated ? styles.statusOffline : styles.statusOnline
                     }`}
                   />
-                  <span className="text-dark fw-semibold fs-5">{p.name}</span>
+                  <span className="fw-semibold fs-5 text-light">{p.name}</span>
                 </div>
 
                 <div className="d-flex align-items-center gap-3">
                   {p.eliminated ? (
-                    <span className="badge bg-danger">Eliminated</span>
+                    <span
+                      className="px-3 py-1"
+                      style={{
+                        background: "linear-gradient(90deg, #F64B4B, #B00020)",
+                        borderRadius: "0.5rem",
+                        color: "#fff",
+                        fontWeight: 600,
+                        boxShadow: "0 0 10px rgba(246,75,75,0.6)",
+                      }}
+                    >
+                      Eliminated
+                    </span>
                   ) : p.ready ? (
-                    <span className="badge bg-success">Ready</span>
+                    <span
+                      className="px-3 py-1"
+                      style={{
+                        background: "linear-gradient(90deg, #30D5C8, #4BC9E5)",
+                        borderRadius: "0.5rem",
+                        color: "#0C081A",
+                        fontWeight: 700,
+                        boxShadow: "0 0 10px rgba(48,213,200,0.6)",
+                      }}
+                    >
+                      Ready
+                    </span>
                   ) : (
-                    <span className="badge bg-secondary">Not Ready</span>
+                    <span
+                      className="px-3 py-1"
+                      style={{
+                        background: "linear-gradient(90deg, #444, #666)",
+                        borderRadius: "0.5rem",
+                        color: "#EAEAEA",
+                        fontWeight: 600,
+                        boxShadow: "0 0 6px rgba(255,255,255,0.2)",
+                      }}
+                    >
+                      Not Ready
+                    </span>
                   )}
-
-                  <button
-                    className="btn btn-outline-success fw-semibold px-3 py-2"
-                    disabled
-                  >
-                    Kick
-                  </button>
                 </div>
               </div>
             ))}

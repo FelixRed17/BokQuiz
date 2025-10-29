@@ -12,6 +12,7 @@ export interface WinnerScreenProps {
   title?: string;
   name?: string;
   message?: string;
+  textColor?: string;
   primaryColor?: string;
   secondaryColor?: string;
   background?: string; // image URL
@@ -24,8 +25,9 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
   title = "WINNER",
   name,
   message,
-  primaryColor = "#FFB302",
-  secondaryColor = "#213A35",
+  textColor = "#EAEAEA ",
+  primaryColor = "#0C081A",
+  secondaryColor = "#30D5C8",
   background,
   overlayOpacity = 0.3,
   confettiPieces = 200,
@@ -100,7 +102,7 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
       />
 
       <div className="title-block">
-        <div className="title" style={{ color: primaryColor }}>
+        <div className="title" style={{ color: textColor }}>
           {title}
         </div>
         {message ? <div className="message">{message}</div> : null}
