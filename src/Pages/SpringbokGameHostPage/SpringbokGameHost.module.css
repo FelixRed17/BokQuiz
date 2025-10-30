@@ -1,7 +1,7 @@
 .container {
     min-height: 100vh;
     background: url('purplebackground.mp4');
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: 'Orbitron', sans-serif;
   }
   
   .card {
