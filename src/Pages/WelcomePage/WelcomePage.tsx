@@ -17,7 +17,6 @@ export function WelcomePage({ onStartQuiz, onAdmin }: WelcomePageProps) {
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-        backgroundColor: '#213A35',
         backgroundAttachment: 'fixed'
       }}
     >
@@ -29,6 +28,7 @@ export function WelcomePage({ onStartQuiz, onAdmin }: WelcomePageProps) {
           // combine module-scoped classes
           className={`${styles.floating} ${styles.pulse}`}
         />
+        <h2>AI QUIZ</h2>
       </header>
 
       {/* Middle Content */}

@@ -5,13 +5,12 @@
   width: 100vw;
   display: flex;
   flex-direction: column;
-  background: #213A35;
   background-image: url('./assets/spring.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   color: #fff;
-  text-align: center;
+  text-align: left;
   box-sizing: border-box;
   overflow: hidden;
   position: relative;
@@ -42,28 +41,29 @@
   pointer-events: none;
   animation: float 8s ease-in-out infinite reverse;
 }
+.app-container h2 {
+  position: absolute;
+  top: 30%;
+  right: 44%;
+  font-size: 3.5rem;
+  font-weight: bold;
+  font-family: 'Orbitron', sans-serif;
+  color: #79f8ff;
+  text-shadow: 0 2px 6px rgba(156, 255, 243, 0.6);
+  z-index: 3;
+}
 
 .top-section {
-  position: relative;
-  z-index: 2;
+  position: absolute;
   background: #000000;
-  padding: 3.5rem 0 3rem 0;
-  border-radius: 0 0 0 100px;
   margin-bottom: 0;
-  animation: fadeInDown 1s ease-out;
-  clip-path: polygon(0 0, 100% 0, 100% 70%, 0 100%);
+  width: 100%;
 }
 
 .top-section img {
   max-width: 150px;
   height: auto;
-  object-fit: contain;
   filter: none;
-  transition: transform 0.3s ease;
-}
-
-.top-section img:hover {
-  transform: scale(1.05);
 }
 
 .main-content {
@@ -218,15 +218,6 @@
   }
   75% {
     transform: translateY(-8px) rotate(-1deg);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
   }
 }
 
