@@ -1,299 +1,300 @@
-- number: 1
-  questions:
-    - text: "Why might a model give different answers to the same question across runs?"
-      options:
-        [
-          "Because of stochastic sampling in token prediction",
-          "Because it forgets the prompt structure",
-          "Because tokens are reused from previous runs",
-          "Because of insufficient training data",
-        ]
-      correct_index: 0
-      points: 1
-      time_limit: 20
+rounds:
+  - number: 1
+    questions:
+      - text: "Why might a model give different answers to the same question across runs?"
+        options:
+          [
+            "Because of stochastic sampling in token prediction",
+            "Because it forgets the prompt structure",
+            "Because tokens are reused from previous runs",
+            "Because of insufficient training data",
+          ]
+        correct_index: 0
+        points: 1
+        time_limit: 20
 
-    - text: "In prompt optimization, what is a key risk of over-specifying instructions?"
-      options:
-        [
-          "The model becomes more random",
-          "The model may lose creativity and flexibility",
-          "The model ignores the input completely",
-          "The temperature setting becomes irrelevant",
-        ]
-      correct_index: 1
-      points: 1
-      time_limit: 20
+      - text: "In prompt optimization, what is a key risk of over-specifying instructions?"
+        options:
+          [
+            "The model becomes more random",
+            "The model may lose creativity and flexibility",
+            "The model ignores the input completely",
+            "The temperature setting becomes irrelevant",
+          ]
+        correct_index: 1
+        points: 1
+        time_limit: 20
 
-    - text: "What is one potential risk of using AI-generated content without human review?"
-      options:
-        [
-          "It always improves data accuracy",
-          "It guarantees factual correctness",
-          "It reduces creative diversity",
-          "It may contain biased or incorrect information",
-        ]
-      correct_index: 3
-      points: 1
-      time_limit: 20
+      - text: "What is one potential risk of using AI-generated content without human review?"
+        options:
+          [
+            "It always improves data accuracy",
+            "It guarantees factual correctness",
+            "It reduces creative diversity",
+            "It may contain biased or incorrect information",
+          ]
+        correct_index: 3
+        points: 1
+        time_limit: 20
 
-    - text: "When integrating AI into business workflows, what’s a key ethical consideration?"
-      options:
-        [
-          "Model temperature settings",
-          "Response speed",
-          "Data privacy and transparency",
-          "Token consumption rate",
-        ]
-      correct_index: 2
-      points: 1
-      time_limit: 20
+      - text: "When integrating AI into business workflows, what’s a key ethical consideration?"
+        options:
+          [
+            "Model temperature settings",
+            "Response speed",
+            "Data privacy and transparency",
+            "Token consumption rate",
+          ]
+        correct_index: 2
+        points: 1
+        time_limit: 20
 
-    - text: "Why might including both role instructions and examples improve prompt quality?"
-      options:
-        [
-          "It combines context setting with behavioral guidance",
-          "It reduces token cost automatically",
-          "It speeds up tokenization",
-          "It prevents context window overflow",
-        ]
-      correct_index: 0
-      points: 1
-      time_limit: 20
+      - text: "Why might including both role instructions and examples improve prompt quality?"
+        options:
+          [
+            "It combines context setting with behavioral guidance",
+            "It reduces token cost automatically",
+            "It speeds up tokenization",
+            "It prevents context window overflow",
+          ]
+        correct_index: 0
+        points: 1
+        time_limit: 20
 
-- number: 2
-  questions:
-    - text: "How does chain-of-thought prompting enhance model reasoning?"
-      options:
-        [
-          "By encouraging intermediate reasoning steps before the final answer",
-          "By summarizing data faster",
-          "By shortening token sequences",
-          "By improving grammar correction",
-        ]
-      correct_index: 0
-      points: 1
-      time_limit: 20
+  - number: 2
+    questions:
+      - text: "How does chain-of-thought prompting enhance model reasoning?"
+        options:
+          [
+            "By encouraging intermediate reasoning steps before the final answer",
+            "By summarizing data faster",
+            "By shortening token sequences",
+            "By improving grammar correction",
+          ]
+        correct_index: 0
+        points: 1
+        time_limit: 20
 
-    - text: "What’s a practical drawback of using long context windows?"
-      options:
-        [
-          "They reduce model understanding",
-          "They eliminate temperature effects",
-          "They make prompts unreadable to the model",
-          "They increase latency and cost per request",
-        ]
-      correct_index: 3
-      points: 1
-      time_limit: 20
+      - text: "What’s a practical drawback of using long context windows?"
+        options:
+          [
+            "They reduce model understanding",
+            "They eliminate temperature effects",
+            "They make prompts unreadable to the model",
+            "They increase latency and cost per request",
+          ]
+        correct_index: 3
+        points: 1
+        time_limit: 20
 
-    - text: "What problem does grounding aim to solve in large language models?"
-      options:
-        [
-          "Reducing hallucinations by linking outputs to verified data",
-          "Improving grammar correction accuracy",
-          "Shortening responses automatically",
-          "Expanding the training dataset in real time",
-        ]
-      correct_index: 0
-      points: 1
-      time_limit: 20
+      - text: "What problem does grounding aim to solve in large language models?"
+        options:
+          [
+            "Reducing hallucinations by linking outputs to verified data",
+            "Improving grammar correction accuracy",
+            "Shortening responses automatically",
+            "Expanding the training dataset in real time",
+          ]
+        correct_index: 0
+        points: 1
+        time_limit: 20
 
-    - text: "Why can prompt tokens influence output bias?"
-      options:
-        [
-          "Tokens are randomly assigned during generation",
-          "Bias comes only from model weights, not prompts",
-          "The phrasing and framing of input can activate certain model associations",
-          "Token count changes the model’s fairness directly",
-        ]
-      correct_index: 2
-      points: 1
-      time_limit: 20
+      - text: "Why can prompt tokens influence output bias?"
+        options:
+          [
+            "Tokens are randomly assigned during generation",
+            "Bias comes only from model weights, not prompts",
+            "The phrasing and framing of input can activate certain model associations",
+            "Token count changes the model’s fairness directly",
+          ]
+        correct_index: 2
+        points: 1
+        time_limit: 20
 
-    - text: "Which scenario best illustrates prompt injection?"
-      options:
-        [
-          "A developer increases model temperature to 1.0",
-          "A user adds instructions that override system safety settings",
-          "The prompt contains too many examples",
-          "The system refuses to output a response",
-        ]
-      correct_index: 1
-      points: 1
-      time_limit: 20
+      - text: "Which scenario best illustrates prompt injection?"
+        options:
+          [
+            "A developer increases model temperature to 1.0",
+            "A user adds instructions that override system safety settings",
+            "The prompt contains too many examples",
+            "The system refuses to output a response",
+          ]
+        correct_index: 1
+        points: 1
+        time_limit: 20
 
-- number: 3
-  questions:
-    - text: "What’s a limitation of chain-of-thought prompting in production systems?"
-      options:
-        [
-          "It reduces reasoning clarity",
-          "It shortens context retention",
-          "It prevents multi-turn dialogue",
-          "It can increase token usage and latency",
-        ]
-      correct_index: 3
-      points: 1
-      time_limit: 20
+  - number: 3
+    questions:
+      - text: "What’s a limitation of chain-of-thought prompting in production systems?"
+        options:
+          [
+            "It reduces reasoning clarity",
+            "It shortens context retention",
+            "It prevents multi-turn dialogue",
+            "It can increase token usage and latency",
+          ]
+        correct_index: 3
+        points: 1
+        time_limit: 20
 
-    - text: "Why do embeddings improve information retrieval tasks?"
-      options:
-        [
-          "They represent semantic meaning numerically for similarity comparison",
-          "They store data more compactly",
-          "They increase token window size",
-          "They reduce latency through compression",
-        ]
-      correct_index: 0
-      points: 1
-      time_limit: 20
+      - text: "Why do embeddings improve information retrieval tasks?"
+        options:
+          [
+            "They represent semantic meaning numerically for similarity comparison",
+            "They store data more compactly",
+            "They increase token window size",
+            "They reduce latency through compression",
+          ]
+        correct_index: 0
+        points: 1
+        time_limit: 20
 
-    - text: "In few-shot prompting, what’s the best way to select examples?"
-      options:
-        [
-          "Pick random examples for diversity",
-          "Include as many examples as possible",
-          "Use examples that mirror the desired tone, format, and reasoning style",
-          "Use irrelevant examples to test creativity",
-        ]
-      correct_index: 2
-      points: 1
-      time_limit: 20
+      - text: "In few-shot prompting, what’s the best way to select examples?"
+        options:
+          [
+            "Pick random examples for diversity",
+            "Include as many examples as possible",
+            "Use examples that mirror the desired tone, format, and reasoning style",
+            "Use irrelevant examples to test creativity",
+          ]
+        correct_index: 2
+        points: 1
+        time_limit: 20
 
-    - text: "What does ‘attention’ in a transformer architecture refer to?"
-      options:
-        [
-          "The mechanism for weighting relationships between tokens",
-          "The focus on fewer training samples",
-          "The process of randomizing token order",
-          "The method for compressing model weights",
-        ]
-      correct_index: 0
-      points: 1
-      time_limit: 20
+      - text: "What does ‘attention’ in a transformer architecture refer to?"
+        options:
+          [
+            "The mechanism for weighting relationships between tokens",
+            "The focus on fewer training samples",
+            "The process of randomizing token order",
+            "The method for compressing model weights",
+          ]
+        correct_index: 0
+        points: 1
+        time_limit: 20
 
-    - text: "Why might models perform poorly on numerical reasoning tasks?"
-      options:
-        [
-          "They use too few layers for math problems",
-          "They cannot process number tokens",
-          "They skip numeric data during training",
-          "They rely on statistical text patterns, not symbolic computation",
-        ]
-      correct_index: 3
-      points: 1
-      time_limit: 20
+      - text: "Why might models perform poorly on numerical reasoning tasks?"
+        options:
+          [
+            "They use too few layers for math problems",
+            "They cannot process number tokens",
+            "They skip numeric data during training",
+            "They rely on statistical text patterns, not symbolic computation",
+          ]
+        correct_index: 3
+        points: 1
+        time_limit: 20
 
-- number: 4
-  questions:
-    - text: "What’s a key benefit of retrieval-augmented generation (RAG)?"
-      options:
-        [
-          "It allows models to access updated external knowledge sources",
-          "It increases model creativity",
-          "It trains the base model faster",
-          "It reduces token cost automatically",
-        ]
-      correct_index: 0
-      points: 1
-      time_limit: 15
+  - number: 4
+    questions:
+      - text: "What’s a key benefit of retrieval-augmented generation (RAG)?"
+        options:
+          [
+            "It allows models to access updated external knowledge sources",
+            "It increases model creativity",
+            "It trains the base model faster",
+            "It reduces token cost automatically",
+          ]
+        correct_index: 0
+        points: 1
+        time_limit: 15
 
-    - text: "What technique helps AI models perform better on reasoning-heavy tasks?"
-      options:
-        [
-          "Random sampling",
-          "Chain-of-thought prompting",
-          "Short prompts",
-          "Lowering max tokens",
-        ]
-      correct_index: 1
-      points: 1
-      time_limit: 20
+      - text: "What technique helps AI models perform better on reasoning-heavy tasks?"
+        options:
+          [
+            "Random sampling",
+            "Chain-of-thought prompting",
+            "Short prompts",
+            "Lowering max tokens",
+          ]
+        correct_index: 1
+        points: 1
+        time_limit: 20
 
-    - text: "In advanced prompt chaining, why is output validation critical?"
-      options:
-        [
-          "To ensure each step’s output is logically consistent before passing forward",
-          "To simplify prompt structure",
-          "To eliminate randomness in sampling",
-          "To increase token usage for context retention",
-        ]
-      correct_index: 3
-      points: 1
-      time_limit: 15
+      - text: "In advanced prompt chaining, why is output validation critical?"
+        options:
+          [
+            "To ensure each step’s output is logically consistent before passing forward",
+            "To simplify prompt structure",
+            "To eliminate randomness in sampling",
+            "To increase token usage for context retention",
+          ]
+        correct_index: 3
+        points: 1
+        time_limit: 15
 
-- number: 5
-  questions:
-    - text: "What is one advantage of fine-tuning over prompt engineering?"
-      options:
-        [
-          "It reduces training data requirements to zero",
-          "It can embed domain expertise directly into model weights",
-          "It always eliminates hallucinations",
-          "It avoids the need for temperature settings",
-        ]
-      correct_index: 1
-      points: 1
-      time_limit: 15
+  - number: 5
+    questions:
+      - text: "What is one advantage of fine-tuning over prompt engineering?"
+        options:
+          [
+            "It reduces training data requirements to zero",
+            "It can embed domain expertise directly into model weights",
+            "It always eliminates hallucinations",
+            "It avoids the need for temperature settings",
+          ]
+        correct_index: 1
+        points: 1
+        time_limit: 15
 
-    - text: "What challenge does RLHF attempt to address?"
-      options:
-        [
-          "Aligning model behavior with human intent and values",
-          "Reducing token cost",
-          "Improving computation speed",
-          "Expanding the context window",
-        ]
-      correct_index: 0
-      points: 1
-      time_limit: 15
+      - text: "What challenge does RLHF attempt to address?"
+        options:
+          [
+            "Aligning model behavior with human intent and values",
+            "Reducing token cost",
+            "Improving computation speed",
+            "Expanding the context window",
+          ]
+        correct_index: 0
+        points: 1
+        time_limit: 15
 
-    - text: "Why might few-shot prompting outperform zero-shot prompting in complex tasks?"
-      options:
-        [
-          "Because it reduces token load automatically",
-          "Because zero-shot ignores temperature",
-          "Because few-shot uses fewer parameters",
-          "Because examples help the model infer task-specific structure and reasoning",
-        ]
-      correct_index: 3
-      points: 1
-      time_limit: 15
+      - text: "Why might few-shot prompting outperform zero-shot prompting in complex tasks?"
+        options:
+          [
+            "Because it reduces token load automatically",
+            "Because zero-shot ignores temperature",
+            "Because few-shot uses fewer parameters",
+            "Because examples help the model infer task-specific structure and reasoning",
+          ]
+        correct_index: 3
+        points: 1
+        time_limit: 15
 
-- number: 6
-  questions:
-    - text: "What is a downside of using extremely large models for simple tasks?"
-      options:
-        [
-          "They can be less efficient and incur higher inference costs",
-          "They provide less accurate results",
-          "They disable reasoning layers",
-          "They require lower context limits",
-        ]
-      correct_index: 0
-      points: 1
-      time_limit: 15
+  - number: 6
+    questions:
+      - text: "What is a downside of using extremely large models for simple tasks?"
+        options:
+          [
+            "They can be less efficient and incur higher inference costs",
+            "They provide less accurate results",
+            "They disable reasoning layers",
+            "They require lower context limits",
+          ]
+        correct_index: 0
+        points: 1
+        time_limit: 15
 
-    - text: "Which factor most influences the effectiveness of multi-turn conversation design?"
-      options:
-        [
-          "Setting a low temperature value",
-          "Using only one system prompt",
-          "Reducing tokens per response",
-          "Maintaining relevant and concise conversation history",
-        ]
-      correct_index: 3
-      points: 1
-      time_limit: 15
+      - text: "Which factor most influences the effectiveness of multi-turn conversation design?"
+        options:
+          [
+            "Setting a low temperature value",
+            "Using only one system prompt",
+            "Reducing tokens per response",
+            "Maintaining relevant and concise conversation history",
+          ]
+        correct_index: 3
+        points: 1
+        time_limit: 15
 
-    - text: "What is one advanced method to evaluate prompt performance objectively?"
-      options:
-        [
-          "Manually judge each response",
-          "Increase temperature for variability",
-          "Use benchmark datasets and measure consistency across runs",
-          "Ignore model metadata",
-        ]
-      correct_index: 2
-      points: 1
-      time_limit: 15
+      - text: "What is one advanced method to evaluate prompt performance objectively?"
+        options:
+          [
+            "Manually judge each response",
+            "Increase temperature for variability",
+            "Use benchmark datasets and measure consistency across runs",
+            "Ignore model metadata",
+          ]
+        correct_index: 2
+        points: 1
+        time_limit: 15
