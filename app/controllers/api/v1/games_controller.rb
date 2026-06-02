@@ -42,11 +42,7 @@ module Api
 
       # POST /api/v1/games/:code/join
       def join
-        name = params.require(:name).to_s.strip
-
-        Rails.logger.info(
-          "JOIN DEBUG: non_hosts=#{@game.players.where(is_host: false).count} max=#{Game::MAX_NON_HOST_PLAYERS}")
-        
+        name = params.require(:name).to_s.strip        
         # Validation checks
         if @game.players.where(is_host: false).count >= Game::MAX_NON_HOST_PLAYERS
           return render_api_error(code: "full", message: "Game is full", status: 422)
