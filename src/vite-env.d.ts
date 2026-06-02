@@ -11,8 +11,8 @@ declare module "lottie-react";
 declare module "react-confetti"
 
 interface ImportMetaEnv {
-    readonly VITE_ACTION_CABLE_URL?: string
     readonly VITE_API_BASE_URL?: string
+    readonly VITE_ACTION_CABLE_URL?: string
     // add other vars you use
   }
   
