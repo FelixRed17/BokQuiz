@@ -1,0 +1,29 @@
+databases:
+  - name: bokquiz-db
+    databaseName: bokquiz
+    user: bokquiz
+    plan: free
+
+services:
+  - type: web
+    name: bokquiz-api
+    runtime: ruby
+    plan: free
+    region: frankfurt
+    buildCommand: "./bin/render-build.sh"
+    # preDeployCommand: "bundle exec rails db:migrate" # paid plans only
+    startCommand: "bundle exec puma -C config/puma.rb"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bokquiz-db
+          property: connectionString
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: WEB_CONCURRENCY
+        value: "2"
+      # If you add a Redis instance on Render, also add:
+      # - key: REDIS_URL
+      #   sync: false
+
+

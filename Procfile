@@ -1,0 +1,1 @@
+web: bash bin/koyeb-start.sh
