@@ -10,6 +10,34 @@ type HttpInit = Omit<RequestInit, "body" | "headers"> & {
   retry?: number;           // optional number of retries on transient errors
 };
 
+function getApiErrorMessage(data: unknown, fallback: string): string {
+  if (typeof data === "string" && data.trim()) return data;
+
+  if (data && typeof data === "object") {
+    const errorLike = data as {
+      data?: unknown;
+      error?: unknown;
+      error_message?: unknown;
+      message?: unknown;
+    };
+
+    const candidates = [
+      errorLike.error_message,
+      errorLike.error,
+      errorLike.data,
+      errorLike.message,
+    ];
+
+    for (const candidate of candidates) {
+      if (candidate === undefined || candidate === data) continue;
+      const message = getApiErrorMessage(candidate, "");
+      if (message) return message;
+    }
+  }
+
+  return fallback;
+}
+
 export async function http<TResponse>(
   path: string,
   init: HttpInit = {}
@@ -42,7 +70,7 @@ export async function http<TResponse>(
     try {
       const res = await fetch(url, { ...rest, headers, body, signal: controller?.signal });
       const text = await res.text();
-      let data: any = null;
+      let data: unknown = null;
       try {
         data = text ? JSON.parse(text) : null;
       } catch {
@@ -56,17 +84,17 @@ export async function http<TResponse>(
           await new Promise((r) => setTimeout(r, backoff));
           continue;
         }
-        const message = (data && (data.message || data.error)) || `HTTP ${res.status}`;
+        const message = getApiErrorMessage(data, `HTTP ${res.status}`);
         throw new ApiError(message, res.status, data);
       }
 
       if (tid) clearTimeout(tid);
       return data as TResponse;
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (tid) clearTimeout(tid);
       lastError = err;
       // For AbortError or network error (TypeError), allow retry
-      const isAbort = err?.name === "AbortError";
+      const isAbort = err instanceof Error && err.name === "AbortError";
       const isNetwork = err instanceof TypeError;
       if (attempt < maxAttempts && (isAbort || isNetwork)) {
         const backoff = 200 * Math.pow(2, attempt - 1);
@@ -77,5 +105,5 @@ export async function http<TResponse>(
     }
   }
 
-  throw lastError as any;
+  throw lastError;
 }

@@ -26,10 +26,13 @@ function LobbyScreen() {
   });
 
   const players = state?.players ?? [];
+  const admin = players.find((p) => p.isHost);
+  const joinedPlayers = players.filter((p) => !p.isHost);
+  const maxPlayers = 8;
 
-  const totalPlayers = players.length;
-  const readyCount = players.filter((p) => p.ready).length;
-  const eliminatedCount = players.filter((p) => p.eliminated).length;
+  const totalPlayers = joinedPlayers.length;
+  const readyCount = joinedPlayers.filter((p) => p.ready).length;
+  const eliminatedCount = joinedPlayers.filter((p) => p.eliminated).length;
 
   const handleStartGame = async () => {
     if (!gameCode) return;
@@ -44,9 +47,17 @@ function LobbyScreen() {
     try {
       await hostStart(gameCode, hostToken);
       // Don't navigate here - WebSocket message handler will navigate
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as {
+        data?: { error?: { message?: unknown } };
+        message?: unknown;
+      };
       const msg =
-        err?.data?.error?.message ?? err?.message ?? "Failed to start game";
+        (typeof error.data?.error?.message === "string"
+          ? error.data.error.message
+          : undefined) ??
+        (typeof error.message === "string" ? error.message : undefined) ??
+        "Failed to start game";
       console.error(`Failed to start game: ${msg}`);
     }
   };
@@ -97,11 +108,37 @@ function LobbyScreen() {
         {/* Players */}
         <div className="mb-4">
           <div className="d-flex flex-column gap-3">
-            {players.length === 0 && !isLoading && (
+            {admin && (
+              <div
+                className={`d-flex align-items-center justify-content-between ${styles.playerItem}`}
+              >
+                <div className="d-flex align-items-center">
+                  <div className={`me-3 ${styles.statusDot} ${styles.statusOnline}`} />
+                  <span className="fw-semibold fs-5 text-light">
+                    {admin.name}
+                  </span>
+                </div>
+
+                <span
+                  className="px-3 py-1"
+                  style={{
+                    background: "linear-gradient(90deg, #FFE066, #30D5C8)",
+                    borderRadius: "0.5rem",
+                    color: "#0C081A",
+                    fontWeight: 700,
+                    boxShadow: "0 0 10px rgba(255,224,102,0.45)",
+                  }}
+                >
+                  Admin
+                </span>
+              </div>
+            )}
+
+            {joinedPlayers.length === 0 && !isLoading && (
               <div className="text-muted">No players yet.</div>
             )}
 
-            {players.map((p) => (
+            {joinedPlayers.map((p) => (
               <div
                 key={p.name}
                 className={`d-flex align-items-center justify-content-between ${styles.playerItem}`}
@@ -166,7 +203,9 @@ function LobbyScreen() {
         <div className="d-flex justify-content-between mb-4 text-white">
           <div className="text-center">
             <div className={styles.statTitle}>TOTAL</div>
-            <div className={styles.statValue}>{totalPlayers}</div>
+            <div className={styles.statValue}>
+              {totalPlayers}/{maxPlayers}
+            </div>
           </div>
           <div className="text-center">
             <div className={styles.statTitle}>ONLINE</div>

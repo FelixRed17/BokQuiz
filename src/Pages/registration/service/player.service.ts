@@ -2,6 +2,26 @@
 import { http } from "../../../lib/http";
 import type { JoinGameSuccessDTO, JoinGameResponseDTO } from "../dto/join.dto";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object");
+}
+
+function getJoinErrorMessage(error: unknown): string {
+  if (typeof error === "string" && error.trim()) return error;
+  if (isRecord(error)) {
+    return getJoinErrorMessage(error.message ?? error.error);
+  }
+  return "Failed to join";
+}
+
+function isJoinSuccess(value: unknown): value is JoinGameSuccessDTO {
+  return (
+    isRecord(value) &&
+    typeof value.player_id === "number" &&
+    typeof value.reconnect_token === "string"
+  );
+}
+
 export async function joinGame(
   gameCode: string,
   playerName: string
@@ -14,16 +34,15 @@ export async function joinGame(
   });
 
   // If API returns error shape in 200 (unlikely), handle defensively
-  if ((dto as any)?.error) {
-    throw new Error((dto as any).error.message || "Failed to join");
+  if (isRecord(dto) && "error" in dto) {
+    throw new Error(getJoinErrorMessage(dto.error));
   }
 
   // Expect server to respond with { player_id, reconnect_token } (direct or nested)
   // adjust for how your backend wraps successful responses
-  const success =
-    (dto as any).data ?? (dto as any) /* sometimes API returns flat object */;
+  const success = isRecord(dto) && "data" in dto ? dto.data : dto;
 
-  if (!success || success.player_id === undefined || !success.reconnect_token) {
+  if (!isJoinSuccess(success)) {
     throw new Error("Malformed join response from server");
   }
 
@@ -32,4 +51,3 @@ export async function joinGame(
     reconnect_token: success.reconnect_token,
   } as JoinGameSuccessDTO;
 }
-

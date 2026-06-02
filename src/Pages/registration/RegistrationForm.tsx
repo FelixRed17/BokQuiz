@@ -14,6 +14,45 @@ export interface RegistrationFormProps {
   onRegisterSuccess: (data: RegistrationData) => void;
 }
 
+function getErrorMessage(value: unknown, fallback: string): string {
+  if (typeof value === "string" && value.trim()) return value;
+
+  if (value && typeof value === "object") {
+    const errorLike = value as {
+      data?: unknown;
+      error?: unknown;
+      error_message?: unknown;
+      message?: unknown;
+    };
+
+    const candidates = [
+      errorLike.error_message,
+      errorLike.error,
+      errorLike.data,
+      errorLike.message,
+    ];
+
+    for (const candidate of candidates) {
+      if (candidate === undefined || candidate === value) continue;
+      const message = getErrorMessage(candidate, "");
+      if (message) return message;
+    }
+  }
+
+  return fallback;
+}
+
+function hasErrorPayload(value: unknown): value is { error: unknown } {
+  return Boolean(value && typeof value === "object" && "error" in value);
+}
+
+function getErrorStatus(value: unknown): number | undefined {
+  if (!value || typeof value !== "object" || !("status" in value)) return undefined;
+
+  const status = (value as { status: unknown }).status;
+  return typeof status === "number" ? status : undefined;
+}
+
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   onRegisterSuccess,
 }) => {
@@ -69,11 +108,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
       // If API returns an error-like payload, handle it gracefully
       // (adjust according to your API shape)
-      if (!response || (response as any).error) {
-        const message =
-          (response as any).message ||
-          (response as any).error ||
-          "Failed to join the game.";
+      if (!response || hasErrorPayload(response)) {
+        const message = getErrorMessage(response, "Failed to join the game.");
         setGenericError(message);
         return;
       }
@@ -91,14 +127,17 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         playerName: playerName.trim(),
         gameCode: gameCode.trim(),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // if ApiError from lib/errors is thrown, it may contain status & data
-      const apiMessage =
-        err?.data?.message || err?.message || "Unable to join game. Try again.";
+      const apiMessage = getErrorMessage(
+        err,
+        "Unable to join game. Try again."
+      );
+      const status = getErrorStatus(err);
       // Map some statuses to UI errors
-      if (err?.status === 404) {
+      if (status === 404) {
         setGameCodeError("Game not found. Check the code and try again.");
-      } else if (err?.status === 400) {
+      } else if (status === 400) {
         setNameError(apiMessage);
       } else {
         setGenericError(apiMessage);

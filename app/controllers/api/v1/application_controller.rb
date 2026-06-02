@@ -11,6 +11,15 @@ module Api
       def ok(payload, status: :ok)
         render json: { data: payload }, status: status
       end
+
+      private
+
+      def render_api_error(code:, message:, status: :unprocessable_entity)
+        render json: {
+          error: { code: code, message: message },
+          error_message: message
+        }, status: status
+      end
     end
   end
 end

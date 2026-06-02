@@ -72,14 +72,14 @@ module Api
 
       # POST /api/v1/games/:code/rename
       def rename
-        return render json: { error: { code: "bad_state", message: "Rename only in lobby" } }, status: 422 unless @game.lobby?
+        return render_api_error(code: "bad_state", message: "Rename only in lobby", status: 422) unless @game.lobby?
         player_id = params.require(:player_id).to_i
         token     = params.require(:reconnect_token)
         new_name  = params.require(:name).to_s.strip
 
         player = @game.players.find(player_id)
-        return render json: { error: { code: "auth", message: "Bad token" } }, status: 403 unless player.reconnect_token == token
-        return render json: { error: { code: "name_taken", message: "Name already in use" } }, status: 422 if @game.players.where.not(id: player.id).exists?(name: new_name)
+        return render_api_error(code: "auth", message: "Bad token", status: 403) unless player.reconnect_token == token
+        return render_api_error(code: "name_taken", message: "Name already in use", status: 422) if @game.players.where.not(id: player.id).exists?(name: new_name)
 
         old_name = player.name
         player.update!(name: new_name)
@@ -89,13 +89,13 @@ module Api
 
       # POST /api/v1/games/:code/ready
       def ready
-        return render json: { error: { code: "bad_state", message: "Ready only in lobby" } }, status: 422 unless @game.lobby?
+        return render_api_error(code: "bad_state", message: "Ready only in lobby", status: 422) unless @game.lobby?
         player_id = params.require(:player_id).to_i
         token     = params.require(:reconnect_token)
         ready_val = ActiveModel::Type::Boolean.new.cast(params.require(:ready))
 
         player = @game.players.find(player_id)
-        return render json: { error: { code: "auth", message: "Bad token" } }, status: 403 unless player.reconnect_token == token
+        return render_api_error(code: "auth", message: "Bad token", status: 403) unless player.reconnect_token == token
 
         player.update!(ready: ready_val) if player.respond_to?(:ready)
         broadcast(:player_ready, { name: player.name, ready: ready_val })
@@ -110,11 +110,11 @@ module Api
 
       # POST /api/v1/games/:code/host_start
       def host_start
-        return render json: { error: { code: "bad_state", message: "Not in lobby" } }, status: 422 unless @game.lobby?
+        return render_api_error(code: "bad_state", message: "Not in lobby", status: 422) unless @game.lobby?
 
         # Validate exactly 5 questions per round (now 4 normal rounds)
         unless (1..4).all? { |r| Question.where(round_number: r).count == 5 }
-          return render json: { error: { code: "bad_setup", message: "Each round must have exactly 5 questions" } }, status: 422
+          return render_api_error(code: "bad_setup", message: "Each round must have exactly 5 questions", status: 422)
         end
 
         @game.update!(status: :in_round, round_number: 1, current_question_index: 0)
@@ -125,7 +125,7 @@ module Api
       # POST /api/v1/games/:code/host_next
       def host_next
         unless @game.in_round? || @game.between_rounds? || @game.sudden_death?
-          return render json: { error: { code: "bad_state", message: "Not in round or between rounds" } }, status: 422
+          return render_api_error(code: "bad_state", message: "Not in round or between rounds", status: 422)
         end
 
         # Sudden death flow
@@ -158,16 +158,16 @@ module Api
         choice    = params.require(:selected_index).to_i
 
         player = @game.players.find(player_id)
-        return render json: { error: { code: "auth", message: "Bad token" } }, status: 403 unless player.reconnect_token == token
-        return render json: { error: { code: "eliminated", message: "Player eliminated" } }, status: 422 if player.eliminated?
-        return render json: { error: { code: "host", message: "Host cannot submit" } }, status: 422 if player.is_host?
-        return render json: { error: { code: "closed", message: "Question closed" } }, status: 422 if @game.question_end_at.blank? || Time.current > @game.question_end_at
+        return render_api_error(code: "auth", message: "Bad token", status: 403) unless player.reconnect_token == token
+        return render_api_error(code: "eliminated", message: "Player eliminated", status: 422) if player.eliminated?
+        return render_api_error(code: "host", message: "Host cannot submit", status: 422) if player.is_host?
+        return render_api_error(code: "closed", message: "Question closed", status: 422) if @game.question_end_at.blank? || Time.current > @game.question_end_at
 
         # During sudden death, only participants may submit
         if @game.sudden_death?
           sd_ids = Array(@game.sudden_death_player_ids)
           unless sd_ids.include?(player.id)
-            return render json: { error: { code: "not_participant", message: "Not in sudden death" } }, status: 422
+            return render_api_error(code: "not_participant", message: "Not in sudden death", status: 422)
           end
         end
 
@@ -188,9 +188,9 @@ module Api
 
       # GET /api/v1/games/:code/question
       def question
-        return render json: { error: { code: "bad_state", message: "No open question" } }, status: 422 unless (@game.in_round? || @game.sudden_death?) && @game.question_end_at.present? && Time.current < @game.question_end_at
+        return render_api_error(code: "bad_state", message: "No open question", status: 422) unless (@game.in_round? || @game.sudden_death?) && @game.question_end_at.present? && Time.current < @game.question_end_at
         q = current_question
-        return render json: { error: { code: "not_found", message: "Question not found" } }, status: 404 unless q
+        return render_api_error(code: "not_found", message: "Question not found", status: 404) unless q
         ok({
           round_number: (@game.sudden_death? ? 5 : @game.round_number),
           index: @game.current_question_index,
@@ -205,14 +205,14 @@ module Api
         player_id = params.require(:player_id).to_i
         token     = params.require(:reconnect_token)
         player    = @game.players.find(player_id)
-        return render json: { error: { code: "auth", message: "Bad token" } }, status: 403 unless player.reconnect_token == token
+        return render_api_error(code: "auth", message: "Bad token", status: 403) unless player.reconnect_token == token
         ok({ name: player.name, eliminated: player.eliminated, is_host: player.is_host, total_score: player.total_score })
       end
 
       # GET /api/v1/games/:code/round_result
       # Reveals end-of-round scores + who is eliminated; advances state accordingly.
       def round_result
-        return render json: { error: { code: "bad_state", message: "Not between rounds" } }, status: 422 unless @game.between_rounds?
+        return render_api_error(code: "bad_state", message: "Not between rounds", status: 422) unless @game.between_rounds?
 
         round = @game.round_number
         rr = nil
@@ -358,7 +358,7 @@ module Api
 
       # GET /api/v1/games/:code/results
       def results
-        return render json: { error: { code: "bad_state", message: "Not finished" } }, status: 422 unless @game.finished?
+        return render_api_error(code: "bad_state", message: "Not finished", status: 422) unless @game.finished?
 
         answers = Question.order(:round_number, :id).map do |q|
           { round: q.round_number, text: q.text, correct_index: q.correct_index }
@@ -377,7 +377,7 @@ module Api
 
       def require_host!
         token = request.headers["X-Host-Token"].to_s
-        render json: { error: { code: "auth", message: "Host token required" } }, status: 403 and return unless token.present? && token == @game.host_token
+        render_api_error(code: "auth", message: "Host token required", status: 403) and return unless token.present? && token == @game.host_token
       end
 
       def current_question
