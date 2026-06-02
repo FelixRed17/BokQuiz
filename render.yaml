@@ -1,5 +1,6 @@
 databases:
   - name: bokquiz-db
+    region: frankfurt
     databaseName: bokquiz
     user: bokquiz
     plan: free
