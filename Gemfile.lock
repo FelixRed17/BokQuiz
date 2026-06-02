@@ -79,7 +79,7 @@ GEM
     bcrypt_pbkdf (1.1.1-x86_64-darwin)
     benchmark (0.4.1)
     bigdecimal (3.2.3)
-    bootsnap (1.18.6)
+    bootsnap (1.24.5)
       msgpack (~> 1.2)
     brakeman (7.1.0)
       racc
@@ -136,7 +136,7 @@ GEM
     marcel (1.0.4)
     mini_mime (1.1.5)
     minitest (5.25.5)
-    msgpack (1.8.0)
+    msgpack (1.8.1)
     net-imap (0.5.10)
       date
       net-protocol
