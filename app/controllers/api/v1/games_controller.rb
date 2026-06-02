@@ -44,7 +44,7 @@ module Api
       def join
         name = params.require(:name).to_s.strip
         # Validation checks
-        if @game.players.where(is_host: false).count >= 4
+        if @game.players.where(is_host: false).count >= 8
           return render json: { error: { code: "full", message: "Game is full" } }, status: 422
         end
 
@@ -112,8 +112,8 @@ module Api
       def host_start
         return render json: { error: { code: "bad_state", message: "Not in lobby" } }, status: 422 unless @game.lobby?
 
-        # Validate exactly 5 questions per round
-        unless (1..3).all? { |r| Question.where(round_number: r).count == 5 }
+        # Validate exactly 5 questions per round (now 4 normal rounds)
+        unless (1..4).all? { |r| Question.where(round_number: r).count == 5 }
           return render json: { error: { code: "bad_setup", message: "Each round must have exactly 5 questions" } }, status: 422
         end
 
@@ -192,7 +192,7 @@ module Api
         q = current_question
         return render json: { error: { code: "not_found", message: "Question not found" } }, status: 404 unless q
         ok({
-          round_number: (@game.sudden_death? ? 4 : @game.round_number),
+          round_number: (@game.sudden_death? ? 5 : @game.round_number),
           index: @game.current_question_index,
           text: q.text,
           options: q.options,
@@ -263,30 +263,51 @@ module Api
             return ok(payload)
           end
 
-          # Determine lowest by score. If multiple players share the lowest score,
-          # we trigger sudden death among them regardless of latency. Latency is
-          # still used only for leaderboard ordering (not elimination at this stage).
-          min_score = round_stats.map { |s| s[:round_score] }.min
-          lowest = round_stats.select { |s| s[:round_score] == min_score }
-
+          # Eliminate the two lowest scorers for the round. If ties cross the
+          # elimination boundary (i.e. more tied players than slots), trigger
+          # sudden death among the tied players at the boundary to decide who to
+          # eliminate. Latency is still used only for leaderboard ordering.
+          num_eliminate = 2
           eliminated_names = []
           next_state = :between_rounds
           sd_player_names = []
 
-          if lowest.size == 1
-            loser = lowest.first[:player]
-            unless loser.eliminated?
-              loser.update!(eliminated: true)
-            end
-            eliminated_names = [ loser.name ]
-          else
-            # Multiple players tied at the lowest score → sudden death among them
-            next_state = :sudden_death
-            sd_ids = lowest.map { |s| s[:player].id }
-            @game.update!(sudden_death_player_ids: sd_ids, current_question_index: 0, question_end_at: nil, sudden_death_attempts: 0, sudden_death_started_at: Time.current)
+          # Build a map of distinct scores in ascending order
+          distinct_scores = round_stats.map { |s| s[:round_score] }.uniq.sort
 
-            # gather names for RoundResult payload so frontend can show participants
+          # If there is only one distinct score (everyone tied), trigger sudden
+          # death among all active players
+          if distinct_scores.size == 1
+            next_state = :sudden_death
+            sd_ids = round_stats.map { |s| s[:player].id }
+            @game.update!(sudden_death_player_ids: sd_ids, current_question_index: 0, question_end_at: nil, sudden_death_attempts: 0, sudden_death_started_at: Time.current)
             sd_player_names = @game.players.where(id: sd_ids).order(:created_at).pluck(:name)
+          else
+            # Determine the threshold score that marks the elimination boundary
+            threshold_score = distinct_scores[[num_eliminate - 1, distinct_scores.size - 1].min]
+
+            below_threshold = round_stats.select { |s| s[:round_score] < threshold_score }
+            at_threshold = round_stats.select { |s| s[:round_score] == threshold_score }
+
+            needed_from_threshold = [num_eliminate - below_threshold.size, 0].max
+
+            if at_threshold.size > needed_from_threshold
+              # Tie at the boundary — sudden death among those tied at the
+              # threshold to decide which of them are eliminated
+              next_state = :sudden_death
+              sd_ids = at_threshold.map { |s| s[:player].id }
+              @game.update!(sudden_death_player_ids: sd_ids, current_question_index: 0, question_end_at: nil, sudden_death_attempts: 0, sudden_death_started_at: Time.current)
+              sd_player_names = @game.players.where(id: sd_ids).order(:created_at).pluck(:name)
+            else
+              # We can deterministically eliminate players_below + (some or all at_threshold)
+              losers = (below_threshold + at_threshold.first(needed_from_threshold)).map { |s| s[:player] }
+              losers.each do |loser|
+                unless loser.eliminated?
+                  loser.update!(eliminated: true)
+                end
+              end
+              eliminated_names = losers.map(&:name)
+            end
           end
 
           # If only one active non-host remains, finish game
@@ -361,7 +382,7 @@ module Api
 
       def current_question
         if @game.sudden_death?
-          sd_scope = Question.where(round_number: 4).order(:id)
+    sd_scope = Question.where(round_number: 5).order(:id)
           sd_count = sd_scope.count
           return nil if sd_count == 0
           base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0) % sd_count
@@ -383,7 +404,7 @@ module Api
         new_status = @game.sudden_death? ? :sudden_death : :in_round
         @game.update!(question_end_at: ends_at, status: new_status)
         broadcast(:question_started, {
-          round_number: (@game.sudden_death? ? 4 : @game.round_number),
+          round_number: (@game.sudden_death? ? 5 : @game.round_number),
           index: @game.current_question_index,
           text: q.text,
           options: q.options,
@@ -391,7 +412,7 @@ module Api
         })
       end
 
-      # Sudden-death driver: uses Round 4 questions and eliminates per rules
+  # Sudden-death driver: uses Round 5 questions and eliminates per rules
       def handle_sudden_death_next
         participants = Array(@game.sudden_death_player_ids).map(&:to_i).uniq
         players = participants.map { |pid| @game.players.find_by(id: pid, is_host: false) }.compact
@@ -403,7 +424,7 @@ module Api
         end
 
         # SD question pool (round_number = 4)
-        sd_questions = Question.where(round_number: 4).order(:id).to_a
+  sd_questions = Question.where(round_number: 5).order(:id).to_a
         if sd_questions.empty?
           Rails.logger.error("handle_sudden_death_next: no SD questions configured for game=#{@game.id}")
           @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
@@ -537,8 +558,40 @@ module Api
         return unless ActionCable.server.present?
 
         begin
+          # Defensive normalization: ensure any nested `name` fields are
+          # simple strings (some clients may accidentally send objects).
+          normalize = lambda do |obj|
+            case obj
+            when Array
+              obj.map { |e| normalize.call(e) }
+            when Hash
+              normalized = {}
+              obj.each do |k, v|
+                normalized[k] = normalize.call(v)
+              end
+
+              # If we have a name field that is itself an object, try to
+              # coerce to a sensible string (prefer inner :name, else to_s).
+              if normalized.key?("name") && normalized["name"].is_a?(Hash)
+                inner = normalized["name"]["name"] || normalized["name"][:@name] || normalized["name"].to_s
+                normalized["name"] = inner.to_s
+              end
+
+              # Symbol keys as well
+              if normalized.key?(:name) && normalized[:name].is_a?(Hash)
+                inner = normalized[:name][:name] || normalized[:name][:@name] || normalized[:name].to_s
+                normalized[:name] = inner.to_s
+              end
+
+              normalized
+            else
+              obj
+            end
+          end
+
           channel_name = "game:#{@game.id}"
-          message = { type: type.to_s, payload: payload }
+          safe_payload = normalize.call(payload || {})
+          message = { type: type.to_s, payload: safe_payload }
 
           Rails.logger.debug("Broadcasting to #{channel_name}: #{message.inspect}")
           ActionCable.server.broadcast(channel_name, message)

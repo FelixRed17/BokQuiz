@@ -34,6 +34,11 @@ module BokQuiz
     # in config/environments, which are processed later.
     #
     # config.time_zone = "Central Time (US & Canada)"
+  # Set the app time zone to match the Postgres server's timezone to avoid
+  # 'invalid value for parameter "TimeZone": "UTC"' errors on connection.
+  config.time_zone = "Africa/Johannesburg"
+  # Use local timezone for ActiveRecord to avoid sending 'UTC' to Postgres on connect
+  config.active_record.default_timezone = :local
     # config.eager_load_paths << Rails.root.join("extras")
 
     # Only loads a smaller set of middleware suitable for API only apps.

@@ -85,7 +85,6 @@ rounds:
 
 
 
-# Optional: bonus round (not part of 1..3 rounds validation)
   - number: 4
     questions:
       - text: "In which year did South Africa host its first ever Rugby Championship match?"
@@ -118,26 +117,34 @@ rounds:
         points: 1
         time_limit: 15
 
-      - text: "Which card means a player is sent off permanently?"
-        options: ["Yellow", "Red", "Orange", "Blue"]
+  - number: 5
+    questions:
+      - text: "Sudden Death: Who won the 2019 Rugby World Cup?"
+        options: ["England", "South Africa", "New Zealand", "Australia"]
         correct_index: 1
         points: 1
         time_limit: 15
 
-      - text: "How many players per side in union rugby?"
+      - text: "Sudden Death: Which Springbok was player of the tournament in 2007?"
+        options: ["Bryan Habana", "Jaques Nienaber", "Os du Randt", "Bryan Habana"]
+        correct_index: 2
+        points: 1
+        time_limit: 15
+
+      - text: "Sudden Death: How many players are in a rugby union team?"
         options: ["13", "14", "15", "16"]
         correct_index: 2
         points: 1
         time_limit: 15
 
-      - text: "What is awarded for a deliberate knock-on?"
-        options: ["Try", "Penalty", "Scrum", "Drop-out"]
+      - text: "Sudden Death: What is the name of Rugbys governing body?"
+        options: ["FIFA", "World Rugby", "IRB", "Rugby Union International"]
         correct_index: 1
         points: 1
         time_limit: 15
 
-      - text: "What is the Springboks’ traditional jersey colour?"
-        options: ["Blue", "Green & Gold", "Black & White", "Yellow"]
+      - text: "Sudden Death: What score is awarded for a penalty kick?"
+        options: ["2", "3", "5", "7"]
         correct_index: 1
         points: 1
         time_limit: 15

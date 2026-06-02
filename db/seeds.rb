@@ -41,6 +41,13 @@ else
       { text: "Sample Q3 R3", options: [ "A", "B", "C", "D" ], correct_index: 0, points: 1, time_limit: 20 },
       { text: "Sample Q4 R3", options: [ "A", "B", "C", "D" ], correct_index: 1, points: 1, time_limit: 20 },
       { text: "Sample Q5 R3", options: [ "A", "B", "C", "D" ], correct_index: 2, points: 1, time_limit: 20 }
+    ] },
+    { number: 4, questions: [
+      { text: "Sample Q1 R4", options: [ "A", "B", "C", "D" ], correct_index: 3, points: 1, time_limit: 20 },
+      { text: "Sample Q2 R4", options: [ "A", "B", "C", "D" ], correct_index: 0, points: 1, time_limit: 20 },
+      { text: "Sample Q3 R4", options: [ "A", "B", "C", "D" ], correct_index: 1, points: 1, time_limit: 20 },
+      { text: "Sample Q4 R4", options: [ "A", "B", "C", "D" ], correct_index: 2, points: 1, time_limit: 20 },
+      { text: "Sample Q5 R4", options: [ "A", "B", "C", "D" ], correct_index: 3, points: 1, time_limit: 20 }
     ] }
   ].each do |round|
     rn = round[:number]
