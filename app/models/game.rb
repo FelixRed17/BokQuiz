@@ -13,6 +13,9 @@ class Game < ApplicationRecord
   validates :current_question_index, numericality: { greater_than_or_equal_to: 0 }
 
   JOIN_CODE_LENGTH = 6
+  # Maximum number of non-host players allowed to join (host is separate)
+  MAX_NON_HOST_PLAYERS = 8
+
 
   private
 

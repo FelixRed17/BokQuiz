@@ -44,16 +44,16 @@ module Api
       def join
         name = params.require(:name).to_s.strip
         # Validation checks
-        if @game.players.where(is_host: false).count >= 8
-          return render json: { error: { code: "full", message: "Game is full" } }, status: 422
+        if @game.players.where(is_host: false).count >= Game::MAX_NON_HOST_PLAYERS
+          return render_api_error(code: "full", message: "Game is full", status: 422)
         end
 
         if @game.players.exists?(name: name)
-          return render json: { error: { code: "name_taken", message: "Name already in use" } }, status: 422
+          return render_api_error(code: "name_taken", message: "Name already in use", status: 422)
         end
 
         unless @game.lobby?
-          return render json: { error: { code: "bad_state", message: "Join only in lobby" } }, status: 422
+          return render_api_error(code: "bad_state", message: "Join only in lobby", status: 422)
         end
 
         # Create the player (auto-ready by default for non-hosts)
