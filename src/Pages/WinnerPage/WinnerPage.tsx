@@ -84,10 +84,10 @@ export default function WinnerPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "linear-gradient(to top, #0C081A, #4800a7ff)",
+          background: "linear-gradient(to top, #007A33, #F4C300)",
         }}
       >
-        <div style={{ color: "#0C081A", fontSize: "24px" }}>
+        <div style={{ color: "#FFFFFF", fontSize: "24px" }}>
           Loading results...
         </div>
       </div>
@@ -102,18 +102,18 @@ export default function WinnerPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#213A35",
+          background: "linear-gradient(135deg, #007A33, #F4C300)",
           flexDirection: "column",
           gap: "20px",
         }}
       >
-        <div style={{ color: "#0C081A", fontSize: "24px" }}>Error: {error}</div>
+        <div style={{ color: "#FFFFFF", fontSize: "24px" }}>Error: {error}</div>
         <button
           onClick={() => navigate("/")}
           style={{
             padding: "12px 24px",
-            background: "#0C081A",
-            color: "#1A1230",
+            background: "#007A33",
+            color: "#FFFFFF",
             border: "none",
             borderRadius: "8px",
             fontSize: "16px",
@@ -132,8 +132,8 @@ export default function WinnerPage() {
       title="🏆AIQuiz CHAMPION 🏆"
       message={winner ? "Congratulations on your victory!" : "Game completed"}
       name={winner ?? "No Winner"}
-      primaryColor="#0C081A"
-      secondaryColor="#30D5C8"
+      primaryColor="#007A33"
+      secondaryColor="#F4C300"
       overlayOpacity={0.4}
       confettiPieces={300}
     />

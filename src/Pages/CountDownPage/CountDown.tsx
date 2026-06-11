@@ -43,8 +43,7 @@ export default function CountDown({ seconds = 3, onComplete }: Props) {
 
       <div className="countdown-card">
         <div className="countdown-header">
-          <div className="countdown-header-icon">🤖</div>
-          <h1 className="countdown-heading">AI Quiz</h1>
+          <h1 className="countdown-heading">FIFA Quiz</h1>
         </div>
 
         <p className="next-round">NEXT ROUND</p>

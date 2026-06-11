@@ -1,14 +1,16 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import styles from "./LobbyPage.module.css";
 import { useGameState } from "./hooks/useGameState";
 import { useNavigate } from "react-router-dom";
-import { hostStart } from "./services/games.service";
+import { fetchQuestion, hostStart } from "./services/games.service";
 import { useGameChannel } from "../../hooks/useGameChannel";
 
 function LobbyScreen() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
   const navigate = useNavigate();
+  const [isStarting, setIsStarting] = useState(false);
 
   const { state, isLoading, error } = useGameState(gameCode, {
     pollIntervalMs: 3000,
@@ -35,7 +37,7 @@ function LobbyScreen() {
   const eliminatedCount = joinedPlayers.filter((p) => p.eliminated).length;
 
   const handleStartGame = async () => {
-    if (!gameCode) return;
+    if (!gameCode || isStarting) return;
     const hostToken = localStorage.getItem("hostToken");
     if (!hostToken) {
       console.error(
@@ -45,8 +47,17 @@ function LobbyScreen() {
     }
 
     try {
+      setIsStarting(true);
       await hostStart(gameCode, hostToken);
-      // Don't navigate here - WebSocket message handler will navigate
+
+      try {
+        const question = await fetchQuestion(gameCode);
+        navigate(`/game/${encodeURIComponent(gameCode)}/host`, {
+          state: { question },
+        });
+      } catch {
+        navigate(`/game/${encodeURIComponent(gameCode)}/host`);
+      }
     } catch (err: unknown) {
       const error = err as {
         data?: { error?: { message?: unknown } };
@@ -59,6 +70,8 @@ function LobbyScreen() {
         (typeof error.message === "string" ? error.message : undefined) ??
         "Failed to start game";
       console.error(`Failed to start game: ${msg}`);
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -122,11 +135,11 @@ function LobbyScreen() {
                 <span
                   className="px-3 py-1"
                   style={{
-                    background: "linear-gradient(90deg, #FFE066, #30D5C8)",
+                    background: "linear-gradient(90deg, #F4C300, #007A33)",
                     borderRadius: "0.5rem",
                     color: "#0C081A",
                     fontWeight: 700,
-                    boxShadow: "0 0 10px rgba(255,224,102,0.45)",
+                    boxShadow: "0 0 10px rgba(244,195,0,0.45)",
                   }}
                 >
                   Admin
@@ -170,7 +183,7 @@ function LobbyScreen() {
                     <span
                       className="px-3 py-1"
                       style={{
-                        background: "linear-gradient(90deg, #30D5C8, #4BC9E5)",
+                        background: "linear-gradient(90deg, #F4C300, #007A33)",
                         borderRadius: "0.5rem",
                         color: "#0C081A",
                         fontWeight: 700,
@@ -224,9 +237,9 @@ function LobbyScreen() {
           <button
             onClick={handleStartGame}
             className={`shadow ${styles.startBtn}`}
-            disabled={(state?.status ?? "lobby") !== "lobby"}
+            disabled={isStarting || (state?.status ?? "lobby") !== "lobby"}
           >
-            Start
+            {isStarting ? "Starting..." : "Start"}
           </button>
         </div>
       </div>

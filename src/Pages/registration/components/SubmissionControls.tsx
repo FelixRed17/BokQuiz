@@ -34,11 +34,11 @@ export const SubmissionControls: React.FC<SubmissionControlsProps> = ({ onSubmit
           borderRadius: '12px',
           cursor: canSubmit && !isSubmitting ? 'pointer' : 'not-allowed',
           background: canSubmit && !isSubmitting 
-            ? '#ED1E79'
+            ? '#F4C300'
             : 'linear-gradient(135deg, #ccc, #999)',
           color: canSubmit && !isSubmitting ? '#fff' : '#666',
           boxShadow: canSubmit && !isSubmitting 
-            ? '0 4px 15px rgba(237, 30, 121, 0.4)'
+            ? '0 4px 15px rgba(244, 195, 0, 1)'
             : '0 2px 8px rgba(0, 0, 0, 0.1)',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           opacity: canSubmit && !isSubmitting ? 1 : 0.6
@@ -46,15 +46,15 @@ export const SubmissionControls: React.FC<SubmissionControlsProps> = ({ onSubmit
         onMouseEnter={(e) => {
           if (canSubmit && !isSubmitting) {
             e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(237, 30, 121, 0.6)'
-            e.currentTarget.style.background = '#FF3D8B'
+            e.currentTarget.style.boxShadow = '0 4px 15px rgba(244, 195, 0, 1)'
+            e.currentTarget.style.background = '#F4C300'
           }
         }}
         onMouseLeave={(e) => {
           if (canSubmit && !isSubmitting) {
             e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 4px 15px rgba(237, 30, 121, 0.4)'
-            e.currentTarget.style.background = '#ED1E79'
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 122, 51, 1)'
+            e.currentTarget.style.background = '#007A33'
           }
         }}
       >

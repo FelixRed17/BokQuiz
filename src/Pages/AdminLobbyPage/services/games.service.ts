@@ -3,6 +3,18 @@ import { http } from "../../../lib/http";
 import type { GameStateResponseDTO } from "../dto/games.dto";
 import type { GameState, Player } from "../types/games";
 
+type ApiEnvelope<T> = {
+  data: T;
+};
+
+function unwrapData<T>(raw: T | ApiEnvelope<T>): T {
+  if (raw && typeof raw === "object" && "data" in raw) {
+    return (raw as ApiEnvelope<T>).data;
+  }
+
+  return raw as T;
+}
+
 /**
  * DTOs / Types
  */
@@ -68,14 +80,41 @@ export type HostStartResponseDTO = {
 
 export async function hostStart(gameCode: string, hostToken: string) {
   const path = `/api/v1/games/${encodeURIComponent(gameCode)}/host_start`;
-  const dto = await http<HostStartResponseDTO>(path, {
+  const dto = await http<HostStartResponseDTO | ApiEnvelope<HostStartResponseDTO>>(path, {
     method: "POST",
     headers: {
       "X-Host-Token": hostToken,
       Accept: "application/json",
     },
   });
-  return dto;
+  return unwrapData(dto);
+}
+
+export type HostNextResponseDTO = {
+  advanced?: boolean;
+  round_ended?: boolean;
+  next_round_started?: boolean;
+  sudden_death_continue?: boolean;
+  sudden_death_in_progress?: boolean;
+  sudden_death_ended?: boolean;
+  next_status?: string;
+  round_number?: number;
+  index?: number;
+};
+
+export async function hostNext(
+  gameCode: string,
+  hostToken: string
+): Promise<HostNextResponseDTO> {
+  const path = `/api/v1/games/${encodeURIComponent(gameCode)}/host_next`;
+  const dto = await http<HostNextResponseDTO | ApiEnvelope<HostNextResponseDTO>>(path, {
+    method: "POST",
+    headers: {
+      "X-Host-Token": hostToken,
+      Accept: "application/json",
+    },
+  });
+  return unwrapData(dto);
 }
 
 /* fetch current question */
@@ -89,8 +128,11 @@ export type QuestionResponseDTO = {
 
 export async function fetchQuestion(gameCode: string): Promise<QuestionResponseDTO> {
   const path = `/api/v1/games/${encodeURIComponent(gameCode)}/question`;
-  const dto = await http<QuestionResponseDTO>(path, { method: "GET" });
-  return dto;
+  const dto = await http<QuestionResponseDTO | ApiEnvelope<QuestionResponseDTO>>(path, {
+    method: "GET",
+    cache: "no-store",
+  });
+  return unwrapData(dto);
 }
 
 /**
@@ -154,7 +196,7 @@ export async function submitAnswer(
   selectedIndex: number
 ): Promise<SubmitAnswerDTO> {
   const path = `/api/v1/games/${encodeURIComponent(gameCode)}/submit`;
-  const dto = await http<SubmitAnswerDTO>(path, {
+  const dto = await http<SubmitAnswerDTO | ApiEnvelope<SubmitAnswerDTO>>(path, {
     method: "POST",
     keepalive: true,
     timeoutMs: 2500,
@@ -165,7 +207,7 @@ export async function submitAnswer(
       selected_index: selectedIndex,
     },
   });
-  return dto;
+  return unwrapData(dto);
 }
 
 /**

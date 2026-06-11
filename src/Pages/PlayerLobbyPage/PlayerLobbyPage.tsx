@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Lottie from "lottie-react";
-import LoadingAnimation from "./Robot run.json";
+import LoadingAnimation from "./Soccer.json";
 import styles from "./PlayerLobbyPage.module.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
@@ -16,7 +16,7 @@ export interface PlayerLobbyPageProps {
 
 function PlayerLobbyPage({
   message = "Waiting for game to start...",
-  backgroundColor = "linear-gradient(to top, #0C081A, #4800a7ff)",
+  backgroundColor = "linear-gradient(to top, #007A33, #F4C300)",
   lottieUrl,
 }: PlayerLobbyPageProps) {
   const [remoteLottie, setRemoteLottie] = useState<LottieData | null>(null);

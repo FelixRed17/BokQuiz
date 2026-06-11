@@ -4,8 +4,8 @@
   gap: 12px;
   padding: 14px 18px;
   margin-bottom: 12px;
-  background: #4A277B;
-  color: #fff;
+  background: linear-gradient(135deg, #F4C300, #007A33);
+  color: #0C081A;
   border-radius: 12px;
   cursor: pointer;
   font-weight: 700;
@@ -14,9 +14,9 @@
   transition: background 160ms ease, transform 140ms ease;
 }
 
-.option-button:hover { background: #8A5CF6; }
-.option-button.selected { background: #8A5CF6; transform: translateY(-3px); }
-.option-button.selected:hover { background: #8A5CF6; }
+.option-button:hover { background: linear-gradient(135deg, #007A33, #F4C300); }
+.option-button.selected { background: linear-gradient(135deg, #007A33, #F4C300); transform: translateY(-3px); }
+.option-button.selected:hover { background: linear-gradient(135deg, #007A33, #F4C300); }
 
 /* Disabled state: no interactions, dimmed cursor */
 .option-button.disabled {

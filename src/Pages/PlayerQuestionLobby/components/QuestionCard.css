@@ -7,8 +7,8 @@
 }
 
 .question-header { 
-    background: #4A277B; 
-    color: #fff; 
+    background: linear-gradient(135deg, #F4C300, #007A33); 
+    color: #0C081A; 
     padding: 10px 20px; 
     border-radius: 15px 15px 15px 15px; 
     font-weight: 800; 
@@ -16,8 +16,8 @@
 }
 
 .question-text { 
-    background: #4A277B; 
-    color: #fff; 
+    background: rgba(0, 122, 51, 0.95); 
+    color: #FFFFFF; 
     width: 100%; 
     text-align: center; 
     padding: 20px 14px; 

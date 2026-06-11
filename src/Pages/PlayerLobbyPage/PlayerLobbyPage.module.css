@@ -17,12 +17,12 @@
   margin-bottom: 2rem;
   
   /* Vibrant, high-tech color (Neon Cyan) */
-  color: #91f6f6;
+  color: #007A33;
   
   /* Text Shadow for a classic 'neon glow' effect */
-  text-shadow: 0 0 10px #9dc9df, /* Primary glow */
+  text-shadow: 0 0 10px #dfe985, /* Primary glow */
                0 0 20px rgba(166, 246, 246, 0.6), /* Secondary, wider glow */
-               0 0 30px rgba(0, 255, 255, 0.4); /* Fainter, distant glow */
+               0 0 30px rgba(111, 255, 0, 0.4); /* Fainter, distant glow */
   
   /* Optional: Stronger text weight */
   font-weight: 700;

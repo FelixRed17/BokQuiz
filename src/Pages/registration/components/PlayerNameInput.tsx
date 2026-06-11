@@ -19,13 +19,13 @@ export const PlayerNameInput = forwardRef<
         htmlFor="playerName"
         style={{
           display: 'block',
-          color: '#a78bfa',
+          color: '#ffffff',
           fontSize: '1.1rem',
           fontWeight: '700',
           marginBottom: '15px',
           textAlign: 'center',
           width: '100%',
-          textShadow: '0 0 8px rgba(167, 139, 250, 0.4)'
+          textShadow: '0 0 8px rgba(225, 225, 225, 0.4)'
         }}
       >
         YOUR NAME
@@ -48,7 +48,7 @@ export const PlayerNameInput = forwardRef<
           height: '48px',
           padding: '0 1rem',
           borderRadius: '0.5rem',
-          border: '2px solid #8b5cf6',
+          border: '2px solid #ffffff',
           backgroundColor: 'transparent',
           color: 'white',
           fontSize: '1rem',

@@ -32,8 +32,7 @@ export default function SpringbokGameHost() {
     >
       <div className={`${styles.card} w-100`}>
         <div className={styles.header}>
-          <span className={styles.springbokIcon}>🤖</span>
-          <h2 className="mb-0">AI Game Host</h2>
+          <h2 className="mb-0">FIFA Game Host</h2>
           <p className="mb-0 mt-2" style={{ opacity: 0.9 }}>
             Create your game session
           </p>

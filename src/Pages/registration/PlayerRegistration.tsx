@@ -29,7 +29,7 @@ export function PlayerRegistration({
         <div className={styles.header}>
           <h1 className={styles.title}>Join the QUIZ</h1>
           <p className={styles.subtitle}>
-            Ready to test your AI knowledge?
+            Ready to test your FIFA26 knowledge?
           </p>
         </div>
 
@@ -37,7 +37,7 @@ export function PlayerRegistration({
 
         <div className={styles.footer}>
           <p className={styles.footerText}>
-            🏆 Challenge yourself with AI trivia!
+            🏆 Challenge yourself with FIFA26 trivia!
           </p>
         </div>
       </div>

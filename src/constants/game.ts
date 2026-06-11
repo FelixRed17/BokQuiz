@@ -1,0 +1,1 @@
+export const SUDDEN_DEATH_QUESTION_ROUND_NUMBER = 5;

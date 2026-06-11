@@ -5,7 +5,24 @@
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background: linear-gradient(135deg, #0C081A 0%, #1A1230 100%);
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(0, 120, 0, 0.35) 0%,
+      rgba(0, 80, 0, 0.15) 40%,
+      rgba(0, 0, 0, 0) 70%
+    ),
+
+    linear-gradient(
+      90deg,
+      #031a05 0%,
+      #0b4f0b 20%,
+      #0e6a0e 50%,
+      #0b4f0b 80%,
+      #031a05 100%
+    );
+
+  background-color: #021003;
   overflow: hidden;
 }
 
@@ -23,15 +40,15 @@
 .card {
   position: relative;
   z-index: 1;
-  background: rgba(26, 18, 48, 0.85);
+  background: rgba(0, 122, 51, 0.25);
   backdrop-filter: blur(20px);
   border-radius: 24px;
   padding: 2.5rem;
   max-width: 700px;
   width: 100%;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
-              0 0 80px rgba(138, 92, 246, 0.15);
-  border: 1px solid rgba(138, 92, 246, 0.3);
+              0 0 80px rgba(244, 195, 0, 0.18);
+  border: 1px solid rgba(244, 195, 0, 0.3);
 }
 
 .header {
@@ -43,18 +60,18 @@
 
 .headerIcon {
   font-size: 2.5rem;
-  filter: drop-shadow(0 0 20px rgba(138, 92, 246, 0.6));
+  filter: drop-shadow(0 0 20px rgba(244, 195, 0, 0.6));
 }
 
 .title {
   font-size: 2rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #8A5CF6 0%, #A067FF 100%);
+  background: linear-gradient(135deg, #F4C300 0%, #007A33 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0;
-  text-shadow: 0 0 30px rgba(138, 92, 246, 0.5);
+  text-shadow: 0 0 30px rgba(244, 195, 0, 0.5);
 }
 
 .subtitle {
@@ -66,9 +83,9 @@
 
 .divider {
   border: none;
-  border-top: 2px solid rgba(138, 92, 246, 0.3);
+  border-top: 2px solid rgba(244, 195, 0, 0.4);
   margin: 1.5rem 0;
-  box-shadow: 0 1px 10px rgba(138, 92, 246, 0.2);
+  box-shadow: 0 1px 10px rgba(244, 195, 0, 0.2);
 }
 
 .tableHeaders {
@@ -76,12 +93,12 @@
   grid-template-columns: 80px 1fr 100px;
   gap: 1rem;
   padding: 0.75rem 1rem;
-  background: rgba(138, 92, 246, 0.15);
+  background: rgba(244, 195, 0, 0.16);
   border-radius: 12px;
   font-weight: 600;
-  color: #EAEAEA;
+  color: #0C081A;
   margin-bottom: 0.5rem;
-  border: 1px solid rgba(138, 92, 246, 0.3);
+  border: 1px solid rgba(244, 195, 0, 0.35);
 }
 
 .headerPlace,
@@ -112,23 +129,23 @@
   grid-template-columns: 80px 1fr 100px;
   gap: 1rem;
   padding: 1rem;
-  background: rgba(26, 18, 48, 0.6);
-  border: 2px solid rgba(138, 92, 246, 0.4);
+  background: rgba(0, 122, 51, 0.14);
+  border: 2px solid rgba(244, 195, 0, 0.35);
   border-radius: 12px;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
 }
 
 .tableRow:hover {
-  border-color: #30D5C8;
+  border-color: #F4C300;
   transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(48, 213, 200, 0.4),
-              0 0 30px rgba(48, 213, 200, 0.2);
-  background: rgba(26, 18, 48, 0.8);
+  box-shadow: 0 4px 20px rgba(244, 195, 0, 0.4),
+              0 0 30px rgba(0, 122, 51, 0.2);
+  background: rgba(0, 122, 51, 0.2);
 }
 
 .tableRow.eliminated {
-  background: rgba(138, 92, 246, 0.1);
+  background: rgba(244, 195, 0, 0.1);
   border-color: rgba(255, 107, 107, 0.5);
 }
 
@@ -138,7 +155,7 @@
   justify-content: center;
   font-size: 1.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #30D5C8 0%, #4BC9E5 100%);
+  background: linear-gradient(135deg, #F4C300 0%, #007A33 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -184,22 +201,22 @@
 }
 
 .suddenDeathAlert {
-  background: rgba(160, 103, 255, 0.2);
-  border: 2px solid #A067FF;
-  color: #FFFFFF;
-  box-shadow: 0 0 30px rgba(160, 103, 255, 0.3);
+  background: rgba(244, 195, 0, 0.18);
+  border: 2px solid #F4C300;
+  color: #0C081A;
+  box-shadow: 0 0 30px rgba(244, 195, 0, 0.3);
 }
 
 .finishedAlert {
-  background: rgba(48, 213, 200, 0.2);
-  border: 2px solid #30D5C8;
+  background: rgba(0, 122, 51, 0.18);
+  border: 2px solid #007A33;
   color: #FFFFFF;
-  box-shadow: 0 0 30px rgba(48, 213, 200, 0.3);
+  box-shadow: 0 0 30px rgba(0, 122, 51, 0.3);
 }
 
 .suddenDeathPanel {
-  background: rgba(138, 92, 246, 0.15);
-  border: 2px solid rgba(138, 92, 246, 0.4);
+  background: rgba(244, 195, 0, 0.12);
+  border: 2px solid rgba(244, 195, 0, 0.35);
   border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
@@ -208,7 +225,7 @@
 .suddenDeathTitle {
   font-size: 1.2rem;
   font-weight: 700;
-  color: #A067FF;
+  color: #007A33;
   margin-bottom: 1rem;
   text-align: center;
 }
@@ -222,10 +239,10 @@
 
 .suddenDeathPlayer {
   padding: 0.75rem 1rem;
-  background: rgba(26, 18, 48, 0.6);
-  border: 1px solid rgba(160, 103, 255, 0.4);
+  background: rgba(244, 195, 0, 0.12);
+  border: 1px solid rgba(244, 195, 0, 0.35);
   border-radius: 8px;
-  color: #EAEAEA;
+  color: #0C081A;
   font-weight: 600;
   text-align: center;
 }
@@ -233,7 +250,7 @@
 .nextButton {
   width: 100%;
   padding: 1rem 2rem;
-  background: linear-gradient(135deg, #8A5CF6 0%, #A067FF 100%);
+  background: linear-gradient(135deg, #F4C300 0%, #007A33 100%);
   color: white;
   border: none;
   border-radius: 12px;
@@ -243,19 +260,19 @@
   transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 1px;
-  box-shadow: 0 4px 20px rgba(138, 92, 246, 0.4),
-              0 0 40px rgba(138, 92, 246, 0.2);
+  box-shadow: 0 4px 20px rgba(244, 195, 0, 0.4),
+              0 0 40px rgba(0, 122, 51, 0.2);
 }
 
 .nextButton:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(138, 92, 246, 0.6),
-              0 0 60px rgba(138, 92, 246, 0.3);
-  background: linear-gradient(135deg, #9B6EFF 0%, #B078FF 100%);
+  box-shadow: 0 8px 30px rgba(244, 195, 0, 0.6),
+              0 0 60px rgba(0, 122, 51, 0.3);
+  background: linear-gradient(135deg, #007A33 0%, #F4C300 100%);
 }
 
 .nextButton:disabled {
-  background: rgba(138, 92, 246, 0.3);
+  background: rgba(244, 195, 0, 0.3);
   cursor: not-allowed;
   opacity: 0.5;
   box-shadow: none;

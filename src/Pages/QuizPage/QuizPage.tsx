@@ -8,6 +8,7 @@ import {
   submitAnswer,
   fetchGameState,
 } from "../AdminLobbyPage/services/games.service";
+import { SUDDEN_DEATH_QUESTION_ROUND_NUMBER } from "../../constants/game";
 
 type LocationState = { question?: any };
 
@@ -35,7 +36,7 @@ export default function QuizPage() {
         const newQuestion = msg.payload;
 
         // If sudden death round begins and this player is not a participant, redirect to waiting page
-        if (newQuestion?.round_number === 4) {
+        if (newQuestion?.round_number === SUDDEN_DEATH_QUESTION_ROUND_NUMBER) {
           const inSudden = sessionStorage.getItem("inSuddenDeath") === "true";
           if (!inSudden) {
             (async () => {
@@ -56,6 +57,10 @@ export default function QuizPage() {
                 );
                 if (me && normalized.includes(me)) {
                   sessionStorage.setItem("inSuddenDeath", "true");
+                  setQuestion(newQuestion);
+                  setHasSubmitted(false);
+                  setSdQuestionCount((prev) => prev + 1);
+                  setShowQuiz(true);
                 } else {
                   sessionStorage.setItem("inSuddenDeath", "false");
                   setShowQuiz(false);
@@ -68,13 +73,14 @@ export default function QuizPage() {
                 return;
               }
             })();
+            return;
           }
         }
         setQuestion(newQuestion);
         setHasSubmitted(false); // Reset submission state for new question
 
-        // Track SD questions (round_number = 4)
-        if (newQuestion.round_number === 4) {
+        // Track sudden death questions.
+        if (newQuestion.round_number === SUDDEN_DEATH_QUESTION_ROUND_NUMBER) {
           setSdQuestionCount((prev) => prev + 1);
           setShowQuiz(true); // Go straight to quiz in SD
         } else if (
@@ -181,7 +187,7 @@ export default function QuizPage() {
       console.log("Answer submitted successfully:", selectedIndex);
 
       // In SD, show waiting message after submission
-      if (question?.round_number === 4) {
+      if (question?.round_number === SUDDEN_DEATH_QUESTION_ROUND_NUMBER) {
         console.log(`SD Question ${sdQuestionCount} of 3 submitted`);
       }
     } catch (err: any) {

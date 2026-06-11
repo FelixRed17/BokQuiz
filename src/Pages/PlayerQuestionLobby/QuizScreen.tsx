@@ -4,6 +4,7 @@ import Timer from "./components/Timer.tsx";
 import QuestionCard from "./components/QuestionCard.tsx";
 import OptionButton from "./components/OptionButton.tsx";
 import { useSyncedTimer } from "../../hooks/useSyncedTimer";
+import { SUDDEN_DEATH_QUESTION_ROUND_NUMBER } from "../../constants/game";
 
 interface QuestionData {
   question: string;
@@ -29,7 +30,8 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [localSubmitted, setLocalSubmitted] = useState<boolean>(false);
 
-  const isSuddenDeath = questionData.round_number === 4;
+  const isSuddenDeath =
+    questionData.round_number === SUDDEN_DEATH_QUESTION_ROUND_NUMBER;
   
   // Use synchronized timer based on server's ends_at timestamp
   const timeLeft = useSyncedTimer(questionData.ends_at, 20);

@@ -1,42 +1,58 @@
+import { Suspense, lazy } from "react";
 import "./index.css";
-import SpringbokGameHost from "./Pages/SpringbokGameHostPage/SpringbokGameHost";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import LobbyScreen from "./Pages/AdminLobbyPage/LobbyPage";
 import WelcomePageWrapper from "./Pages/WelcomePage/WelcomePageWrapper";
 import { PlayerRegistration } from "./Pages/registration/PlayerRegistration";
-import PlayerLobbyPage from "./Pages/PlayerLobbyPage/PlayerLobbyPage";
-import QuizPage from "./Pages/QuizPage/QuizPage";
-import HostQuizView from "./Pages/HostQuizPage/HostQuizView";
-import HostLeaderboardPage from "./Pages/HostLeaderboardPage/HostLeaderboardPage";
-import PlayerRoundResultPage from "./Pages/PlayerRoundResultPage/PlayerRoundResultPage";
-import WinnerPage from "./Pages/WinnerPage/WinnerPage";
-import WaitingSuddenDeathPage from "./Pages/WaitingSuddenDeathPage/WaitingSuddenDeathPage";
+
+const SpringbokGameHost = lazy(
+  () => import("./Pages/SpringbokGameHostPage/SpringbokGameHost")
+);
+const LobbyScreen = lazy(() => import("./Pages/AdminLobbyPage/LobbyPage"));
+const PlayerLobbyPage = lazy(
+  () => import("./Pages/PlayerLobbyPage/PlayerLobbyPage")
+);
+const QuizPage = lazy(() => import("./Pages/QuizPage/QuizPage"));
+const HostQuizView = lazy(
+  () => import("./Pages/HostQuizPage/HostQuizView")
+);
+const HostLeaderboardPage = lazy(
+  () => import("./Pages/HostLeaderboardPage/HostLeaderboardPage")
+);
+const PlayerRoundResultPage = lazy(
+  () => import("./Pages/PlayerRoundResultPage/PlayerRoundResultPage")
+);
+const WaitingSuddenDeathPage = lazy(
+  () => import("./Pages/WaitingSuddenDeathPage/WaitingSuddenDeathPage")
+);
+const WinnerPage = lazy(() => import("./Pages/WinnerPage/WinnerPage"));
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<WelcomePageWrapper />} />
-        <Route path="/admin" element={<SpringbokGameHost />} />
-        <Route path="/player" element={<PlayerRegistration />} />
-        <Route path="/lobby/:code" element={<LobbyScreen />} />
-        <Route path="/player/lobby/:code" element={<PlayerLobbyPage />} />
-        <Route path="/game/:code/question" element={<QuizPage />} />
-        <Route path="/game/:code/host" element={<HostQuizView />} />
-        <Route
-          path="/game/:code/leaderboard"
-          element={<HostLeaderboardPage />}
-        />
-        <Route
-          path="/game/:code/round-result"
-          element={<PlayerRoundResultPage />}
-        />
-        <Route
-          path="/game/:code/sudden-death-wait"
-          element={<WaitingSuddenDeathPage />}
-        />
-        <Route path="/game/:code/winner" element={<WinnerPage />} />
-      </Routes>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<WelcomePageWrapper />} />
+          <Route path="/admin" element={<SpringbokGameHost />} />
+          <Route path="/player" element={<PlayerRegistration />} />
+          <Route path="/lobby/:code" element={<LobbyScreen />} />
+          <Route path="/player/lobby/:code" element={<PlayerLobbyPage />} />
+          <Route path="/game/:code/question" element={<QuizPage />} />
+          <Route path="/game/:code/host" element={<HostQuizView />} />
+          <Route
+            path="/game/:code/leaderboard"
+            element={<HostLeaderboardPage />}
+          />
+          <Route
+            path="/game/:code/round-result"
+            element={<PlayerRoundResultPage />}
+          />
+          <Route
+            path="/game/:code/sudden-death-wait"
+            element={<WaitingSuddenDeathPage />}
+          />
+          <Route path="/game/:code/winner" element={<WinnerPage />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

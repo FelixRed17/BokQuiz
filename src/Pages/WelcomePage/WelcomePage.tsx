@@ -1,5 +1,4 @@
-import SpringboksImage from "../../assets/glucode2.png";
-import SpringBackground from "../../assets/B1.png"; // add this so webpack/vite can resolve it
+import SpringBackground from "../../assets/B1.png"; // add this so bundler can resolve it
 import styles from "./WelcomePage.module.css";
 
 interface WelcomePageProps {
@@ -22,19 +21,19 @@ export function WelcomePage({ onStartQuiz, onAdmin }: WelcomePageProps) {
     >
       {/* Top Section with Image */}
       <header className={styles["top-section"]}>
-        <img
+        {/*<img
           src={SpringboksImage}
           alt="Springbok"
           // combine module-scoped classes
           className={`${styles.floating} ${styles.pulse}`}
-        />
-        <h2>FIFA QUIZ</h2>
+        />*/}
       </header>
 
       {/* Middle Content */}
       <main className={styles["main-content"]}>
         {/* optional tagline */}
         {/* <p className={styles.tagline}>Test your rugby knowledge</p> */}
+        <h2>FIFA <br></br>QUIZ</h2>
       </main>
 
       {/* Bottom Buttons */}

@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
 import { useSyncedTimer } from "../../hooks/useSyncedTimer";
+import { fetchQuestion, hostNext } from "../AdminLobbyPage/services/games.service";
 import CountDown from "../CountDownPage/CountDown";
 import "./HostQuizView.css";
 
@@ -27,6 +28,7 @@ export default function HostQuizView() {
     initialQuestion
   );
   const [showQuiz, setShowQuiz] = useState(false);
+  const [isAdvancing, setIsAdvancing] = useState(false);
   const currentRoundRef = useRef(initialQuestion?.round_number || 0);
   const lastQuestionIndexRef = useRef<number | null>(
     typeof initialQuestion?.index === "number" ? initialQuestion.index : null
@@ -34,6 +36,32 @@ export default function HostQuizView() {
   // We no longer track per-question answered state for host UI
 
   const { state } = useGameState(gameCode, { pollIntervalMs: 2000 });
+
+  useEffect(() => {
+    if (!gameCode || question) return;
+
+    let cancelled = false;
+
+    const loadCurrentQuestion = async () => {
+      try {
+        const currentQuestion = await fetchQuestion(gameCode);
+        if (cancelled) return;
+        setQuestion(currentQuestion);
+        setShowQuiz(true);
+        currentRoundRef.current = currentQuestion.round_number;
+        lastQuestionIndexRef.current =
+          typeof currentQuestion.index === "number" ? currentQuestion.index : null;
+      } catch (err) {
+        console.warn("Unable to load current question for host view:", err);
+      }
+    };
+
+    loadCurrentQuestion();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gameCode, question]);
 
   useGameChannel(gameCode, {
     onMessage: (msg) => {
@@ -86,6 +114,8 @@ export default function HostQuizView() {
   };
 
   const handleNextQuestion = async () => {
+    if (isAdvancing) return;
+
     const hostToken = localStorage.getItem("hostToken");
     if (!hostToken) {
       console.error("Host token missing");
@@ -93,28 +123,41 @@ export default function HostQuizView() {
     }
 
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
-      const url = `${apiBaseUrl}/api/v1/games/${encodeURIComponent(
-        gameCode
-      )}/host_next`;
+      setIsAdvancing(true);
+      const result = await hostNext(gameCode, hostToken);
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "X-Host-Token": hostToken,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Failed to advance: ${error}`);
+      if (result.round_ended) {
+        navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
+        return;
       }
 
-      console.log("Successfully advanced to next question");
+      if (result.sudden_death_ended) {
+        navigate(
+          result.next_status === "finished"
+            ? `/game/${encodeURIComponent(gameCode)}/winner`
+            : `/game/${encodeURIComponent(gameCode)}/leaderboard`
+        );
+        return;
+      }
+
+      if (!result.sudden_death_in_progress) {
+        const nextQuestion = await fetchQuestion(gameCode);
+        setQuestion(nextQuestion);
+        lastQuestionIndexRef.current =
+          typeof nextQuestion.index === "number" ? nextQuestion.index : null;
+
+        if (result.next_round_started) {
+          setShowQuiz(false);
+          currentRoundRef.current = nextQuestion.round_number;
+        } else {
+          setShowQuiz(true);
+        }
+      }
     } catch (err) {
       console.error("Error advancing question:", err);
       alert("Failed to advance to next question. Check console for details.");
+    } finally {
+      setIsAdvancing(false);
     }
   };
 
@@ -189,8 +232,12 @@ export default function HostQuizView() {
 
           {/* Control Buttons */}
           <div className="host-controls">
-            <button className="btn-next" onClick={handleNextQuestion}>
-              Next Question →
+            <button
+              className="btn-next"
+              onClick={handleNextQuestion}
+              disabled={isAdvancing}
+            >
+              {isAdvancing ? "Advancing..." : "Next Question →"}
             </button>
           </div>
         </div>

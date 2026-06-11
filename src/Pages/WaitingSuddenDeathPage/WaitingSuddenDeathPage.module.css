@@ -1,12 +1,12 @@
 .wrapper {
   height: 100vh;
   width: 100vw;
-  background: linear-gradient(to bottom, #0C081A, #6B33B6);
+  background: linear-gradient(to bottom, #007A33, #F4C300);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #FFB302;
+  color: #0C081A;
   text-align: center;
   padding: 2rem;
   animation: fadeIn 0.6s ease-in-out;
@@ -18,8 +18,8 @@
   letter-spacing: 2px;
   text-transform: uppercase;
   margin-bottom: 2rem;
-  color: #ffffff;
-  text-shadow: 0 0 20px rgba(94, 213, 191, 0.8);
+  color: #0C081A;
+  text-shadow: 0 0 20px rgba(0, 122, 51, 0.9);
   animation: pulse 1.5s infinite;
 }
 
@@ -42,9 +42,9 @@
 
 @keyframes pulse {
   0% {
-    text-shadow: 0 0 5px #7aa4b5, 0 0 10px #a0fffa;
+    text-shadow: 0 0 5px rgba(244, 195, 0, 0.7), 0 0 10px rgba(0, 122, 51, 0.7);
   }
   100% {
-    text-shadow: 0 0 20px #7aa4b5, 0 0 30px #94f1f1;
+    text-shadow: 0 0 20px rgba(244, 195, 0, 0.9), 0 0 30px rgba(0, 122, 51, 0.9);
   }
 }

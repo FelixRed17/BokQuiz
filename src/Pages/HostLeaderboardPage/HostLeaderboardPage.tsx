@@ -1,8 +1,13 @@
 // File: src/Pages/HostLeaderboardPage.tsx
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { fetchRoundResult, fetchGameState, fetchFinalResults } from "../AdminLobbyPage/services/games.service";
-import { http } from "../../lib/http";
+import {
+  fetchFinalResults,
+  fetchGameState,
+  fetchQuestion,
+  fetchRoundResult,
+  hostNext,
+} from "../AdminLobbyPage/services/games.service";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import styles from "./HostLeaderboardPage.module.css";
 
@@ -395,14 +400,26 @@ export default function HostLeaderboardPage() {
 
     try {
       setIsProcessing(true);
-      await http(`/api/v1/games/${encodeURIComponent(gameCode)}/host_next`, {
-        method: "POST",
-        headers: {
-          "X-Host-Token": hostToken,
-          Accept: "application/json",
-        },
-      });
-      // Navigation/updating will happen via WebSocket message and canonical fetch
+      const result = await hostNext(gameCode, hostToken);
+
+      if (result.sudden_death_ended) {
+        if (result.next_status === "finished") {
+          navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+        } else {
+          const rr = await fetchRoundResult(gameCode);
+          setData(normalizeRoundResult(rr));
+        }
+        return;
+      }
+
+      try {
+        const question = await fetchQuestion(gameCode);
+        navigate(`/game/${encodeURIComponent(gameCode)}/host`, {
+          state: { question },
+        });
+      } catch {
+        navigate(`/game/${encodeURIComponent(gameCode)}/host`);
+      }
     } catch (err: any) {
       const msg =
         err?.data?.error?.message ??

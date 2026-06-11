@@ -83,13 +83,13 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
         htmlFor="gameCode"
         style={{
           display: "block",
-          color: "#a78bfa",
+          color: "#ffffff",
           fontSize: "1.1rem",
           fontWeight: "700",
           marginBottom: "15px",
           textAlign: "center",
           width: "100%",
-          textShadow: "0 0 8px rgba(167, 139, 250, 0.4)",
+          textShadow: "0 0 8px rgba(225, 225, 225, 1)",
         }}
       >
         ENTER GAME CODE
@@ -102,22 +102,22 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
           value={value}
           onChange={handleInputChange}
           onKeyPress={handleKeyPress}
-          placeholder="e.g. SPRING2024"
+          placeholder="e.g. FIFA26"
           className={getInputClasses()}
           maxLength={12}
           disabled={disabled}
           autoComplete="off"
           onMouseEnter={(e) => {
             if (!e.currentTarget.matches(':focus')) {
-              e.currentTarget.style.borderColor = "#467acfff";
+              e.currentTarget.style.borderColor = "#ffffff";
               e.currentTarget.style.boxShadow =
-                "0 0 0 3px rgba(68, 39, 96, 0.3)";
+                "0 0 0 3px rgba(225, 225, 225, 1)";
             }
           }}
           onFocus={(e) => {
             e.target.style.backgroundColor = "white";
-            e.target.style.borderColor = "#442760";
-            e.target.style.boxShadow = "0 0 0 3px #442760";
+            e.target.style.borderColor = "#ffffff";
+            e.target.style.boxShadow = "0 0 0 3px #ffffff";
             e.target.style.transform = "translateY(-1px)";
             e.target.style.animation = "none";
           }}
@@ -139,7 +139,7 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
             height: "48px",
             backgroundColor: "#f8f9fa",
             color: "#00aeff",
-            borderColor: "#0029bb",
+            borderColor: "#ffffff",
             borderRadius: "8px",
             width: "100%",
             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -151,7 +151,7 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
         <div
           className="absolute bottom-0 left-1/2 w-0 h-0.5 transition-all duration-300 transform -translate-x-1/2 focus-within:w-full"
           style={{
-            background: "linear-gradient(90deg, #00aeff, #0029bb)",
+            background: "linear-gradient(90deg, #ffff, #ffffff)",
             height: "2px",
           }}
         ></div>
