@@ -38,9 +38,12 @@ export default function WinnerPage() {
           setWinner(response.data.winner);
           setIsLoading(false);
           return;
-        } catch (err: any) {
-          const status = err?.status ?? err?.response?.status;
-          const msg = err?.data?.error?.message ?? err?.message ?? String(err);
+        } catch (err: unknown) {
+          const status =
+            err && typeof err === "object" && "status" in err
+              ? (err as { status?: unknown }).status
+              : undefined;
+          const msg = err instanceof Error ? err.message : String(err);
           console.warn(
             `Winner fetch failed (attempt ${attempt}/${maxAttempts}):`,
             msg,
@@ -129,7 +132,7 @@ export default function WinnerPage() {
 
   return (
     <WinnerScreen
-      title="🏆AIQuiz CHAMPION 🏆"
+      title="FIFA QUIZ CHAMPION"
       message={winner ? "Congratulations on your victory!" : "Game completed"}
       name={winner ?? "No Winner"}
       primaryColor="#007A33"

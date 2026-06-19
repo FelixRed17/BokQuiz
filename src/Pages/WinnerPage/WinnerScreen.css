@@ -22,21 +22,21 @@
   transform: translateX(-50%);
   z-index: 2;
   text-align: center;
-  letter-spacing: 4px;
+  letter-spacing: 0;
   line-height: 1.1;
   padding: 0 16px;
 }
 
 .title {
-  color: var(--primary, #FFFFFFFF);
-  font-size: 4rem;
+  color: var(--primary, #FFFFFF);
+  font-size: clamp(2.2rem, 6vw, 4rem);
   font-weight: 900;
   text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
 }
 
 .name {
-  font-size: 8rem;
-  margin-top: 450px;
+  font-size: clamp(3rem, 12vw, 8rem);
+  margin-top: min(42vh, 450px);
   font-weight: bold;
   color: #ffffff;
   text-shadow: 1px 1px 4px rgba(10, 10, 10, 0.8);
@@ -67,9 +67,18 @@
   top: 15%;
   left: 50%;
   transform: translateX(-50%);
-  width: 500px;
-  height: 500px;
+  width: min(500px, 82vw);
+  height: min(500px, 82vw);
   z-index: 1;
+}
+
+.lottie-placeholder {
+  width: 100%;
+  height: 100%;
+  border: 5px solid rgba(244, 195, 0, 0.25);
+  border-top-color: #F4C300;
+  border-radius: 50%;
+  animation: winnerSpin 0.85s linear infinite;
 }
 
 /* Home Button */
@@ -82,7 +91,7 @@
 
 .home-button {
   background: linear-gradient(135deg, #F4C300 0%, #007A33 100%);
-  color: #FFFFFFFF;
+  color: #FFFFFF;
   border: none;
   border-radius: 12px;
   padding: 12px 24px;
@@ -94,6 +103,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+@keyframes winnerSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .home-button:hover {

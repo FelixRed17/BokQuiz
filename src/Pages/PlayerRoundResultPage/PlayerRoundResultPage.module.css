@@ -340,7 +340,9 @@
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #0C081A 0%, #1A1230 100%);
+  background:
+    radial-gradient(circle at 50% 25%, rgba(244, 195, 0, 0.16), transparent 34%),
+    linear-gradient(135deg, #021003 0%, #007A33 100%);
   overflow: hidden;
 }
 
@@ -476,7 +478,7 @@
   gap: 1rem;
   padding: 1rem;
   border-radius: 10px;
-  background: rgba(12, 8, 26, 0.8);
+  background: rgba(2, 16, 3, 0.78);
   border: 2px solid rgba(244, 195, 0, 0.25);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -542,7 +544,7 @@
   border: 2px solid rgba(244, 195, 0, 0.35);
   border-radius: 8px;
   font-weight: 600;
-  color: #0C081A;
+  color: var(--quiz-ink);
   box-shadow: 0 0 10px rgba(244, 195, 0, 0.25);
 }
 
@@ -558,7 +560,7 @@
 .suddenDeathAlert {
   background: rgba(244, 195, 0, 0.2);
   border: 2px solid #F4C300;
-  color: #0C081A;
+  color: var(--quiz-ink);
   box-shadow: 0 0 20px rgba(244, 195, 0, 0.4);
 }
 
@@ -619,7 +621,7 @@
 }
 
 .card::-webkit-scrollbar-track {
-  background: rgba(12, 8, 26, 0.5);
+  background: rgba(2, 16, 3, 0.5);
   border-radius: 4px;
 }
 
@@ -699,6 +701,4 @@
   margin: 0.5rem 0 0 0;
   font-weight: 500;
 }
-
-
 

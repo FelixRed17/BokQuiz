@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * A timer hook that stays synchronized with a server-provided end timestamp.
@@ -10,10 +10,8 @@ import { useState, useEffect, useRef } from 'react';
  */
 export function useSyncedTimer(endsAt: string | null | undefined, fallbackSeconds: number = 20): number {
   const [timeLeft, setTimeLeft] = useState<number>(fallbackSeconds);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // Parse the server timestamp if available
     let endTime: number;
     
     if (endsAt) {
@@ -28,22 +26,25 @@ export function useSyncedTimer(endsAt: string | null | undefined, fallbackSecond
       endTime = Date.now() + (fallbackSeconds * 1000);
     }
 
-    // Update timer more frequently (every 100ms) for smooth countdown
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
     const updateTimer = () => {
       const now = Date.now();
       const remaining = Math.max(0, Math.ceil((endTime - now) / 1000));
-      setTimeLeft(remaining);
+      setTimeLeft((current) => (current === remaining ? current : remaining));
+
+      if (remaining === 0 && intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
     };
 
-    // Initial update
     updateTimer();
-
-    // Set up interval
-    intervalRef.current = setInterval(updateTimer, 100);
+    intervalId = setInterval(updateTimer, 250);
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (intervalId) {
+        clearInterval(intervalId);
       }
     };
   }, [endsAt, fallbackSeconds]);

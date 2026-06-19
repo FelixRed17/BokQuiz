@@ -1,11 +1,17 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import "./index.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import WelcomePageWrapper from "./Pages/WelcomePage/WelcomePageWrapper";
-import { PlayerRegistration } from "./Pages/registration/PlayerRegistration";
 
-const SpringbokGameHost = lazy(
-  () => import("./Pages/SpringbokGameHostPage/SpringbokGameHost")
+const WelcomePageWrapper = lazy(
+  () => import("./Pages/WelcomePage/WelcomePageWrapper")
+);
+const PlayerRegistration = lazy(() =>
+  import("./Pages/registration/PlayerRegistration").then((module) => ({
+    default: module.PlayerRegistration,
+  }))
+);
+const FifaGameHost = lazy(
+  () => import("./Pages/FifaGameHostPage/FifaGameHost")
 );
 const LobbyScreen = lazy(() => import("./Pages/AdminLobbyPage/LobbyPage"));
 const PlayerLobbyPage = lazy(
@@ -26,13 +32,31 @@ const WaitingSuddenDeathPage = lazy(
 );
 const WinnerPage = lazy(() => import("./Pages/WinnerPage/WinnerPage"));
 
+function LoadingFallback() {
+  return (
+    <div className="app-loading-screen">
+      <div className="app-loading-mark" />
+      <div className="app-loading-text">Loading FIFA Quiz...</div>
+    </div>
+  );
+}
+
 function App() {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void import("./Pages/registration/PlayerRegistration");
+      void import("./Pages/FifaGameHostPage/FifaGameHost");
+    }, 800);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <BrowserRouter>
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/" element={<WelcomePageWrapper />} />
-          <Route path="/admin" element={<SpringbokGameHost />} />
+          <Route path="/admin" element={<FifaGameHost />} />
           <Route path="/player" element={<PlayerRegistration />} />
           <Route path="/lobby/:code" element={<LobbyScreen />} />
           <Route path="/player/lobby/:code" element={<PlayerLobbyPage />} />

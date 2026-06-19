@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   fetchRoundResult,
@@ -6,6 +6,11 @@ import {
 } from "../AdminLobbyPage/services/games.service";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import { fetchFinalResults } from "../AdminLobbyPage/services/games.service";
+import {
+  isPlayerInSuddenDeath,
+  isSuddenDeathQuestionRound,
+  isSuddenDeathResult,
+} from "../../lib/gameFlow";
 import styles from "./PlayerRoundResultPage.module.css";
 
 interface LeaderboardEntry {
@@ -20,6 +25,82 @@ interface RoundResultData {
   eliminated_names: string[];
   next_state: string;
   sudden_death_players?: string[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object");
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" ? value : fallback;
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function getStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function getLeaderboard(value: unknown): LeaderboardEntry[] {
+  return Array.isArray(value)
+    ? value.filter(
+        (entry): entry is LeaderboardEntry =>
+          isRecord(entry) &&
+          typeof entry.name === "string" &&
+          typeof entry.round_score === "number"
+      )
+    : [];
+}
+
+function getErrorMessage(value: unknown, fallback: string): string {
+  if (value instanceof Error && value.message) return value.message;
+  if (typeof value === "string" && value.trim()) return value;
+
+  if (isRecord(value)) {
+    const candidates = [
+      value.error_message,
+      value.message,
+      isRecord(value.error) ? value.error.message : value.error,
+      isRecord(value.data) && isRecord(value.data.error)
+        ? value.data.error.message
+        : undefined,
+    ];
+
+    for (const candidate of candidates) {
+      const message = getErrorMessage(candidate, "");
+      if (message) return message;
+    }
+  }
+
+  return fallback;
+}
+
+function getErrorStatus(value: unknown): number | undefined {
+  if (!isRecord(value)) return undefined;
+
+  if (typeof value.status === "number") return value.status;
+  if (isRecord(value.response) && typeof value.response.status === "number") {
+    return value.response.status;
+  }
+  if (isRecord(value.data) && typeof value.data.status === "number") {
+    return value.data.status;
+  }
+
+  return undefined;
+}
+
+function isRoundResultReadyError(error: unknown): boolean {
+  const status = getErrorStatus(error);
+  const message = getErrorMessage(error, "").toLowerCase();
+  return (
+    status === 422 ||
+    status === 404 ||
+    message.includes("not between rounds")
+  );
 }
 
 function useWinnerNavigation(gameStatus: string | undefined, isEliminated: boolean) {
@@ -43,14 +124,8 @@ function useWinnerNavigation(gameStatus: string | undefined, isEliminated: boole
               navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
             }
             return;
-          } catch (err: any) {
-            const status = err?.status ?? err?.response?.status;
-            const msg = err?.data?.error?.message ?? err?.message ?? String(err);
-            if (
-              status === 422 ||
-              status === 404 ||
-              (typeof msg === "string" && msg.toLowerCase().includes("not between rounds"))
-            ) {
+          } catch (err: unknown) {
+            if (isRoundResultReadyError(err)) {
               const jitter = Math.floor(Math.random() * 300);
               const wait = delayMs + jitter;
               await new Promise((res) => setTimeout(res, wait));
@@ -98,16 +173,18 @@ export default function PlayerRoundResultPage() {
 
       // Defensive: if any message carries sudden-death participants, set the flag immediately
       try {
-        const raw = (msg?.payload?.sudden_death_participants ?? msg?.payload?.sudden_death_players) as any[] | undefined;
-        const status = msg?.payload?.status as string | undefined;
+        const payload = isRecord(msg.payload) ? msg.payload : {};
+        const raw = payload.sudden_death_participants ?? payload.sudden_death_players;
+        const status = asString(payload.status);
         if (Array.isArray(raw) && (status === "sudden_death" || data?.next_state === "sudden_death")) {
           const name = (playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "").toString();
           const me = name.trim().toLowerCase();
-          const normalized = raw.map((p: any) => (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase());
-          const isInSd = me.length > 0 && normalized.includes(me);
+          const isInSd = isPlayerInSuddenDeath(me, raw);
           sessionStorage.setItem("inSuddenDeath", isInSd ? "true" : "false");
         }
-      } catch {}
+      } catch (err) {
+        console.debug("Unable to inspect sudden-death broadcast payload:", err);
+      }
 
       if (msg.type === "question_started") {
         // Don't navigate eliminated players to the next question
@@ -115,9 +192,10 @@ export default function PlayerRoundResultPage() {
           return;
         }
         
-        const nextRound = msg?.payload?.round_number;
+        const questionPayload = isRecord(msg.payload) ? msg.payload : {};
+        const nextRound = questionPayload.round_number;
         const inSudden = sessionStorage.getItem("inSuddenDeath") === "true";
-        if (nextRound === 4 && !inSudden) {
+        if (isSuddenDeathQuestionRound(nextRound) && !inSudden) {
           // Double-check participation via a one-off state fetch to beat races
           (async () => {
             try {
@@ -128,14 +206,7 @@ export default function PlayerRoundResultPage() {
                 .toString()
                 .trim()
                 .toLowerCase();
-              const raw = s?.suddenDeathParticipants ?? [];
-              const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
-                (typeof p === "string" ? p : p?.name ?? "")
-                  .toString()
-                  .trim()
-                  .toLowerCase()
-              );
-              if (me && normalized.includes(me)) {
+              if (isPlayerInSuddenDeath(me, s?.suddenDeathParticipants)) {
                 sessionStorage.setItem("inSuddenDeath", "true");
                 navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
                   state: { question: msg.payload },
@@ -144,7 +215,7 @@ export default function PlayerRoundResultPage() {
                 sessionStorage.setItem("inSuddenDeath", "false");
                 navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
               }
-            } catch (_) {
+            } catch {
               // Fallback to waiting if we cannot confirm participation
               navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
             }
@@ -171,10 +242,10 @@ export default function PlayerRoundResultPage() {
       if (msg.type === "round_result") {
         console.log("Received round_result broadcast:", msg.payload);
 
-        const payload = msg.payload ?? {};
+        const payload = isRecord(msg.payload) ? msg.payload : {};
 
         // Normalize the round number (handle both 'round' and 'round_number')
-        const roundNum = payload.round_number ?? payload.round ?? 1;
+        const roundNum = asNumber(payload.round_number ?? payload.round, 1);
 
         // Check if payload has complete data
         if (
@@ -184,10 +255,10 @@ export default function PlayerRoundResultPage() {
           const normalized: RoundResultData = {
             round: roundNum,
             round_number: roundNum,
-            leaderboard: payload.leaderboard,
-            eliminated_names: payload.eliminated_names ?? [],
-            next_state: payload.next_state ?? "between_rounds",
-            sudden_death_players: payload.sudden_death_players ?? [],
+            leaderboard: getLeaderboard(payload.leaderboard),
+            eliminated_names: getStringArray(payload.eliminated_names),
+            next_state: asString(payload.next_state, "between_rounds"),
+            sudden_death_players: getStringArray(payload.sudden_death_players),
           };
 
           console.log("Setting data from broadcast:", normalized);
@@ -207,10 +278,12 @@ export default function PlayerRoundResultPage() {
           const normalized: RoundResultData = {
             round: roundNum,
             round_number: roundNum,
-            leaderboard: Array.isArray(payload.leaderboard) ? payload.leaderboard : [],
-            eliminated_names: payload.eliminated_names ?? [],
+            leaderboard: getLeaderboard(payload.leaderboard),
+            eliminated_names: getStringArray(payload.eliminated_names),
             next_state: "finished",
-            sudden_death_players: payload.sudden_death_players ?? payload.sudden_death_participants ?? [],
+            sudden_death_players: getStringArray(
+              payload.sudden_death_players ?? payload.sudden_death_participants
+            ),
           };
           setData(normalized);
           setIsLoading(false);
@@ -253,22 +326,17 @@ export default function PlayerRoundResultPage() {
             leaderboard: rr.leaderboard,
             eliminated_names: rr.eliminated_names ?? [],
             next_state: rr.next_state ?? "between_rounds",
-            sudden_death_players: (rr as any).sudden_death_players ?? [],
+            sudden_death_players: rr.sudden_death_players ?? [],
           };
           setData(normalized);
           setIsLoading(false);
           setError(null);
           hasFetchedRef.current = true;
         }
-      } catch (err: any) {
-        const msg = (err?.data?.error?.message ?? err?.message ?? String(err)).toString();
-        const status = err?.status ?? err?.data?.status ?? err?.response?.status;
+      } catch (err: unknown) {
+        const msg = getErrorMessage(err, String(err));
         // If not-between-rounds (422/404), allow existing polling/backoff logic to proceed silently.
-        if (
-          (typeof msg === "string" && msg.toLowerCase().includes("not between rounds")) ||
-          status === 422 ||
-          status === 404
-        ) {
+        if (isRoundResultReadyError(err)) {
           return;
         }
         if (!cancelled && !data) {
@@ -289,10 +357,9 @@ export default function PlayerRoundResultPage() {
     const name = playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "";
     const raw = data?.sudden_death_players ?? [];
     const me = name.trim().toLowerCase();
-    const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
-      (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase()
-    );
-    const shouldFlag = data?.next_state === "sudden_death" && me.length > 0 && normalized.includes(me);
+    const shouldFlag =
+      data?.next_state === "sudden_death" &&
+      isPlayerInSuddenDeath(me, raw);
     if (shouldFlag) {
       sessionStorage.setItem("inSuddenDeath", "true");
     } else if (data?.next_state === "sudden_death") {
@@ -301,7 +368,7 @@ export default function PlayerRoundResultPage() {
   }, [data, playerName]);
 
   // Centralized fetch function with retry logic
-  const fetchResultsFromAPI = async () => {
+  const fetchResultsFromAPI = useCallback(async () => {
     if (hasFetchedRef.current || isUnmountedRef.current) {
       console.log("Skipping fetch - already fetched or unmounted");
       return;
@@ -332,7 +399,7 @@ export default function PlayerRoundResultPage() {
             leaderboard: rr.leaderboard,
             eliminated_names: rr.eliminated_names ?? [],
             next_state: rr.next_state ?? "between_rounds",
-            sudden_death_players: (rr as any).sudden_death_players ?? [],
+            sudden_death_players: rr.sudden_death_players ?? [],
           };
 
           console.log("Successfully fetched results:", normalized);
@@ -347,10 +414,10 @@ export default function PlayerRoundResultPage() {
           const normalized: RoundResultData = {
             round: roundNum,
             round_number: roundNum,
-            leaderboard: Array.isArray(rr.leaderboard) ? rr.leaderboard : [],
+            leaderboard: rr.leaderboard ?? [],
             eliminated_names: rr.eliminated_names ?? [],
             next_state: "finished",
-            sudden_death_players: (rr as any).sudden_death_players ?? [],
+            sudden_death_players: rr.sudden_death_players ?? [],
           };
           console.log("Results indicate finished; proceeding to winner flow.");
           setData(normalized);
@@ -361,17 +428,15 @@ export default function PlayerRoundResultPage() {
         } else {
           console.warn(`Attempt ${attempt}: Invalid data structure`, rr);
         }
-      } catch (err: any) {
-        const msg = err?.data?.error?.message ?? err?.message ?? String(err);
-        const status = err?.status ?? err?.data?.status;
+      } catch (err: unknown) {
+        const msg = getErrorMessage(err, String(err));
+        const status = getErrorStatus(err);
 
         console.log(`Attempt ${attempt} failed:`, msg, `(status: ${status})`);
 
         // If it's a 422/404 or "Not between rounds", the server isn't ready yet -> backoff with jitter and retry
         if (
-          status === 422 ||
-          status === 404 ||
-          (typeof msg === "string" && msg.toLowerCase().includes("not between rounds"))
+          isRoundResultReadyError(err)
         ) {
           if (attempt < maxAttempts) {
             const jitter = Math.floor(Math.random() * 250);
@@ -398,10 +463,10 @@ export default function PlayerRoundResultPage() {
       setError("Unable to load results after multiple attempts");
       setIsLoading(false);
     }
-  };
+  }, [data, gameCode]);
 
   // Special fetch for sudden death results - try to get final results instead
-  const fetchSuddenDeathResults = async () => {
+  const fetchSuddenDeathResults = useCallback(async () => {
     if (hasFetchedRef.current || isUnmountedRef.current) {
       console.log("Skipping sudden death fetch - already fetched or unmounted");
       return;
@@ -415,7 +480,7 @@ export default function PlayerRoundResultPage() {
       const rr = await fetchRoundResult(gameCode);
       
       if (rr && Array.isArray(rr.leaderboard) && rr.leaderboard.length > 0) {
-        const roundNum = rr.round_number ?? rr.round ?? 4; // Assume round 4 for sudden death
+        const roundNum = rr.round_number ?? rr.round ?? 0;
 
         const normalized: RoundResultData = {
           round: roundNum,
@@ -423,7 +488,7 @@ export default function PlayerRoundResultPage() {
           leaderboard: rr.leaderboard,
           eliminated_names: rr.eliminated_names ?? [],
           next_state: rr.next_state ?? "finished",
-          sudden_death_players: (rr as any).sudden_death_players ?? [],
+          sudden_death_players: rr.sudden_death_players ?? [],
         };
 
         console.log("Successfully fetched sudden death results:", normalized);
@@ -433,12 +498,12 @@ export default function PlayerRoundResultPage() {
         hasFetchedRef.current = true;
         return;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn("Failed to fetch sudden death results:", err);
       // Fall back to regular fetch
       await fetchResultsFromAPI();
     }
-  };
+  }, [fetchResultsFromAPI, gameCode]);
 
   // Initial load via polling game state
   useEffect(() => {
@@ -467,11 +532,10 @@ export default function PlayerRoundResultPage() {
         if (gameState?.status === "sudden_death") {
           const name = playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "";
           const me = name.toString().trim().toLowerCase();
-          const raw = gameState?.suddenDeathParticipants ?? [];
-          const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
-            (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase()
+          const isInSd = isPlayerInSuddenDeath(
+            me,
+            gameState?.suddenDeathParticipants
           );
-          const isInSd = me.length > 0 && normalized.includes(me);
           sessionStorage.setItem("inSuddenDeath", isInSd ? "true" : "false");
         }
 
@@ -501,10 +565,6 @@ export default function PlayerRoundResultPage() {
           console.log("Game state indicates results available, fetching...");
           await fetchResultsFromAPI();
           return;
-        } else if (gameState?.status === "finished" && gameState?.roundNumber === 4) {
-          console.log("Game finished after sudden death, fetching sudden death results...");
-          await fetchSuddenDeathResults();
-          return;
         } else {
           // Not ready yet, poll again
           // small jitter around 2s to avoid synchronized bursts
@@ -533,7 +593,7 @@ export default function PlayerRoundResultPage() {
       if (pollTimer) clearTimeout(pollTimer);
       if (initialTimer) clearTimeout(initialTimer);
     };
-  }, [gameCode, data]);
+  }, [data, fetchResultsFromAPI, gameCode, playerName]);
 
   // Watchdog: if still loading after a few seconds, force a fetch attempt
   useEffect(() => {
@@ -551,7 +611,7 @@ export default function PlayerRoundResultPage() {
             console.log("Watchdog: state indicates results available. Forcing fetch...");
             await fetchResultsFromAPI();
           } else if (st === "finished") {
-            if (s?.roundNumber === 4) {
+            if (isSuddenDeathResult(s?.roundNumber, data?.sudden_death_players)) {
               console.log("Watchdog: game finished after sudden death, fetching sudden death results...");
               await fetchSuddenDeathResults();
             } else {
@@ -571,13 +631,19 @@ export default function PlayerRoundResultPage() {
           } else {
             console.log(`Watchdog: state is '${st}', skipping forced fetch.`);
           }
-        } catch (e) {
-          console.warn("Watchdog: failed to get state, skipping forced fetch.");
+        } catch (err) {
+          console.warn("Watchdog: failed to get state, skipping forced fetch.", err);
         }
       }
     }, 3500 + Math.floor(Math.random() * 1000));
     return () => clearTimeout(watchdog);
-  }, [isLoading, gameCode]);
+  }, [
+    data?.sudden_death_players,
+    fetchResultsFromAPI,
+    fetchSuddenDeathResults,
+    gameCode,
+    isLoading,
+  ]);
 
   // One-off check after we know playerName: snapshot state to flag sudden death participation ASAP
   useEffect(() => {
@@ -589,14 +655,15 @@ export default function PlayerRoundResultPage() {
         if (s?.status === "sudden_death") {
           const name = playerName || sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "";
           const me = name.toString().trim().toLowerCase();
-          const raw = s.suddenDeathParticipants ?? [];
-          const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
-            (typeof p === "string" ? p : p?.name ?? "").toString().trim().toLowerCase()
+          const isInSd = isPlayerInSuddenDeath(
+            me,
+            s.suddenDeathParticipants
           );
-          const isInSd = me.length > 0 && normalized.includes(me);
           sessionStorage.setItem("inSuddenDeath", isInSd ? "true" : "false");
         }
-      } catch {}
+      } catch (err) {
+        console.debug("Unable to snapshot sudden-death participation:", err);
+      }
     };
     if (playerName) check();
     return () => {
@@ -662,8 +729,10 @@ export default function PlayerRoundResultPage() {
   }
 
   // Detect if we're showing sudden death results
-  const isShowingSuddenDeathResults = data?.round_number === 4 || 
-    (data?.next_state === "finished" && data?.sudden_death_players && data.sudden_death_players.length > 0);
+  const isShowingSuddenDeathResults = isSuddenDeathResult(
+    data?.round_number ?? data?.round,
+    data?.sudden_death_players
+  );
   
   const topThree = data.leaderboard.slice(0, 3);
   const playerRank =
@@ -675,14 +744,6 @@ export default function PlayerRoundResultPage() {
 
   return (
     <div className={styles.container}>
-      <video
-        className={styles.bgVideo}
-        autoPlay
-        muted
-        loop
-        playsInline
-        src="/purplebackground.mp4"
-      />
       <div className={styles.card}>
         {/* Header */}
         <div className={styles.header}>

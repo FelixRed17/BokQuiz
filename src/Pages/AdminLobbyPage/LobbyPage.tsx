@@ -89,7 +89,7 @@ function LobbyScreen() {
           </div> */}
           <div>
             <h1 className={`fw-bold mb-2 ${styles.title}`}>
-              AI Quiz – Admin Lobby
+              FIFA Quiz - Admin Lobby
             </h1>
             <p className={`fs-5 mb-0 ${styles.subtitle}`}>
               Manage players and start the match
@@ -137,7 +137,7 @@ function LobbyScreen() {
                   style={{
                     background: "linear-gradient(90deg, #F4C300, #007A33)",
                     borderRadius: "0.5rem",
-                    color: "#0C081A",
+                    color: "#10251F",
                     fontWeight: 700,
                     boxShadow: "0 0 10px rgba(244,195,0,0.45)",
                   }}
@@ -185,9 +185,9 @@ function LobbyScreen() {
                       style={{
                         background: "linear-gradient(90deg, #F4C300, #007A33)",
                         borderRadius: "0.5rem",
-                        color: "#0C081A",
+                        color: "#10251F",
                         fontWeight: 700,
-                        boxShadow: "0 0 10px rgba(48,213,200,0.6)",
+                    boxShadow: "0 0 10px rgba(244,195,0,0.6)",
                       }}
                     >
                       Ready

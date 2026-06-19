@@ -39,6 +39,17 @@
 
 .quiz-options { width: 100%; }
 
+.revealed-answer-banner {
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #000000;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.45);
+}
+
 .quiz-submit { 
   margin-top: 8px; 
   padding: 10px 28px; 

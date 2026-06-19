@@ -10,7 +10,7 @@ declare module "@rails/actioncable" {
 
   export interface Subscriptions {
     create(
-      channelName: string | { channel: string; [key: string]: any },
+      channelName: string | { channel: string; [key: string]: unknown },
       callbacks?: SubscriptionCallbacks
     ): Subscription;
     remove(subscription: Subscription): void;
@@ -18,15 +18,15 @@ declare module "@rails/actioncable" {
 
   export interface Subscription {
     unsubscribe(): void;
-    perform(action: string, data?: any): void;
-    send(data: any): void;
+    perform(action: string, data?: unknown): void;
+    send(data: unknown): void;
     identifier: string;
   }
 
   export interface SubscriptionCallbacks {
     connected?(): void;
     disconnected?(): void;
-    received?(data: any): void;
+    received?(data: unknown): void;
     rejected?(): void;
   }
 
@@ -34,5 +34,5 @@ declare module "@rails/actioncable" {
 
   export function createConsumer(url?: string): Consumer;
   export function createWebSocketURL(url: string): string;
-  export function getConfig(name: string): any;
+  export function getConfig(name: string): unknown;
 }

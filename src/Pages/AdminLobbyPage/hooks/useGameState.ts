@@ -45,10 +45,12 @@ export function useGameState(
         const newState = await gamesService.fetchGameState(gameCode);
         if (!mounted.current || signal?.aborted) return;
         setState(newState);
-      } catch (err: any) {
-        if (err?.name === "AbortError") return;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") return;
         if (!mounted.current) return;
-        setError(err?.message ?? "Failed to fetch game state");
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch game state"
+        );
       } finally {
         if (mounted.current) setIsLoading(false);
       }
@@ -103,14 +105,11 @@ export function useGameState(
           case "game_state_update":
             // Full state update from channel (server may send canonical state)
             if (msg.payload) {
-              try {
-                // If payload is already normalized, use directly;
-                // otherwise attempt transform helper if available.
-                setState(() => {
-                  return msg.payload;
-                });
-              } catch (e) {
-                console.debug("Received game_state_update but failed to set state:", e);
+              const transformed = gamesService.transformChannelState(msg.payload);
+              if (transformed) {
+                setState(transformed);
+              } else {
+                load();
               }
             }
             break;
@@ -126,6 +125,9 @@ export function useGameState(
           case "round_started":
           case "question_started":
           case "round_ended":
+          case "sudden_death_eliminated":
+          case "sudden_death_complete":
+          case "game_finished":
             // These events likely imply the state mutated; fetch latest state
             load();
             break;

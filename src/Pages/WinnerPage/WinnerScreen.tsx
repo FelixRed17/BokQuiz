@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Lottie from "lottie-react";
-import Confetti from "react-confetti";
-import trophyAnimation from "./Trophy.json";
-import backgroundImg from "./BackgroundImage.png";
+import backgroundImg from "./BackgroundImage.optimized.jpg";
 import "./WinnerScreen.css";
 
+const Lottie = lazy(() => import("lottie-react"));
+const Confetti = lazy(() => import("react-confetti"));
 type LottieData = object;
 
 export interface WinnerScreenProps {
@@ -25,7 +24,7 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
   title = "WINNER",
   name,
   message,
-  textColor = "#EAEAEA ",
+  textColor = "#EAEAEA",
   primaryColor = "#007A33",
   secondaryColor = "#F4C300",
   background,
@@ -35,11 +34,7 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
 }) => {
   const navigate = useNavigate();
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
-  const [remoteLottie, setRemoteLottie] = useState<LottieData | null>(null);
-  const lottieData = useMemo<LottieData>(
-    () => remoteLottie ?? (trophyAnimation as LottieData),
-    [remoteLottie]
-  );
+  const [lottieData, setLottieData] = useState<LottieData | null>(null);
 
   const handleReturnHome = () => {
     navigate("/");
@@ -57,18 +52,22 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
   // Optionally load remote Lottie JSON
   useEffect(() => {
     let isActive = true;
-    if (!lottieUrl) return;
     (async () => {
       try {
-        const response = await fetch(lottieUrl, {
-          headers: { Accept: "application/json" },
-        });
-        if (!response.ok)
-          throw new Error(`Failed to load Lottie: ${response.status}`);
-        const json = (await response.json()) as LottieData;
-        if (isActive) setRemoteLottie(json);
+        if (lottieUrl) {
+          const response = await fetch(lottieUrl, {
+            headers: { Accept: "application/json" },
+          });
+          if (!response.ok)
+            throw new Error(`Failed to load Lottie: ${response.status}`);
+          const json = (await response.json()) as LottieData;
+          if (isActive) setLottieData(json);
+          return;
+        }
+
+        const localAnimation = await import("./Trophy.json");
+        if (isActive) setLottieData(localAnimation.default as LottieData);
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.warn(error);
       }
     })();
@@ -93,13 +92,15 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
     <div className="winner-container" style={styleVars}>
       <div className="overlay" />
 
-      <Confetti
-        width={windowSize.width}
-        height={windowSize.height}
-        colors={[primaryColor, secondaryColor]}
-        recycle={true}
-        numberOfPieces={confettiPieces}
-      />
+      <Suspense fallback={null}>
+        <Confetti
+          width={windowSize.width}
+          height={windowSize.height}
+          colors={[primaryColor, secondaryColor]}
+          recycle={true}
+          numberOfPieces={confettiPieces}
+        />
+      </Suspense>
 
       <div className="title-block">
         <div className="title" style={{ color: textColor }}>
@@ -111,7 +112,13 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
       </div>
 
       <div className="lottie-wrapper">
-        <Lottie animationData={lottieData} loop={true} />
+        {lottieData ? (
+          <Suspense fallback={<div className="lottie-placeholder" />}>
+            <Lottie animationData={lottieData} loop={true} />
+          </Suspense>
+        ) : (
+          <div className="lottie-placeholder" />
+        )}
       </div>
 
       {/* Home Button */}

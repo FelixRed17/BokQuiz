@@ -5,22 +5,33 @@
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background: url('../../assets/B3.png') no-repeat center center fixed;
+    background: radial-gradient(ellipse at center,
+  rgba(0, 120, 0, 0.35) 0%,
+  rgba(0, 80, 0, 0.15) 40%,
+  rgba(0,0,0,0) 70%), 
+  linear-gradient(
+    90deg,
+    #031a05 0%,
+    #0b4f0b 20%,
+    #0e6a0e 50%,
+    #0b4f0b 80%,
+    #031a05 100%
+  );
+  background-color: #021003;
     background-size: cover;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     box-sizing: border-box;
   }
   
-  /* Card */
   .registrationContainer {
-    background: #007A33;
+    background: rgba(0, 122, 51, 0.94);
     border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(255, 255, 255, 1), 0 0 100px rgba(255, 255, 255, 1);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.28), 0 0 80px rgba(244, 195, 0, 0.45);
     padding: 40px;
     max-width: 450px;
     width: 100%;
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(244, 195, 0, 0.75);
     animation: slideUp 0.6s ease-out;
     display: flex;
     flex-direction: column;
@@ -40,7 +51,7 @@
   }
   
   .title {
-    color: #ffffff;
+    color: #F4C300;
     font-size: 2.5rem;
     font-weight: 700;
     margin: 0 0 15px 0;

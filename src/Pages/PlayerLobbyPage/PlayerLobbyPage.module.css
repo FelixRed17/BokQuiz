@@ -1,37 +1,40 @@
 .player-lobby {
-  background-color: #ffffff;
+  background-color: var(--quiz-green);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 2rem;
 }
 
 .lobby-message {
-  /* Futuristic Font - Roboto is a modern, geometric font, good fallback */
   font-family: 'Orbitron', 'Electrolize', 'Rajdhani', Roboto, sans-serif;
-  
-  /* Increased size for presence */
-  font-size: 3.8rem;
-  
+  font-size: clamp(2rem, 6vw, 3.8rem);
   margin-bottom: 2rem;
-  
-  /* Vibrant, high-tech color (Neon Cyan) */
-  color: #007A33;
-  
-  /* Text Shadow for a classic 'neon glow' effect */
-  text-shadow: 0 0 10px #dfe985, /* Primary glow */
-               0 0 20px rgba(166, 246, 246, 0.6), /* Secondary, wider glow */
-               0 0 30px rgba(111, 255, 0, 0.4); /* Fainter, distant glow */
-  
-  /* Optional: Stronger text weight */
+  color: var(--quiz-green-dark);
+  text-align: center;
+  text-shadow: 0 0 12px rgba(244, 195, 0, 0.65);
   font-weight: 700;
-  
-  /* Optional: Subtle letter spacing for a 'digital' look */
-  letter-spacing: 0.15em;
+  letter-spacing: 0;
 }
 
 .lottie-container {
-  width: 350px;
-  height: 350px;
+  width: min(350px, 80vw);
+  height: min(350px, 80vw);
+}
+
+.lottie-fallback {
+  width: 100%;
+  height: 100%;
+  border: 5px solid rgba(0, 122, 51, 0.25);
+  border-top-color: var(--quiz-green);
+  border-radius: 50%;
+  animation: spin 0.85s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

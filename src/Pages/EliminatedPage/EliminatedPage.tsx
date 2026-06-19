@@ -28,7 +28,8 @@ export default function EliminatedPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#121318",
+        background:
+          "radial-gradient(circle at 50% 30%, rgba(244, 195, 0, 0.18), transparent 34%), linear-gradient(135deg, #021003, #007A33)",
         color: "#fff",
         padding: 24,
       }}
@@ -38,10 +39,11 @@ export default function EliminatedPage() {
           maxWidth: 720,
           width: "100%",
           textAlign: "center",
-          background: "#1f2a2a",
+          background: "rgba(0, 122, 51, 0.88)",
           padding: 28,
           borderRadius: 12,
-          boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
+          border: "2px solid rgba(244, 195, 0, 0.72)",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.45), 0 0 42px rgba(244,195,0,0.28)",
         }}
       >
         <h1 style={{ fontSize: 36, marginBottom: 8 }}>You were eliminated</h1>
@@ -62,8 +64,8 @@ export default function EliminatedPage() {
             }
             style={{
               padding: "10px 18px",
-              background: "#FFB302",
-              color: "#213A35",
+              background: "#F4C300",
+              color: "#10251F",
               border: "none",
               borderRadius: 8,
               fontWeight: "600",
@@ -83,7 +85,7 @@ export default function EliminatedPage() {
               padding: "10px 18px",
               background: "transparent",
               color: "#fff",
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid rgba(244,195,0,0.55)",
               borderRadius: 8,
               cursor: "pointer",
             }}

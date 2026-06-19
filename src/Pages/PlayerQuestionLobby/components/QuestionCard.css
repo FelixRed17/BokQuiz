@@ -8,7 +8,7 @@
 
 .question-header { 
     background: linear-gradient(135deg, #F4C300, #007A33); 
-    color: #0C081A; 
+    color: var(--quiz-ink); 
     padding: 10px 20px; 
     border-radius: 15px 15px 15px 15px; 
     font-weight: 800; 
@@ -27,4 +27,3 @@
     line-height: 1.2; 
     box-shadow: var(--quiz-question-shadow); 
 }
-

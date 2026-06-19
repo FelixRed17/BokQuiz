@@ -7,10 +7,45 @@ import {
   fetchQuestion,
   submitAnswer,
   fetchGameState,
+  type QuestionResponseDTO,
 } from "../AdminLobbyPage/services/games.service";
-import { SUDDEN_DEATH_QUESTION_ROUND_NUMBER } from "../../constants/game";
+import {
+  isPlayerInSuddenDeath,
+  isSuddenDeathQuestionRound,
+} from "../../lib/gameFlow";
 
-type LocationState = { question?: any };
+type LocationState = { question?: QuestionResponseDTO };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object");
+}
+
+function isQuestionPayload(value: unknown): value is QuestionResponseDTO {
+  return (
+    isRecord(value) &&
+    typeof value.round_number === "number" &&
+    typeof value.index === "number" &&
+    typeof value.text === "string" &&
+    Array.isArray(value.options) &&
+    typeof value.ends_at === "string"
+  );
+}
+
+function getErrorMessage(value: unknown, fallback: string): string {
+  if (value instanceof Error && value.message) return value.message;
+  if (typeof value === "string" && value.trim()) return value;
+
+  if (isRecord(value)) {
+    const nested =
+      isRecord(value.data) && isRecord(value.data.error)
+        ? value.data.error.message
+        : undefined;
+    const message = value.message ?? nested;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+
+  return fallback;
+}
 
 export default function QuizPage() {
   const { code } = useParams<{ code: string }>();
@@ -19,7 +54,7 @@ export default function QuizPage() {
   const navigate = useNavigate();
   const locState = (location.state || {}) as LocationState;
 
-  const [question, setQuestion] = useState<any | null>(
+  const [question, setQuestion] = useState<QuestionResponseDTO | null>(
     locState.question ?? null
   );
   const [showQuiz, setShowQuiz] = useState(false);
@@ -33,10 +68,11 @@ export default function QuizPage() {
   useGameChannel(gameCode, {
     onMessage: (msg) => {
       if (msg.type === "question_started") {
+        if (!isQuestionPayload(msg.payload)) return;
         const newQuestion = msg.payload;
 
         // If sudden death round begins and this player is not a participant, redirect to waiting page
-        if (newQuestion?.round_number === SUDDEN_DEATH_QUESTION_ROUND_NUMBER) {
+        if (isSuddenDeathQuestionRound(newQuestion?.round_number)) {
           const inSudden = sessionStorage.getItem("inSuddenDeath") === "true";
           if (!inSudden) {
             (async () => {
@@ -48,14 +84,7 @@ export default function QuizPage() {
                   .toString()
                   .trim()
                   .toLowerCase();
-                const raw = s?.suddenDeathParticipants ?? [];
-                const normalized = (Array.isArray(raw) ? raw : []).map((p: any) =>
-                  (typeof p === "string" ? p : p?.name ?? "")
-                    .toString()
-                    .trim()
-                    .toLowerCase()
-                );
-                if (me && normalized.includes(me)) {
+                if (isPlayerInSuddenDeath(me, s?.suddenDeathParticipants)) {
                   sessionStorage.setItem("inSuddenDeath", "true");
                   setQuestion(newQuestion);
                   setHasSubmitted(false);
@@ -80,7 +109,7 @@ export default function QuizPage() {
         setHasSubmitted(false); // Reset submission state for new question
 
         // Track sudden death questions.
-        if (newQuestion.round_number === SUDDEN_DEATH_QUESTION_ROUND_NUMBER) {
+        if (isSuddenDeathQuestionRound(newQuestion.round_number)) {
           setSdQuestionCount((prev) => prev + 1);
           setShowQuiz(true); // Go straight to quiz in SD
         } else if (
@@ -126,7 +155,7 @@ export default function QuizPage() {
         setQuestion(data);
         setWsConnected(true);
         setHasSubmitted(false); // Reset submission state for polled question
-      } catch (err) {
+      } catch {
         console.log("Question not ready yet, will retry...");
       }
     };
@@ -141,7 +170,7 @@ export default function QuizPage() {
     if (question) {
       setHasSubmitted(false);
     }
-  }, [question?.index, question?.round_number]);
+  }, [question]);
 
   // Load player name for display during questions
   useEffect(() => {
@@ -187,14 +216,13 @@ export default function QuizPage() {
       console.log("Answer submitted successfully:", selectedIndex);
 
       // In SD, show waiting message after submission
-      if (question?.round_number === SUDDEN_DEATH_QUESTION_ROUND_NUMBER) {
+      if (isSuddenDeathQuestionRound(question?.round_number)) {
         console.log(`SD Question ${sdQuestionCount} of 3 submitted`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Revert optimistic update on failure
       setHasSubmitted(false);
-      const msg =
-        err?.data?.error?.message ?? err?.message ?? "Failed to submit answer";
+      const msg = getErrorMessage(err, "Failed to submit answer");
       console.error("Failed to submit answer:", msg);
       alert(`Failed to submit: ${msg}`);
     }

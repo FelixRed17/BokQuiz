@@ -42,14 +42,17 @@
 }
 .app-container h2 {
   position: absolute;
-  top: 20%;
-  right: 43%;
-  font-size: 6.5rem;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(3.5rem, 9vw, 6.5rem);
   font-weight: 1000;
   font-family: 'Orbitron', sans-serif;
   color:#FFFFFF ;
-  text-shadow: 0 6px 10px rgba(0, 122, 51, 1);
+  text-align: center;
+  text-shadow: 0 6px 10px rgba(0, 122, 51, 1), 0 0 28px rgba(244, 195, 0, 0.55);
   z-index: 3;
+  width: min(90vw, 720px);
 }
 
 .top-section {
@@ -80,7 +83,7 @@
   font-size: 4.5rem;
   font-weight: 800;
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: white;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   line-height: 1.1;
@@ -149,17 +152,17 @@
 }
 
 .cta-button.secondary {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 122, 51, 0.28);
   color: #fff;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(244, 195, 0, 0.65);
   backdrop-filter: blur(10px);
 }
 
 .cta-button.secondary:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 122, 51, 0.42);
+  border-color: rgba(244, 195, 0, 0.95);
   transform: translateY(-5px) scale(1.05);
-  box-shadow: 0 15px 40px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 15px 40px rgba(244, 195, 0, 0.3);
 }
 
 .cta-button:active {

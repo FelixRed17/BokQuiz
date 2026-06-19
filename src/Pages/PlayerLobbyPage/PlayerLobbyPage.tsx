@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import Lottie from "lottie-react";
-import LoadingAnimation from "./Soccer.json";
+import { Suspense, lazy, useEffect, useState } from "react";
 import styles from "./PlayerLobbyPage.module.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
 import { useGameChannel } from "../../hooks/useGameChannel";
 
+const Lottie = lazy(() => import("lottie-react"));
 type LottieData = object;
 
 export interface PlayerLobbyPageProps {
@@ -19,17 +18,13 @@ function PlayerLobbyPage({
   backgroundColor = "linear-gradient(to top, #007A33, #F4C300)",
   lottieUrl,
 }: PlayerLobbyPageProps) {
-  const [remoteLottie, setRemoteLottie] = useState<LottieData | null>(null);
-  
-  const lottieData = useMemo<LottieData>(
-    () => remoteLottie ?? (LoadingAnimation as LottieData),
-    [remoteLottie]
-  );
+  const [lottieData, setLottieData] = useState<LottieData | null>(null);
 
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
   const navigate = useNavigate();
   const { state, reload } = useGameState(gameCode, { pollIntervalMs: 3000 });
+  const gameStatus = state?.status;
   const amHost = localStorage.getItem("amHost") === "true";
 
   useGameChannel(gameCode, {
@@ -59,32 +54,37 @@ function PlayerLobbyPage({
   });
 
   useEffect(() => {
-    if (!state) return;
+    if (!gameStatus) return;
     console.log(
-      `Polling state update: status=${state.status}, amHost=${amHost}`
+      `Polling state update: status=${gameStatus}, amHost=${amHost}`
     );
     
-    if (state.status !== "lobby") {
+    if (gameStatus !== "lobby") {
       console.log(
-        `Game status changed to ${state.status}. Navigating to quiz.`
+        `Game status changed to ${gameStatus}. Navigating to quiz.`
       );
       navigate(`/game/${encodeURIComponent(gameCode)}/question`);
     }
-  }, [state?.status, gameCode, navigate, amHost]);
+  }, [gameStatus, gameCode, navigate, amHost]);
 
   useEffect(() => {
     let isActive = true;
-    if (!lottieUrl) return;
     
     (async () => {
       try {
-        const response = await fetch(lottieUrl, {
-          headers: { Accept: "application/json" },
-        });
-        if (!response.ok)
-          throw new Error(`Failed to load Lottie: ${response.status}`);
-        const json = (await response.json()) as LottieData;
-        if (isActive) setRemoteLottie(json);
+        if (lottieUrl) {
+          const response = await fetch(lottieUrl, {
+            headers: { Accept: "application/json" },
+          });
+          if (!response.ok)
+            throw new Error(`Failed to load Lottie: ${response.status}`);
+          const json = (await response.json()) as LottieData;
+          if (isActive) setLottieData(json);
+          return;
+        }
+
+        const localAnimation = await import("./Soccer.json");
+        if (isActive) setLottieData(localAnimation.default as LottieData);
       } catch (error) {
         console.warn(error);
       }
@@ -102,7 +102,13 @@ function PlayerLobbyPage({
     >
       <p className={styles["lobby-message"]}>{message}</p>
       <div className={styles["lottie-container"]}>
-        <Lottie animationData={lottieData} loop />
+        {lottieData ? (
+          <Suspense fallback={<div className={styles["lottie-fallback"]} />}>
+            <Lottie animationData={lottieData} loop />
+          </Suspense>
+        ) : (
+          <div className={styles["lottie-fallback"]} />
+        )}
       </div>
     </div>
   );

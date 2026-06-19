@@ -14,6 +14,33 @@ interface QuestionData {
   round_number: number;
   ends_at?: string;
   time_remaining_ms?: number;
+  timeRemainingMs?: number;
+  correct_index?: number;
+  correctIndex?: number;
+}
+
+type HostQuizLocationState = {
+  question?: QuestionData;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object");
+}
+
+function isQuestionData(value: unknown): value is QuestionData {
+  return (
+    isRecord(value) &&
+    typeof value.text === "string" &&
+    Array.isArray(value.options) &&
+    typeof value.index === "number" &&
+    typeof value.round_number === "number"
+  );
+}
+
+function getCorrectIndex(question: QuestionData): number | null {
+  if (typeof question.correct_index === "number") return question.correct_index;
+  if (typeof question.correctIndex === "number") return question.correctIndex;
+  return null;
 }
 
 export default function HostQuizView() {
@@ -22,7 +49,10 @@ export default function HostQuizView() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const initialQuestion = (location.state as any)?.question || null;
+  const locationState = (location.state || {}) as HostQuizLocationState;
+  const initialQuestion = isQuestionData(locationState.question)
+    ? locationState.question
+    : null;
 
   const [question, setQuestion] = useState<QuestionData | null>(
     initialQuestion
@@ -66,6 +96,7 @@ export default function HostQuizView() {
   useGameChannel(gameCode, {
     onMessage: (msg) => {
       if (msg.type === "question_started") {
+        if (!isQuestionData(msg.payload)) return;
         const newQuestion = msg.payload;
         setQuestion({
           text: newQuestion.text,
@@ -74,6 +105,7 @@ export default function HostQuizView() {
           round_number: newQuestion.round_number,
           ends_at: newQuestion.ends_at,
           time_remaining_ms: newQuestion.time_remaining_ms ?? newQuestion.timeRemainingMs,
+          correct_index: newQuestion.correct_index ?? newQuestion.correctIndex,
         });
 
         lastQuestionIndexRef.current =
@@ -108,6 +140,8 @@ export default function HostQuizView() {
   const endsAt = question?.ends_at || 
     (question?.time_remaining_ms ? new Date(Date.now() + question.time_remaining_ms).toISOString() : null);
   const timeLeft = useSyncedTimer(endsAt, 20);
+  const correctIndex = question ? getCorrectIndex(question) : null;
+  const revealAnswer = timeLeft === 0 && correctIndex !== null;
 
   const handleCountdownComplete = () => {
     setShowQuiz(true);
@@ -209,7 +243,12 @@ export default function HostQuizView() {
           {/* Options Display */}
           <div className="options-grid">
             {(question.options || []).map((option, idx) => (
-              <div key={idx} className={`option-card option-${idx}`}>
+              <div
+                key={idx}
+                className={`option-card option-${idx} ${
+                  revealAnswer && idx === correctIndex ? "correct" : ""
+                }`}
+              >
                 <div className="option-letter">
                   {String.fromCharCode(65 + idx)}
                 </div>
@@ -217,6 +256,11 @@ export default function HostQuizView() {
               </div>
             ))}
           </div>
+          {revealAnswer && correctIndex !== null && (
+            <div className="correct-answer-banner">
+              Correct answer: {String.fromCharCode(65 + correctIndex)} — {question.options[correctIndex]}
+            </div>
+          )}
 
           {/* Players Section */}
           <div className="players-section">

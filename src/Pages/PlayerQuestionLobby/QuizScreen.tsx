@@ -4,13 +4,14 @@ import Timer from "./components/Timer.tsx";
 import QuestionCard from "./components/QuestionCard.tsx";
 import OptionButton from "./components/OptionButton.tsx";
 import { useSyncedTimer } from "../../hooks/useSyncedTimer";
-import { SUDDEN_DEATH_QUESTION_ROUND_NUMBER } from "../../constants/game";
+import { isSuddenDeathQuestionRound } from "../../lib/gameFlow";
 
 interface QuestionData {
   question: string;
   options: string[];
   round_number?: number;
   ends_at?: string | null;
+  correct_index?: number;
 }
 
 export interface QuizScreenProps {
@@ -30,8 +31,7 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [localSubmitted, setLocalSubmitted] = useState<boolean>(false);
 
-  const isSuddenDeath =
-    questionData.round_number === SUDDEN_DEATH_QUESTION_ROUND_NUMBER;
+  const isSuddenDeath = isSuddenDeathQuestionRound(questionData.round_number);
   
   // Use synchronized timer based on server's ends_at timestamp
   const timeLeft = useSyncedTimer(questionData.ends_at, 20);
@@ -59,6 +59,8 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
 
   // Safely default to an empty array if questionData.options is undefined or null
   const options = questionData.options || [];
+  const correctIndex = typeof questionData.correct_index === "number" ? questionData.correct_index : null;
+  const revealAnswer = timeLeft === 0 && correctIndex !== null;
 
   const handleSubmit = () => {
     if (!onNext) return;
@@ -84,6 +86,7 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
               option={opt}
               index={idx}
               isSelected={selected === idx}
+              isCorrect={revealAnswer && idx === correctIndex}
               onClick={(i) => {
                 if (localSubmitted || hasSubmitted || timeLeft === 0) return;
                 setSelected(i);
@@ -92,6 +95,11 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
             />
           ))}
         </div>
+        {revealAnswer && correctIndex !== null && (
+          <div className="revealed-answer-banner">
+            Correct answer: {String.fromCharCode(65 + correctIndex)} — {options[correctIndex]}
+          </div>
+        )}
         <div style={{ display: "flex", justifyContent: "center" }}>
           <button
             className="quiz-submit"

@@ -27,9 +27,9 @@ export function PlayerRegistration({
     <div className={styles.pageRoot}>
       <div className={styles.registrationContainer}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Join the QUIZ</h1>
+          <h1 className={styles.title}>Join FIFA Quiz</h1>
           <p className={styles.subtitle}>
-            Ready to test your FIFA26 knowledge?
+            Ready to test your FIFA football knowledge?
           </p>
         </div>
 
@@ -37,7 +37,7 @@ export function PlayerRegistration({
 
         <div className={styles.footer}>
           <p className={styles.footerText}>
-            🏆 Challenge yourself with FIFA26 trivia!
+            Challenge yourself with FIFA Quiz trivia.
           </p>
         </div>
       </div>

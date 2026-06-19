@@ -1,8 +1,14 @@
 :root {
-  --quiz-top-green: #2F4F49;
-  --quiz-yellow: #FFB302;
-  --quiz-option-bg: #213A35;
-  --quiz-option-bg-hover: #2A4A43;
+  --quiz-green: #007A33;
+  --quiz-green-dark: #021003;
+  --quiz-green-panel: #0F2F25;
+  --quiz-gold: #F4C300;
+  --quiz-gold-soft: #FFE680;
+  --quiz-ink: #10251F;
+  --quiz-top-green: var(--quiz-green-panel);
+  --quiz-yellow: var(--quiz-gold);
+  --quiz-option-bg: var(--quiz-green-panel);
+  --quiz-option-bg-hover: #134534;
   --quiz-white: #ffffff;
   --quiz-black: #111111;
 
@@ -18,4 +24,3 @@
   --quiz-radius-xl: 18px;
   --quiz-radius-2xl: 24px;
 }
-

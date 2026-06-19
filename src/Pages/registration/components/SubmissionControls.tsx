@@ -36,7 +36,7 @@ export const SubmissionControls: React.FC<SubmissionControlsProps> = ({ onSubmit
           background: canSubmit && !isSubmitting 
             ? '#F4C300'
             : 'linear-gradient(135deg, #ccc, #999)',
-          color: canSubmit && !isSubmitting ? '#fff' : '#666',
+          color: canSubmit && !isSubmitting ? '#10251F' : '#666',
           boxShadow: canSubmit && !isSubmitting 
             ? '0 4px 15px rgba(244, 195, 0, 1)'
             : '0 2px 8px rgba(0, 0, 0, 0.1)',
@@ -48,6 +48,7 @@ export const SubmissionControls: React.FC<SubmissionControlsProps> = ({ onSubmit
             e.currentTarget.style.transform = 'translateY(-2px)'
             e.currentTarget.style.boxShadow = '0 4px 15px rgba(244, 195, 0, 1)'
             e.currentTarget.style.background = '#F4C300'
+            e.currentTarget.style.color = '#10251F'
           }
         }}
         onMouseLeave={(e) => {
@@ -55,6 +56,7 @@ export const SubmissionControls: React.FC<SubmissionControlsProps> = ({ onSubmit
             e.currentTarget.style.transform = 'translateY(0)'
             e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 122, 51, 1)'
             e.currentTarget.style.background = '#007A33'
+            e.currentTarget.style.color = '#FFFFFF'
           }
         }}
       >

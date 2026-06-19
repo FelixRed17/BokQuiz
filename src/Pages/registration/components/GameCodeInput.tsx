@@ -60,9 +60,9 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
     ) {
       classes += " border-green-400 bg-green-900 bg-opacity-20";
     } else if (value.trim()) {
-      classes += " border-purple-400 bg-transparent";
+      classes += " border-yellow-400 bg-transparent";
     } else {
-      classes += " border-purple-400";
+      classes += " border-yellow-400";
     }
 
     return classes;
@@ -89,7 +89,7 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
           marginBottom: "15px",
           textAlign: "center",
           width: "100%",
-          textShadow: "0 0 8px rgba(225, 225, 225, 1)",
+          textShadow: "0 0 8px rgba(244, 195, 0, 0.65)",
         }}
       >
         ENTER GAME CODE
@@ -102,7 +102,7 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
           value={value}
           onChange={handleInputChange}
           onKeyPress={handleKeyPress}
-          placeholder="e.g. FIFA26"
+          placeholder="e.g. 123456"
           className={getInputClasses()}
           maxLength={12}
           disabled={disabled}
@@ -111,20 +111,20 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
             if (!e.currentTarget.matches(':focus')) {
               e.currentTarget.style.borderColor = "#ffffff";
               e.currentTarget.style.boxShadow =
-                "0 0 0 3px rgba(225, 225, 225, 1)";
+                "0 0 0 3px rgba(244, 195, 0, 0.38)";
             }
           }}
           onFocus={(e) => {
             e.target.style.backgroundColor = "white";
-            e.target.style.borderColor = "#ffffff";
-            e.target.style.boxShadow = "0 0 0 3px #ffffff";
+            e.target.style.borderColor = "#F4C300";
+            e.target.style.boxShadow = "0 0 0 3px rgba(244, 195, 0, 0.38)";
             e.target.style.transform = "translateY(-1px)";
             e.target.style.animation = "none";
           }}
           onBlur={(e) => {
             if (!value.trim()) {
               e.target.style.backgroundColor = "#f8f9fa";
-              e.target.style.borderColor = "transparent";
+              e.target.style.borderColor = "#F4C300";
               e.target.style.boxShadow = "none";
               e.target.style.transform = "translateY(0)";
             }
@@ -138,8 +138,8 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
             fontWeight: "500",
             height: "48px",
             backgroundColor: "#f8f9fa",
-            color: "#00aeff",
-            borderColor: "#ffffff",
+            color: "#007A33",
+            borderColor: "#F4C300",
             borderRadius: "8px",
             width: "100%",
             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -151,7 +151,7 @@ export const GameCodeInput: React.FC<GameCodeInputProps> = ({
         <div
           className="absolute bottom-0 left-1/2 w-0 h-0.5 transition-all duration-300 transform -translate-x-1/2 focus-within:w-full"
           style={{
-            background: "linear-gradient(90deg, #ffff, #ffffff)",
+            background: "linear-gradient(90deg, #F4C300, #007A33)",
             height: "2px",
           }}
         ></div>

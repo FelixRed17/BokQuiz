@@ -18,7 +18,7 @@ export class GameCodeValidator {
       return 'Game code can only contain letters and numbers'
     }
 
-    const validCodes = ['SPRING2024', 'BOKTEST', 'RUGBYQUIZ', 'DEMO123']
+    const validCodes = ['FIFA2026', 'FIFATEST', 'FIFAQUIZ', 'DEMO123']
     if (!validCodes.includes(trimmedCode)) {
       return 'Invalid game code. Please check and try again'
     }

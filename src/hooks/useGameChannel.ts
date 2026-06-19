@@ -2,12 +2,21 @@ import { useEffect, useRef, useCallback } from "react";
 import { getCable } from "../lib/cable";
 import type { Subscription } from "@rails/actioncable";
 
-type Payload = { type: string; payload?: any };
+export type GameChannelPayload = { type: string; payload?: unknown };
+
+function isGameChannelPayload(value: unknown): value is GameChannelPayload {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    "type" in value &&
+    typeof (value as { type?: unknown }).type === "string"
+  );
+}
 
 type GameChannelHandlers = {
   onConnected?: () => void;
   onDisconnected?: () => void;
-  onMessage?: (msg: Payload) => void;
+  onMessage?: (msg: GameChannelPayload) => void;
   onError?: (error: Error) => void;
 };
 
@@ -44,9 +53,9 @@ export function useGameChannel(
               handlersRef.current.onDisconnected?.();
             }
           },
-          received(data: any) {
-            if (isSubscribed) {
-              handlersRef.current.onMessage?.(data as Payload);
+          received(data: unknown) {
+            if (isSubscribed && isGameChannelPayload(data)) {
+              handlersRef.current.onMessage?.(data);
             }
           },
           rejected() {
@@ -80,7 +89,7 @@ export function useGameChannel(
   }, [gameCode]);
 
   // Return method to send messages through the channel
-  const send = useCallback((action: string, data?: any) => {
+  const send = useCallback((action: string, data?: unknown) => {
     if (!subRef.current) {
       console.warn("Cannot send message: Channel not connected");
       return false;

@@ -7,13 +7,17 @@ body, html {
   height: 100%;
 }
 
-  .countdown-container {
+.countdown-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   position: relative;
   overflow: hidden;
+  background:
+    radial-gradient(ellipse at 10% 20%, rgba(244, 195, 0, 0.18) 0%, transparent 28%),
+    radial-gradient(ellipse at 90% 80%, rgba(0, 122, 51, 0.2) 0%, transparent 30%),
+    linear-gradient(135deg, #031a05 0%, #0b4f0b 48%, #f4c300 100%);
 }
 
 /* subtle animated neon background layers */
@@ -66,22 +70,8 @@ body, html {
   box-shadow: 0 12px 40px rgba(0,88,38,0.7), 0 0 30px rgba(244,195,0,0.12);
   border: 1px solid rgba(244,195,0,0.24);
   backdrop-filter: blur(6px) saturate(120%);
-  position: relative; /* above video */
+  position: relative;
   z-index: 1;
-}
-
-.countdown-bg-video {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  min-width: 100%;
-  min-height: 100%;
-  width: auto;
-  height: auto;
-  transform: translate(-50%, -50%);
-  object-fit: cover;
-  z-index: 0;
-  opacity: 0.28;
 }
 
 .countdown-heading{

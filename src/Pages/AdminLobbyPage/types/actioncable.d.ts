@@ -2,7 +2,7 @@ import "@rails/actioncable";
 
 declare module "@rails/actioncable" {
   interface Subscription {
-    perform(action: string, data?: any): void;
+    perform(action: string, data?: unknown): void;
   }
   
   interface SubscriptionCallbacks {

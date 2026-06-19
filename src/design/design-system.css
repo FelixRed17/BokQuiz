@@ -1,17 +1,18 @@
-/* BokQuiz Design System CSS Variables */
+/* FIFA Quiz Design System CSS Variables */
 
 :root {
   /* Brand Colors */
-  --color-primary: #1C352D;
-  --color-secondary: #FFD700;
+  --color-primary: #007A33;
+  --color-secondary: #F4C300;
+  --color-primary-dark: #021003;
   
   /* Background Colors */
-  --color-bg-primary: #1C352D;
+  --color-bg-primary: #007A33;
   --color-bg-white: #ffffff;
   --color-bg-overlay: rgba(255, 255, 255, 0.95);
   
   /* Text Colors */
-  --color-text-primary: #1C352D;
+  --color-text-primary: #007A33;
   --color-text-secondary: #000000;
   --color-text-accent: #FFD700;
   --color-text-muted: #6B7280;
@@ -39,7 +40,7 @@
 
 /* Component Classes */
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-secondary), #FFA500);
+  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
   color: var(--color-text-secondary);
   padding: var(--spacing-3) var(--spacing-6);
   border-radius: var(--radius-lg);
@@ -51,7 +52,7 @@
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+  box-shadow: 0 6px 20px rgba(244, 195, 0, 0.4);
 }
 
 .input-default {
@@ -69,7 +70,7 @@
 .input-default:focus {
   outline: none;
   border-color: var(--color-secondary);
-  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+  box-shadow: 0 0 0 3px rgba(244, 195, 0, 0.16);
   transform: translateY(-1px);
 }
 
@@ -78,7 +79,7 @@
   border-radius: var(--radius-2xl);
   padding: var(--spacing-8);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(244, 195, 0, 0.2);
   backdrop-filter: blur(10px);
 }
 

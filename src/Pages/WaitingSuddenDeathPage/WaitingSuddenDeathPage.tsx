@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import Lottie from "lottie-react";
-import LoadingAnimation from "./WaitingSuddenDeathPageLottie.json";
+import { Suspense, lazy, useEffect, useState } from "react";
 import styles from "./WaitingSuddenDeathPage.module.css";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGameChannel } from "../../hooks/useGameChannel";
 
+const Lottie = lazy(() => import("lottie-react"));
 type LottieData = object;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object");
+}
 
 export interface WaitingSuddenDeathPageProps {
   message?: string;
@@ -15,31 +18,31 @@ export interface WaitingSuddenDeathPageProps {
 
 function WaitingSuddenDeathPage({
   message = "Game is in Sudden Death",
-  backgroundColor = "#1B3838", 
+  backgroundColor = "linear-gradient(135deg, #007A33 0%, #F4C300 100%)", 
   lottieUrl,
 }: WaitingSuddenDeathPageProps) {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
   const navigate = useNavigate();
-  const [remoteLottie, setRemoteLottie] = useState<LottieData | null>(null);
-
-  const lottieData = useMemo<LottieData>(
-    () => remoteLottie ?? (LoadingAnimation as LottieData),
-    [remoteLottie]
-  );
+  const [lottieData, setLottieData] = useState<LottieData | null>(null);
 
   useEffect(() => {
     let isActive = true;
-    if (!lottieUrl) return;
     (async () => {
       try {
-        const response = await fetch(lottieUrl, {
-          headers: { Accept: "application/json" },
-        });
-        if (!response.ok)
-          throw new Error(`Failed to load Lottie: ${response.status}`);
-        const json = (await response.json()) as LottieData;
-        if (isActive) setRemoteLottie(json);
+        if (lottieUrl) {
+          const response = await fetch(lottieUrl, {
+            headers: { Accept: "application/json" },
+          });
+          if (!response.ok)
+            throw new Error(`Failed to load Lottie: ${response.status}`);
+          const json = (await response.json()) as LottieData;
+          if (isActive) setLottieData(json);
+          return;
+        }
+
+        const localAnimation = await import("./WaitingSuddenDeathPageLottie.json");
+        if (isActive) setLottieData(localAnimation.default as LottieData);
       } catch (error) {
         console.warn(error);
       }
@@ -58,7 +61,11 @@ function WaitingSuddenDeathPage({
       if (msg.type === "game_finished") {
         navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
       }
-      if (msg.type === "question_started" && msg?.payload?.round_number !== 4) {
+      if (
+        msg.type === "question_started" &&
+        isRecord(msg.payload) &&
+        msg.payload.round_number !== 4
+      ) {
         // Next regular round started
         navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
           state: { question: msg.payload },
@@ -68,10 +75,16 @@ function WaitingSuddenDeathPage({
   });
 
   return (
-    <div className={styles.wrapper} style={{ backgroundColor }}>
+    <div className={styles.wrapper} style={{ background: backgroundColor }}>
       <h1 className={styles.title}>{message}</h1>
       <div className={styles.lottieContainer}>
-        <Lottie animationData={lottieData} loop />
+        {lottieData ? (
+          <Suspense fallback={<div className={styles.lottieFallback} />}>
+            <Lottie animationData={lottieData} loop />
+          </Suspense>
+        ) : (
+          <div className={styles.lottieFallback} />
+        )}
       </div>
     </div>
   );

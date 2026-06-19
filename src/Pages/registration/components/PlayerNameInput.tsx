@@ -25,7 +25,7 @@ export const PlayerNameInput = forwardRef<
           marginBottom: '15px',
           textAlign: 'center',
           width: '100%',
-          textShadow: '0 0 8px rgba(225, 225, 225, 0.4)'
+          textShadow: '0 0 8px rgba(244, 195, 0, 0.55)'
         }}
       >
         YOUR NAME
@@ -48,8 +48,8 @@ export const PlayerNameInput = forwardRef<
           height: '48px',
           padding: '0 1rem',
           borderRadius: '0.5rem',
-          border: '2px solid #ffffff',
-          backgroundColor: 'transparent',
+          border: '2px solid #F4C300',
+          backgroundColor: 'rgba(255, 255, 255, 0.08)',
           color: 'white',
           fontSize: '1rem',
           fontWeight: '500',

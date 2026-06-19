@@ -5,15 +5,16 @@ interface OptionButtonProps {
   option: string;
   index: number;
   isSelected: boolean;
+  isCorrect?: boolean;
   onClick: (index: number) => void;
   disabled?: boolean;
 }
 
-const OptionButton: React.FC<OptionButtonProps> = ({ option, index, isSelected, onClick, disabled = false }) => {
+const OptionButton: React.FC<OptionButtonProps> = ({ option, index, isSelected, isCorrect = false, onClick, disabled = false }) => {
   const letter = String.fromCharCode(65 + index);
   return (
     <div
-      className={`option-button ${isSelected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
+      className={`option-button ${isSelected ? 'selected' : ''} ${isCorrect ? 'correct' : ''} ${disabled ? 'disabled' : ''}`}
       onClick={() => {
         if (disabled) return;
         onClick(index);

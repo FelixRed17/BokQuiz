@@ -1,6 +1,6 @@
-import SpringBackground from "../../assets/B1.png"; // add this so bundler can resolve it
+import SpringBackground from "../../assets/B1.optimized.jpg";
 import styles from "./WelcomePage.module.css";
-
+ 
 interface WelcomePageProps {
   onStartQuiz: () => void;
   onAdmin: () => void;
@@ -16,27 +16,15 @@ export function WelcomePage({ onStartQuiz, onAdmin }: WelcomePageProps) {
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed'
       }}
     >
-      {/* Top Section with Image */}
       <header className={styles["top-section"]}>
-        {/*<img
-          src={SpringboksImage}
-          alt="Springbok"
-          // combine module-scoped classes
-          className={`${styles.floating} ${styles.pulse}`}
-        />*/}
       </header>
 
-      {/* Middle Content */}
       <main className={styles["main-content"]}>
-        {/* optional tagline */}
-        {/* <p className={styles.tagline}>Test your rugby knowledge</p> */}
-        <h2>FIFA <br></br>QUIZ</h2>
+        <h2>FIFA <br />QUIZ</h2>
       </main>
 
-      {/* Bottom Buttons */}
       <footer className={styles["bottom-section"]}>
         <div className={styles["button-group"]}>
           <button

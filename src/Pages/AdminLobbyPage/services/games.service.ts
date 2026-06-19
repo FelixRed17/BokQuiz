@@ -1,6 +1,6 @@
 // src/Pages/AdminLobbyPage/services/games.service.ts
 import { http } from "../../../lib/http";
-import type { GameStateResponseDTO } from "../dto/games.dto";
+import type { ApiPlayerDTO, GameStateResponseDTO } from "../dto/games.dto";
 import type { GameState, Player } from "../types/games";
 
 type ApiEnvelope<T> = {
@@ -13,6 +13,23 @@ function unwrapData<T>(raw: T | ApiEnvelope<T>): T {
   }
 
   return raw as T;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object");
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" ? value : fallback;
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function getPayload(raw: unknown): Record<string, unknown> {
+  const data = isRecord(raw) && "data" in raw ? raw.data : raw;
+  return isRecord(data) ? data : {};
 }
 
 /**
@@ -41,7 +58,7 @@ export type RoundResultDTO = {
 /**
  * map DTO -> domain model
  */
-function mapPlayer(dto: any): Player {
+function mapPlayer(dto: ApiPlayerDTO): Player {
   return {
     name: dto.name,
     eliminated: !!dto.eliminated,
@@ -124,6 +141,8 @@ export type QuestionResponseDTO = {
   text: string;
   options: string[];
   ends_at: string;
+  correct_index?: number;
+  correctIndex?: number;
 };
 
 export async function fetchQuestion(gameCode: string): Promise<QuestionResponseDTO> {
@@ -140,11 +159,21 @@ export async function fetchQuestion(gameCode: string): Promise<QuestionResponseD
  */
 export async function fetchFinalResults(gameCode: string): Promise<FinalResultsDTO> {
   const path = `/api/v1/games/${encodeURIComponent(gameCode)}/results`;
-  const raw = await http<any>(path, { method: "GET", cache: "no-store" });
-  const payload = raw?.data ?? raw;
+  const raw = await http<unknown>(path, { method: "GET", cache: "no-store" });
+  const payload = getPayload(raw);
   return {
-    winner: payload?.winner ?? null,
-    answers: Array.isArray(payload?.answers) ? payload.answers : [],
+    winner: typeof payload.winner === "string" ? payload.winner : null,
+    answers: Array.isArray(payload.answers)
+      ? payload.answers.filter(
+          (
+            item
+          ): item is { round: number; text: string; correct_index: number } =>
+            isRecord(item) &&
+            typeof item.round === "number" &&
+            typeof item.text === "string" &&
+            typeof item.correct_index === "number"
+        )
+      : [],
   };
 }
 
@@ -156,32 +185,43 @@ export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO
   const ts = Date.now();
   const rrPath = `/api/v1/games/${encodeURIComponent(gameCode)}/round_result?ts=${ts}`;
 
-  try {
-    const raw = await http<any>(rrPath, { method: "GET", cache: "no-store" });
-    const payload = raw?.data ?? raw;
+  const raw = await http<unknown>(rrPath, { method: "GET", cache: "no-store" });
+  const payload = getPayload(raw);
 
-    const leaderboard = Array.isArray(payload?.leaderboard) ? payload.leaderboard : [];
-    const eliminated_names = Array.isArray(payload?.eliminated_names) ? payload.eliminated_names : [];
-    const next_state = payload?.next_state ?? payload?.nextState ?? "between_rounds";
-    const sudden_death_players = Array.isArray(payload?.sudden_death_players)
-      ? payload.sudden_death_players
-      : Array.isArray(payload?.sudden_death_participants)
-      ? payload.sudden_death_participants
-      : [];
+  const leaderboard = Array.isArray(payload.leaderboard)
+    ? payload.leaderboard.filter(
+        (entry): entry is { name: string; round_score: number } =>
+          isRecord(entry) &&
+          typeof entry.name === "string" &&
+          typeof entry.round_score === "number"
+      )
+    : [];
+  const eliminated_names = Array.isArray(payload.eliminated_names)
+    ? payload.eliminated_names.filter(
+        (name): name is string => typeof name === "string"
+      )
+    : [];
+  const next_state = asString(
+    payload.next_state ?? payload.nextState,
+    "between_rounds"
+  );
+  const suddenDeathRaw = Array.isArray(payload.sudden_death_players)
+    ? payload.sudden_death_players
+    : Array.isArray(payload.sudden_death_participants)
+    ? payload.sudden_death_participants
+    : [];
+  const sudden_death_players = suddenDeathRaw.filter(
+    (name): name is string => typeof name === "string"
+  );
 
-    return {
-      round: payload?.round ?? payload?.round_number ?? 0,
-      round_number: payload?.round_number ?? payload?.round ?? 0,
-      leaderboard,
-      eliminated_names,
-      next_state,
-      sudden_death_players,
-    };
-  } catch (err: any) {
-    // Let callers handle readiness races with their own retry policy.
-    // Do not synthesize a 'finished' state here; it causes premature navigation.
-    throw err;
-  }
+  return {
+    round: asNumber(payload.round ?? payload.round_number),
+    round_number: asNumber(payload.round_number ?? payload.round),
+    leaderboard,
+    eliminated_names,
+    next_state,
+    sudden_death_players,
+  };
 }
 
 /* submit answer */
@@ -213,22 +253,36 @@ export async function submitAnswer(
 /**
  * Transform ActionCable message payload to GameState
  */
-export function transformChannelState(payload: any): GameState | null {
+export function transformChannelState(payload: unknown): GameState | null {
   if (!payload) return null;
 
   try {
+    const statePayload = isRecord(payload) ? payload : {};
+    const rawPlayers = Array.isArray(statePayload.players)
+      ? statePayload.players
+      : [];
     return {
-      status: payload.status,
-      roundNumber: payload.round_number ?? payload.roundNumber,
-      currentQuestionIndex: payload.current_question_index ?? payload.currentQuestionIndex,
-      timeRemainingMs: payload.time_remaining_ms ?? payload.timeRemainingMs,
-      players: (payload.players || []).map((p: any) => ({
-        name: p.name,
-        eliminated: !!p.eliminated,
-        isHost: !!p.is_host || !!p.isHost,
+      status: asString(statePayload.status),
+      roundNumber: asNumber(statePayload.round_number ?? statePayload.roundNumber),
+      currentQuestionIndex: asNumber(
+        statePayload.current_question_index ?? statePayload.currentQuestionIndex
+      ),
+      timeRemainingMs: asNumber(
+        statePayload.time_remaining_ms ?? statePayload.timeRemainingMs
+      ),
+      players: rawPlayers.filter(isRecord).map((p) => ({
+        name: asString(p.name),
+        eliminated: Boolean(p.eliminated),
+        isHost: Boolean(p.is_host) || Boolean(p.isHost),
         ready: !!p.ready,
       })),
-      suddenDeathParticipants: payload.sudden_death_participants ?? payload.suddenDeathParticipants ?? [],
+      suddenDeathParticipants: Array.isArray(
+        statePayload.sudden_death_participants
+      )
+        ? statePayload.sudden_death_participants
+        : Array.isArray(statePayload.suddenDeathParticipants)
+        ? statePayload.suddenDeathParticipants
+        : [],
     };
   } catch (err) {
     console.error("Failed to transform channel state:", err);
@@ -242,7 +296,7 @@ export function transformChannelState(payload: any): GameState | null {
 export function applyOptimisticUpdate(
   currentState: GameState | null,
   eventType: string,
-  eventPayload?: any
+  eventPayload?: unknown
 ): GameState | null {
   if (!currentState) return null;
 
@@ -250,11 +304,11 @@ export function applyOptimisticUpdate(
 
   switch (eventType) {
     case "player_joined":
-      if (eventPayload?.player) {
+      if (isRecord(eventPayload) && isRecord(eventPayload.player)) {
         newState.players = [
           ...newState.players,
           {
-            name: eventPayload.player.name,
+            name: asString(eventPayload.player.name),
             eliminated: false,
             isHost: false,
             ready: false,
@@ -264,7 +318,7 @@ export function applyOptimisticUpdate(
       break;
 
     case "player_ready":
-      if (eventPayload?.playerName) {
+      if (isRecord(eventPayload) && typeof eventPayload.playerName === "string") {
         newState.players = newState.players.map((p) =>
           p.name === eventPayload.playerName ? { ...p, ready: true } : p
         );
@@ -272,7 +326,7 @@ export function applyOptimisticUpdate(
       break;
 
     case "player_eliminated":
-      if (eventPayload?.playerName) {
+      if (isRecord(eventPayload) && typeof eventPayload.playerName === "string") {
         newState.players = newState.players.map((p) =>
           p.name === eventPayload.playerName ? { ...p, eliminated: true } : p
         );
@@ -280,7 +334,7 @@ export function applyOptimisticUpdate(
       break;
 
     case "round_started":
-      if (eventPayload?.roundNumber !== undefined) {
+      if (isRecord(eventPayload) && typeof eventPayload.roundNumber === "number") {
         newState.roundNumber = eventPayload.roundNumber;
         newState.currentQuestionIndex = 0;
         newState.status = "active";
@@ -288,7 +342,7 @@ export function applyOptimisticUpdate(
       break;
 
     case "question_started":
-      if (eventPayload?.index !== undefined) {
+      if (isRecord(eventPayload) && typeof eventPayload.index === "number") {
         newState.currentQuestionIndex = eventPayload.index;
       }
       break;

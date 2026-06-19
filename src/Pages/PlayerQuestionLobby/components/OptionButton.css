@@ -5,7 +5,7 @@
   padding: 14px 18px;
   margin-bottom: 12px;
   background: linear-gradient(135deg, #F4C300, #007A33);
-  color: #0C081A;
+  color: var(--quiz-ink);
   border-radius: 12px;
   cursor: pointer;
   font-weight: 700;
@@ -17,6 +17,21 @@
 .option-button:hover { background: linear-gradient(135deg, #007A33, #F4C300); }
 .option-button.selected { background: linear-gradient(135deg, #007A33, #F4C300); transform: translateY(-3px); }
 .option-button.selected:hover { background: linear-gradient(135deg, #007A33, #F4C300); }
+
+.option-button.correct {
+  background: #FFFFFF;
+  color: #000000;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+}
+
+.option-button.correct .option-letter {
+  background: #000000;
+  color: #FFFFFF;
+}
+
+.option-button.correct:hover {
+  background: #FFFFFF;
+}
 
 /* Disabled state: no interactions, dimmed cursor */
 .option-button.disabled {
@@ -39,4 +54,3 @@
 }
 
 .option-text { flex: 1; text-align: left; }
-
