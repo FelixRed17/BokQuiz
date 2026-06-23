@@ -85,7 +85,22 @@ Rails.application.configure do
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 
-  config.action_cable.url = "wss://excess-seana-felix-glucode-0704cdd3.koyeb.app/cable"
-  config.action_cable.allowed_request_origins = ['http://localhost:5173', /http:\/\/localhost.*/]
+  public_host = ENV["PUBLIC_HOST"] || ENV["KOYEB_PUBLIC_DOMAIN"] || ENV["RENDER_EXTERNAL_HOSTNAME"] || "excess-seana-felix-glucode-0704cdd3.koyeb.app"
+  config.action_cable.url = ENV.fetch("ACTION_CABLE_URL", "wss://#{public_host}/cable")
+
+  frontend_origins = ENV.fetch("FRONTEND_ORIGINS", "")
+    .split(",")
+    .map(&:strip)
+    .reject(&:blank?)
+
+  config.action_cable.allowed_request_origins = [
+    "http://localhost:5173",
+    /http:\/\/localhost:\d+/,
+    /http:\/\/127\.0\.0\.1:\d+/,
+    "https://fifa-quiz.vercel.app",
+    %r{\Ahttps://[a-z0-9-]+\.vercel\.app\z},
+    "https://excess-seana-felix-glucode-0704cdd3.koyeb.app",
+    *frontend_origins
+  ]
   config.action_cable.disable_request_forgery_protection = true
 end

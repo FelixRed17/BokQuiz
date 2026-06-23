@@ -1,17 +1,22 @@
-# Configure CORS for React frontend on LAN/dev
-# Configure CORS for React frontend on LAN/dev
+frontend_origins = ENV.fetch("FRONTEND_ORIGINS", "")
+  .split(",")
+  .map(&:strip)
+  .reject(&:blank?)
+
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     origins 'http://localhost:5173',
             'http://localhost:5174',
             'http://localhost:5175',
             'http://localhost:5176',
-            'fifa-quiz.vercel.app',
+            'https://fifa-quiz.vercel.app',
+            %r{\Ahttps://[a-z0-9-]+\.vercel\.app\z},
             %r{\Ahttp://127\.0\.0\.1:\d+},
             %r{\Ahttp://192\.168\.\d+\.\d+(?::\d+)?},
             %r{\Ahttp://10\.\d+\.\d+\.\d+(?::\d+)?},
             %r{\Ahttp://.*\.local(?::\d+)?},
-            'https://excess-seana-felix-glucode-0704cdd3.koyeb.app'
+            'https://excess-seana-felix-glucode-0704cdd3.koyeb.app',
+            *frontend_origins
     resource "/api/*", headers: :any, methods: [ :get, :post, :options ]
     resource "/cable", headers: :any, methods: [ :get, :post, :options ]
   end

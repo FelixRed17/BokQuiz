@@ -38,6 +38,14 @@ function getApiErrorMessage(data: unknown, fallback: string): string {
   return fallback;
 }
 
+function getNetworkErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.name === "AbortError") {
+    return `The game server did not respond at ${API_BASE_URL}. Please try again.`;
+  }
+
+  return `Cannot reach the game server at ${API_BASE_URL}. Please check that the API is online and allowed by CORS.`;
+}
+
 export async function http<TResponse>(
   path: string,
   init: HttpInit = {}
@@ -100,6 +108,9 @@ export async function http<TResponse>(
         const backoff = 200 * Math.pow(2, attempt - 1);
         await new Promise((r) => setTimeout(r, backoff));
         continue;
+      }
+      if (isAbort || isNetwork) {
+        throw new Error(getNetworkErrorMessage(err));
       }
       throw err;
     }
