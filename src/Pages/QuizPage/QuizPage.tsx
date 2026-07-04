@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import CountDown from "../CountDownPage/CountDown";
 import QuizScreen from "../PlayerQuestionLobby/QuizScreen";
@@ -15,6 +15,7 @@ import {
 } from "../../lib/gameFlow";
 
 type LocationState = { question?: QuestionResponseDTO };
+type QuestionSyncSource = "socket" | "fetch";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object");
@@ -47,22 +48,151 @@ function getErrorMessage(value: unknown, fallback: string): string {
   return fallback;
 }
 
+function getQuestionKey(question: QuestionResponseDTO | null): string {
+  if (!question) return "";
+  return `${question.round_number}:${question.index}:${question.ends_at}`;
+}
+
 export default function QuizPage() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
   const location = useLocation();
   const navigate = useNavigate();
   const locState = (location.state || {}) as LocationState;
+  const initialQuestion = isQuestionPayload(locState.question)
+    ? locState.question
+    : null;
 
   const [question, setQuestion] = useState<QuestionResponseDTO | null>(
-    locState.question ?? null
+    initialQuestion
   );
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false);
-  const [currentRound, setCurrentRound] = useState(question?.round_number ?? 0);
+  const [showQuiz, setShowQuiz] = useState(() => {
+    if (!initialQuestion) return false;
+    return (
+      initialQuestion.index > 0 ||
+      isSuddenDeathQuestionRound(initialQuestion.round_number)
+    );
+  });
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [sdQuestionCount, setSdQuestionCount] = useState(0);
   const [playerName, setPlayerName] = useState<string>("");
+  const questionRef = useRef<QuestionResponseDTO | null>(initialQuestion);
+  const currentRoundRef = useRef(initialQuestion?.round_number ?? 0);
+  const syncInFlightRef = useRef(false);
+
+  const acceptQuestion = useCallback(
+    (newQuestion: QuestionResponseDTO, source: QuestionSyncSource) => {
+      const previousQuestion = questionRef.current;
+
+      if (getQuestionKey(previousQuestion) === getQuestionKey(newQuestion)) {
+        return;
+      }
+
+      const previousRound = currentRoundRef.current;
+      questionRef.current = newQuestion;
+      setQuestion(newQuestion);
+      setHasSubmitted(false);
+
+      if (isSuddenDeathQuestionRound(newQuestion.round_number)) {
+        setSdQuestionCount((prev) => prev + 1);
+        setShowQuiz(true);
+        return;
+      }
+
+      setSdQuestionCount(0);
+
+      if (
+        source === "socket" &&
+        newQuestion.index === 0 &&
+        newQuestion.round_number !== previousRound
+      ) {
+        setShowQuiz(false);
+      } else {
+        setShowQuiz(true);
+      }
+
+      currentRoundRef.current = newQuestion.round_number;
+    },
+    []
+  );
+
+  const ensureSuddenDeathAccess = useCallback(
+    async (newQuestion: QuestionResponseDTO): Promise<boolean> => {
+      if (!isSuddenDeathQuestionRound(newQuestion.round_number)) return true;
+      if (sessionStorage.getItem("inSuddenDeath") === "true") return true;
+
+      try {
+        const state = await fetchGameState(gameCode);
+        const me = (
+          sessionStorage.getItem("playerName") ||
+          localStorage.getItem("playerName") ||
+          ""
+        )
+          .toString()
+          .trim()
+          .toLowerCase();
+
+        if (isPlayerInSuddenDeath(me, state?.suddenDeathParticipants)) {
+          sessionStorage.setItem("inSuddenDeath", "true");
+          return true;
+        }
+      } catch {
+        // Treat an eligibility lookup failure as not eligible; the state poll
+        // below will recover when the server is reachable again.
+      }
+
+      sessionStorage.setItem("inSuddenDeath", "false");
+      setShowQuiz(false);
+      navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
+      return false;
+    },
+    [gameCode, navigate]
+  );
+
+  const syncQuestion = useCallback(
+    async (newQuestion: QuestionResponseDTO, source: QuestionSyncSource) => {
+      if (!(await ensureSuddenDeathAccess(newQuestion))) return;
+      acceptQuestion(newQuestion, source);
+    },
+    [acceptQuestion, ensureSuddenDeathAccess]
+  );
+
+  const syncGameProgress = useCallback(async () => {
+    if (!gameCode) return;
+
+    try {
+      const state = await fetchGameState(gameCode);
+
+      if (state.status === "between_rounds") {
+        navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
+        return;
+      }
+
+      if (state.status === "finished") {
+        navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+        return;
+      }
+
+      if (state.status === "sudden_death") {
+        const me = (
+          sessionStorage.getItem("playerName") ||
+          localStorage.getItem("playerName") ||
+          ""
+        )
+          .toString()
+          .trim()
+          .toLowerCase();
+
+        if (!isPlayerInSuddenDeath(me, state.suddenDeathParticipants)) {
+          sessionStorage.setItem("inSuddenDeath", "false");
+          setShowQuiz(false);
+          navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
+        }
+      }
+    } catch {
+      // Keep the current screen during transient sync failures.
+    }
+  }, [gameCode, navigate]);
 
   // Use the WebSocket hook
   useGameChannel(gameCode, {
@@ -70,60 +200,7 @@ export default function QuizPage() {
       if (msg.type === "question_started") {
         if (!isQuestionPayload(msg.payload)) return;
         const newQuestion = msg.payload;
-
-        // If sudden death round begins and this player is not a participant, redirect to waiting page
-        if (isSuddenDeathQuestionRound(newQuestion?.round_number)) {
-          const inSudden = sessionStorage.getItem("inSuddenDeath") === "true";
-          if (!inSudden) {
-            (async () => {
-              try {
-                const s = await fetchGameState(gameCode);
-                const me = (
-                  (sessionStorage.getItem("playerName") || localStorage.getItem("playerName") || "") as string
-                )
-                  .toString()
-                  .trim()
-                  .toLowerCase();
-                if (isPlayerInSuddenDeath(me, s?.suddenDeathParticipants)) {
-                  sessionStorage.setItem("inSuddenDeath", "true");
-                  setQuestion(newQuestion);
-                  setHasSubmitted(false);
-                  setSdQuestionCount((prev) => prev + 1);
-                  setShowQuiz(true);
-                } else {
-                  sessionStorage.setItem("inSuddenDeath", "false");
-                  setShowQuiz(false);
-                  navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
-                  return;
-                }
-              } catch {
-                setShowQuiz(false);
-                navigate(`/game/${encodeURIComponent(gameCode)}/sudden-death-wait`);
-                return;
-              }
-            })();
-            return;
-          }
-        }
-        setQuestion(newQuestion);
-        setHasSubmitted(false); // Reset submission state for new question
-
-        // Track sudden death questions.
-        if (isSuddenDeathQuestionRound(newQuestion.round_number)) {
-          setSdQuestionCount((prev) => prev + 1);
-          setShowQuiz(true); // Go straight to quiz in SD
-        } else if (
-          newQuestion.index === 0 &&
-          newQuestion.round_number !== currentRound
-        ) {
-          // New regular round - show countdown
-          setShowQuiz(false);
-          setCurrentRound(newQuestion.round_number);
-          setSdQuestionCount(0); // Reset SD counter
-        } else {
-          setShowQuiz(true);
-        }
-        setWsConnected(true);
+        void syncQuestion(newQuestion, "socket");
       }
 
       if (msg.type === "round_ended") {
@@ -145,32 +222,37 @@ export default function QuizPage() {
     },
   });
 
-  // Fallback: Poll for questions if WebSocket doesn't connect
+  // Keep the player synced to the host's canonical current question. This also
+  // fixes refreshes where React Router restores stale location state.
   useEffect(() => {
-    if (question || wsConnected) return;
+    if (!gameCode) return;
+
+    let cancelled = false;
 
     const pollQuestion = async () => {
+      if (syncInFlightRef.current) return;
+      syncInFlightRef.current = true;
       try {
         const data = await fetchQuestion(gameCode);
-        setQuestion(data);
-        setWsConnected(true);
-        setHasSubmitted(false); // Reset submission state for polled question
+        if (!cancelled) {
+          await syncQuestion(data, "fetch");
+        }
       } catch {
-        console.log("Question not ready yet, will retry...");
+        if (!cancelled) {
+          await syncGameProgress();
+        }
+      } finally {
+        syncInFlightRef.current = false;
       }
     };
 
-    pollQuestion();
-    const interval = setInterval(pollQuestion, 2000);
-    return () => clearInterval(interval);
-  }, [gameCode, question, wsConnected]);
-
-  // Safety: Reset hasSubmitted when question changes (covers edge cases)
-  useEffect(() => {
-    if (question) {
-      setHasSubmitted(false);
-    }
-  }, [question]);
+    void pollQuestion();
+    const interval = window.setInterval(pollQuestion, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [gameCode, syncGameProgress, syncQuestion]);
 
   // Load player name for display during questions
   useEffect(() => {
