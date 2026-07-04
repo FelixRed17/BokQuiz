@@ -3,7 +3,7 @@ module Api
   module V1
     class GamesController < ApplicationController
       before_action :find_game, except: :create
-      before_action :require_host!, only: [ :host_start, :host_next, :host_finish ]
+      before_action :require_host!, only: [ :host_start, :host_next, :host_finish, :round_answers ]
 
       # POST /api/v1/games
       def create
@@ -212,9 +212,16 @@ module Api
       # GET /api/v1/games/:code/round_result
       # Reveals end-of-round scores + who is eliminated; advances state accordingly.
       def round_result
-        return render_api_error(code: "bad_state", message: "Not between rounds", status: 422) unless @game.between_rounds?
-
         round = @game.round_number
+        unless @game.between_rounds?
+          existing = if @game.sudden_death? || @game.finished?
+            RoundResult.find_by(game_id: @game.id, round_number: round)
+          end
+
+          return ok(normalized_round_result_payload(existing, round)) if existing
+          return render_api_error(code: "bad_state", message: "Not between rounds", status: 422)
+        end
+
         rr = nil
 
         ActiveRecord::Base.transaction do
@@ -222,17 +229,8 @@ module Api
 
           # Idempotency: if already processed, return persisted result (no re-broadcast)
           if (existing = RoundResult.find_by(game_id: @game.id, round_number: round))
-            payload = existing.payload.deep_symbolize_keys
-            normalized_payload = {
-              round: round,
-              round_number: round,
-              leaderboard: payload[:leaderboard] || [],
-              eliminated_names: payload[:eliminated_names] || [],
-              next_state: (payload[:next_state] || @game.status).to_s,
-              sudden_death_players: payload[:sudden_death_players] || []
-            }
             # Return from inside transaction (transaction will commit/rollback as usual)
-            return ok(normalized_payload)
+            return ok(normalized_round_result_payload(existing, round))
           end
 
           qs = questions_for_round(round)
@@ -350,6 +348,30 @@ module Api
         end
       end
 
+      # GET /api/v1/games/:code/round_answers
+      def round_answers
+        unless @game.between_rounds? || @game.sudden_death? || @game.finished?
+          return render_api_error(code: "bad_state", message: "Round answers are only available after a round ends", status: 422)
+        end
+
+        round = @game.round_number
+        questions = questions_for_round(round).each_with_index.map do |q, index|
+          options = Array(q.options)
+          correct_index = q.correct_index.to_i
+
+          {
+            round: round,
+            index: index,
+            text: q.text,
+            options: options,
+            correct_index: correct_index,
+            correct_answer: options[correct_index].to_s
+          }
+        end
+
+        ok({ round_number: round, questions: questions })
+      end
+
       # POST /api/v1/games/:code/host_finish
       def host_finish
         @game.update!(status: :finished, question_end_at: nil)
@@ -380,13 +402,29 @@ module Api
         render_api_error(code: "auth", message: "Host token required", status: 403) and return unless token.present? && token == @game.host_token
       end
 
+      def normalized_round_result_payload(round_result, round)
+        payload = round_result.payload.deep_symbolize_keys
+        {
+          round: round,
+          round_number: round,
+          leaderboard: payload[:leaderboard] || [],
+          eliminated_names: payload[:eliminated_names] || [],
+          next_state: (payload[:next_state] || @game.status).to_s,
+          sudden_death_players: payload[:sudden_death_players] || []
+        }
+      end
+
       def current_question
         if @game.sudden_death?
-    sd_scope = Question.where(round_number: 5).order(:id)
+          sd_scope = Question.where(round_number: 5).order(:id)
+          group_size = 5
+          round_index = [[@game.round_number.to_i - 1, 0].max, 3].min
+          group_start = round_index * group_size
           sd_count = sd_scope.count
-          return nil if sd_count == 0
-          base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0) % sd_count
-          idx  = (base + (@game.current_question_index || 0)) % sd_count
+          return nil if sd_count < group_start + 1
+          base = (@game.respond_to?(:sd_offset) ? @game.sd_offset.to_i : 0) % group_size
+          question_index = (@game.current_question_index || 0) % group_size
+          idx = group_start + ((base + question_index) % group_size)
           sd_scope.offset(idx).first
         else
           Question.where(round_number: @game.round_number).order(:id).offset(@game.current_question_index || 0).first
@@ -394,7 +432,7 @@ module Api
       end
 
       def questions_for_round(round)
-        Question.where(round_number: round)
+        Question.where(round_number: round).order(:id)
       end
 
       def start_current_question!
@@ -423,10 +461,14 @@ module Api
           return ok({ sudden_death_ended: true, reason: "no_participants" })
         end
 
-        # SD question pool (round_number = 4)
-  sd_questions = Question.where(round_number: 5).order(:id).to_a
-        if sd_questions.empty?
-          Rails.logger.error("handle_sudden_death_next: no SD questions configured for game=#{@game.id}")
+        # SD question pool (round_number = 5), grouped by the triggering round
+        sd_questions = Question.where(round_number: 5).order(:id).to_a
+        group_size = 5
+        round_index = [[@game.round_number.to_i - 1, 0].max, 3].min
+        group_start = round_index * group_size
+        group_questions = sd_questions[group_start, group_size] || []
+        if group_questions.empty?
+          Rails.logger.error("handle_sudden_death_next: no SD questions configured for game=#{@game.id} round=#{@game.round_number}")
           @game.update!(status: :between_rounds, question_end_at: nil, sudden_death_player_ids: [], sudden_death_attempts: 0, sudden_death_started_at: nil)
           return ok({ sudden_death_ended: true, reason: "no_sd_questions" })
         end
@@ -439,7 +481,7 @@ module Api
         end
 
         # Case 2: Question just finished or first call
-        if attempts < 3
+        if attempts < group_questions.size
           # Open next question
           @game.update!(current_question_index: attempts) if @game.current_question_index != attempts
           @game.increment!(:sudden_death_attempts)
@@ -453,9 +495,8 @@ module Api
           })
         end
 
-        # Case 3: All 3 attempts exhausted - time to eliminate
-        # Collect the 3 SD questions used
-        used_questions = sd_questions.first(3)
+        # Case 3: All attempts exhausted - time to eliminate
+        used_questions = group_questions
         used_q_ids = used_questions.map(&:id)
 
         if used_q_ids.empty?
@@ -605,4 +646,3 @@ module Api
     end
   end
 end
-

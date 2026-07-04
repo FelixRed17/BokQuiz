@@ -122,8 +122,8 @@ export default function HostQuizView() {
         }
       }
       if (msg.type === "round_ended") {
-        console.log("Round ended - navigating to leaderboard");
-        navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
+        console.log("Round ended - navigating to answer review");
+        navigate(`/game/${encodeURIComponent(gameCode)}/round-answers`);
       }
       if (msg.type === "sudden_death_eliminated") {
         console.log("Sudden death ended - navigating to leaderboard");
@@ -161,7 +161,7 @@ export default function HostQuizView() {
       const result = await hostNext(gameCode, hostToken);
 
       if (result.round_ended) {
-        navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
+        navigate(`/game/${encodeURIComponent(gameCode)}/round-answers`);
         return;
       }
 

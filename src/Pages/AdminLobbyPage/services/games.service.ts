@@ -55,6 +55,20 @@ export type RoundResultDTO = {
   sudden_death_players?: string[];
 };
 
+export type RoundAnswerQuestionDTO = {
+  round: number;
+  index: number;
+  text: string;
+  options: string[];
+  correct_index: number;
+  correct_answer: string;
+};
+
+export type RoundAnswersDTO = {
+  round_number: number;
+  questions: RoundAnswerQuestionDTO[];
+};
+
 /**
  * map DTO -> domain model
  */
@@ -221,6 +235,45 @@ export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO
     eliminated_names,
     next_state,
     sudden_death_players,
+  };
+}
+
+export async function fetchRoundAnswers(
+  gameCode: string,
+  hostToken: string
+): Promise<RoundAnswersDTO> {
+  const path = `/api/v1/games/${encodeURIComponent(gameCode)}/round_answers`;
+  const raw = await http<unknown>(path, {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      "X-Host-Token": hostToken,
+      Accept: "application/json",
+    },
+  });
+  const payload = getPayload(raw);
+  const questions = Array.isArray(payload.questions)
+    ? payload.questions.filter(isRecord).map((question) => {
+        const options = Array.isArray(question.options)
+          ? question.options.filter(
+              (option): option is string => typeof option === "string"
+            )
+          : [];
+
+        return {
+          round: asNumber(question.round),
+          index: asNumber(question.index),
+          text: asString(question.text),
+          options,
+          correct_index: asNumber(question.correct_index),
+          correct_answer: asString(question.correct_answer),
+        };
+      })
+    : [];
+
+  return {
+    round_number: asNumber(payload.round_number),
+    questions,
   };
 }
 

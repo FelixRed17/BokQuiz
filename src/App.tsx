@@ -24,6 +24,9 @@ const HostQuizView = lazy(
 const HostLeaderboardPage = lazy(
   () => import("./Pages/HostLeaderboardPage/HostLeaderboardPage")
 );
+const HostRoundAnswersPage = lazy(
+  () => import("./Pages/HostRoundAnswersPage/HostRoundAnswersPage")
+);
 const PlayerRoundResultPage = lazy(
   () => import("./Pages/PlayerRoundResultPage/PlayerRoundResultPage")
 );
@@ -65,6 +68,10 @@ function App() {
           <Route
             path="/game/:code/leaderboard"
             element={<HostLeaderboardPage />}
+          />
+          <Route
+            path="/game/:code/round-answers"
+            element={<HostRoundAnswersPage />}
           />
           <Route
             path="/game/:code/round-result"

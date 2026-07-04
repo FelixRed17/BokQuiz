@@ -6,7 +6,10 @@ declare module "*.jpg";
 declare module "*.jpeg";
 declare module "*.gif";
 declare module "*.svg";
+declare module "*.mp4";
+declare module "*.mov";
 declare module "*.json";
+declare module "*.lottie?url";
 declare module "lottie-react";
 declare module "react-confetti"
 
@@ -19,5 +22,3 @@ interface ImportMetaEnv {
   interface ImportMeta {
     readonly env: ImportMetaEnv
   }
-
-

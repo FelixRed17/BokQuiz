@@ -2,9 +2,11 @@
   position: fixed;
   inset: 0;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   box-sizing: border-box;
+  padding: 24px 16px;
   background: radial-gradient(ellipse at center,
   rgba(0, 120, 0, 0.35) 0%,
   rgba(0, 80, 0, 0.15) 40%,
@@ -21,9 +23,33 @@
   font-family: Poppins, sans-serif;
 }
 
+.progress-bar-container {
+  display: flex;
+  width: clamp(450px, 50%, 630px);
+  max-width: calc(100% - 32px);
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+
+.progress-bar-item {
+  flex: 1 1 0;
+  max-width: 64px;
+  height: 8px;
+  border-radius: 4px;
+  background: #FFFFFF;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.progress-bar-item.is-complete {
+  background: #F4C300;
+  box-shadow: 0 0 8px rgba(244, 195, 0, 0.45);
+}
+
 .quiz-container {
   position: relative;
   width: clamp(450px, 50%, 630px);
+  max-width: calc(100% - 32px);
   background: #0F2F25;
   border-radius: 18px;
   padding: 32px 24px;
@@ -74,6 +100,3 @@
     0 0 50px rgba(244, 195, 0, 0.75),
     0 0 75px rgba(244, 195, 0, 0.45);
 }
-
-
-

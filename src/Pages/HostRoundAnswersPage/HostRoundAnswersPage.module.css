@@ -1,0 +1,223 @@
+.container {
+  min-height: 100vh;
+  padding: 2rem;
+  color: #ffffff;
+  background:
+    radial-gradient(
+      ellipse at top,
+      rgba(244, 195, 0, 0.18) 0%,
+      rgba(0, 122, 51, 0.14) 42%,
+      rgba(0, 0, 0, 0) 72%
+    ),
+    linear-gradient(90deg, #031a05 0%, #0b4f0b 30%, #102414 100%);
+  background-color: #021003;
+  font-family: "Orbitron", "Rajdhani", "Poppins", sans-serif;
+  overflow-x: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 1280px;
+  margin: 0 auto 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid rgba(244, 195, 0, 0.25);
+  border-radius: 8px;
+  background: rgba(0, 24, 8, 0.72);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #f4c300;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.title {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.primaryButton {
+  min-width: 190px;
+  min-height: 48px;
+  padding: 0.75rem 1.25rem;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f4c300 0%, #007a33 100%);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(244, 195, 0, 0.24);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primaryButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(244, 195, 0, 0.34);
+}
+
+.questionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.questionCard {
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(244, 195, 0, 0.28);
+  border-radius: 8px;
+  background: rgba(0, 24, 8, 0.78);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+}
+
+.questionMeta {
+  width: fit-content;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  background: rgba(244, 195, 0, 0.16);
+  color: #f4c300;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.questionText {
+  min-height: 84px;
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.answerBanner {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 56px;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #061109;
+  font-weight: 900;
+}
+
+.answerLabel,
+.optionLetter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  flex: 0 0 34px;
+  font-weight: 900;
+}
+
+.answerLabel {
+  background: #061109;
+  color: #ffffff;
+}
+
+.optionsList {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.optionRow {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 46px;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(244, 195, 0, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #eaeaea;
+}
+
+.correctOption {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.optionLetter {
+  background: rgba(244, 195, 0, 0.18);
+  color: #f4c300;
+}
+
+.correctOption .optionLetter {
+  background: #ffffff;
+  color: #061109;
+}
+
+.optionText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.statusPanel {
+  width: min(520px, calc(100vw - 2rem));
+  margin: 20vh auto 0;
+  padding: 1.5rem;
+  border: 1px solid rgba(244, 195, 0, 0.28);
+  border-radius: 8px;
+  background: rgba(0, 24, 8, 0.78);
+  color: #ffffff;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.errorText {
+  margin: 0 0 1rem;
+  color: #ffb4b4;
+}
+
+@media (max-width: 720px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .primaryButton {
+    width: 100%;
+  }
+
+  .questionCard {
+    min-height: auto;
+  }
+
+  .questionText {
+    min-height: auto;
+  }
+}

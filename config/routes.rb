@@ -14,6 +14,7 @@ Rails.application.routes.draw do
           post :host_finish
           post :submit
           get  :round_result
+          get  :round_answers
           get  :results
         end
       end

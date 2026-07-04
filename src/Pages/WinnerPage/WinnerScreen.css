@@ -8,11 +8,21 @@
   overflow: hidden;
 }
 
+.winner-background-video {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #021003;
+}
+
 .overlay {
   position: absolute;
   inset: 0;
   background-color: rgba(0, 0, 0, var(--overlay-opacity, 0.3));
-  z-index: 0;
+  z-index: 1;
 }
 
 .title-block {
@@ -20,7 +30,7 @@
   top: 5%;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 2;
+  z-index: 4;
   text-align: center;
   letter-spacing: 0;
   line-height: 1.1;
@@ -42,7 +52,7 @@
   text-shadow: 1px 1px 4px rgba(10, 10, 10, 0.8);
 
   /* Breathing effect */
-  animation: breathe 3s ease-in-out infinite;
+  animation: winnerNameReveal 0.55s ease-out both, breathe 3s ease-in-out 0.55s infinite;
 }
 
 @keyframes breathe {
@@ -69,7 +79,12 @@
   transform: translateX(-50%);
   width: min(500px, 82vw);
   height: min(500px, 82vw);
-  z-index: 1;
+  z-index: 2;
+}
+
+.winner-lottie {
+  width: 100%;
+  height: 100%;
 }
 
 .lottie-placeholder {
@@ -86,7 +101,7 @@
   position: absolute;
   bottom: 30px;
   right: 30px;
-  z-index: 3;
+  z-index: 5;
 }
 
 .home-button {
@@ -108,6 +123,17 @@
 @keyframes winnerSpin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes winnerNameReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

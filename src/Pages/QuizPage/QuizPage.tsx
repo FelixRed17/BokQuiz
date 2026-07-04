@@ -241,6 +241,7 @@ export default function QuizPage() {
   const questionOptions = question.options ?? [];
   const roundNumber = question.round_number ?? 1;
   const endsAt = question.ends_at ?? null;
+  const totalQuestions = isSuddenDeathQuestionRound(roundNumber) ? 4 : 5;
 
   const questionData = {
     question: questionText,
@@ -273,6 +274,7 @@ export default function QuizPage() {
             key={`q-${roundNumber}-${questionIndex}`}
             questionData={questionData}
             questionNumber={questionIndex + 1}
+            totalQuestions={totalQuestions}
             onNext={handleSubmitAnswer}
             hasSubmitted={hasSubmitted}
           />

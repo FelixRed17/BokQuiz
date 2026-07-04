@@ -19,6 +19,7 @@ export interface QuizScreenProps {
   onNext?: (selected: number | null, latencyMs?: number) => void;
   questionNumber?: number;
   hasSubmitted?: boolean;
+  totalQuestions?: number;
 }
 
 const QuizScreen: React.FC<QuizScreenProps> = ({
@@ -26,6 +27,7 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
   onNext,
   questionNumber = 1,
   hasSubmitted = false,
+  totalQuestions = 5,
 }) => {
   const [selected, setSelected] = useState<number | null>(null);
   const [startTime, setStartTime] = useState<number>(Date.now());
@@ -61,6 +63,11 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
   const options = questionData.options || [];
   const correctIndex = typeof questionData.correct_index === "number" ? questionData.correct_index : null;
   const revealAnswer = timeLeft === 0 && correctIndex !== null;
+  const questionCount = Math.max(1, totalQuestions);
+  const answeredQuestionCount = Math.min(
+    questionCount,
+    Math.max(0, questionNumber - 1 + (hasSubmitted || localSubmitted ? 1 : 0))
+  );
 
   const handleSubmit = () => {
     if (!onNext) return;
@@ -71,7 +78,19 @@ const QuizScreen: React.FC<QuizScreenProps> = ({
 
   return (
     <div className={`quiz-screen ${isSuddenDeath ? "sudden-death" : ""}`}>
-      {isSuddenDeath }
+      <div
+        className="progress-bar-container"
+        aria-label={`${answeredQuestionCount} of ${questionCount} questions answered`}
+      >
+        {Array.from({ length: questionCount }).map((_, idx) => (
+          <div
+            key={idx}
+            className={`progress-bar-item ${
+              idx < answeredQuestionCount ? "is-complete" : ""
+            }`}
+          />
+        ))}
+      </div>
       <Timer timeLeft={timeLeft} />
       <div className="quiz-container">
         <QuestionCard

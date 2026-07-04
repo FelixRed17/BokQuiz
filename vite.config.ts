@@ -10,6 +10,10 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
 
+          if (id.includes('@lottiefiles/dotlottie')) {
+            return 'dotlottie-vendor'
+          }
+
           if (id.includes('lottie-react') || id.includes('react-confetti')) {
             return 'animation-vendor'
           }
