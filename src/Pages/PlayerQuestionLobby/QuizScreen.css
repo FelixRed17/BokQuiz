@@ -7,18 +7,10 @@
   align-items: center;
   box-sizing: border-box;
   padding: 24px 16px;
-  background: radial-gradient(ellipse at center,
-  rgba(0, 120, 0, 0.35) 0%,
-  rgba(0, 80, 0, 0.15) 40%,
-  rgba(0,0,0,0) 70%), 
-  linear-gradient(
-    90deg,
-    #031a05 0%,
-    #0b4f0b 20%,
-    #0e6a0e 50%,
-    #0b4f0b 80%,
-    #031a05 100%
-  );
+  background-image: url('./BackgroundImage.jpeg');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
   background-color: #021003;
   font-family: Poppins, sans-serif;
 }

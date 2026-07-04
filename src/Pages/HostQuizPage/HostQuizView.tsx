@@ -43,6 +43,15 @@ function getCorrectIndex(question: QuestionData): number | null {
   return null;
 }
 
+function getRoundNumber(value: unknown): number | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const roundNumber = record.round_number ?? record.roundNumber ?? record.round;
+  return typeof roundNumber === "number" && Number.isFinite(roundNumber)
+    ? roundNumber
+    : null;
+}
+
 export default function HostQuizView() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
@@ -59,6 +68,7 @@ export default function HostQuizView() {
   );
   const [showQuiz, setShowQuiz] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
+  const isAdvancingRef = useRef(false);
   const currentRoundRef = useRef(initialQuestion?.round_number || 0);
   const lastQuestionIndexRef = useRef<number | null>(
     typeof initialQuestion?.index === "number" ? initialQuestion.index : null
@@ -66,6 +76,23 @@ export default function HostQuizView() {
   // We no longer track per-question answered state for host UI
 
   const { state } = useGameState(gameCode, { pollIntervalMs: 2000 });
+
+  const navigateToRoundAnswers = (roundNumber?: number | null) => {
+    const resolvedRound =
+      roundNumber ?? question?.round_number ?? currentRoundRef.current;
+    const params = new URLSearchParams();
+
+    if (Number.isFinite(resolvedRound) && resolvedRound > 0) {
+      params.set("round_number", String(resolvedRound));
+    }
+
+    const query = params.toString();
+    navigate(
+      `/game/${encodeURIComponent(gameCode)}/round-answers${
+        query ? `?${query}` : ""
+      }`
+    );
+  };
 
   useEffect(() => {
     if (!gameCode || question) return;
@@ -123,7 +150,7 @@ export default function HostQuizView() {
       }
       if (msg.type === "round_ended") {
         console.log("Round ended - navigating to answer review");
-        navigate(`/game/${encodeURIComponent(gameCode)}/round-answers`);
+        navigateToRoundAnswers(getRoundNumber(msg.payload));
       }
       if (msg.type === "sudden_death_eliminated") {
         console.log("Sudden death ended - navigating to leaderboard");
@@ -148,7 +175,7 @@ export default function HostQuizView() {
   };
 
   const handleNextQuestion = async () => {
-    if (isAdvancing) return;
+    if (isAdvancingRef.current) return;
 
     const hostToken = localStorage.getItem("hostToken");
     if (!hostToken) {
@@ -157,11 +184,12 @@ export default function HostQuizView() {
     }
 
     try {
+      isAdvancingRef.current = true;
       setIsAdvancing(true);
       const result = await hostNext(gameCode, hostToken);
 
       if (result.round_ended) {
-        navigate(`/game/${encodeURIComponent(gameCode)}/round-answers`);
+        navigateToRoundAnswers(result.round_number);
         return;
       }
 
@@ -191,6 +219,7 @@ export default function HostQuizView() {
       console.error("Error advancing question:", err);
       alert("Failed to advance to next question. Check console for details.");
     } finally {
+      isAdvancingRef.current = false;
       setIsAdvancing(false);
     }
   };

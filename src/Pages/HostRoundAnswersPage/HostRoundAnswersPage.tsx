@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   fetchRoundAnswers,
   type RoundAnswersDTO,
@@ -15,10 +15,23 @@ function getErrorMessage(error: unknown): string {
   return typeof error === "string" ? error : "Unable to load round answers";
 }
 
+function getRequestedRound(searchParams: URLSearchParams): number | undefined {
+  const rawRound =
+    searchParams.get("round_number") ?? searchParams.get("round");
+  if (!rawRound) return undefined;
+
+  const roundNumber = Number(rawRound);
+  return Number.isInteger(roundNumber) && roundNumber > 0
+    ? roundNumber
+    : undefined;
+}
+
 export default function HostRoundAnswersPage() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedRound = getRequestedRound(searchParams);
   const [data, setData] = useState<RoundAnswersDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +48,13 @@ export default function HostRoundAnswersPage() {
       }
 
       try {
-        const answers = await fetchRoundAnswers(gameCode, hostToken);
+        setIsLoading(true);
+        setError(null);
+        const answers = await fetchRoundAnswers(
+          gameCode,
+          hostToken,
+          requestedRound
+        );
         if (cancelled) return;
         setData(answers);
         setError(null);
@@ -54,7 +73,7 @@ export default function HostRoundAnswersPage() {
     return () => {
       cancelled = true;
     };
-  }, [gameCode]);
+  }, [gameCode, requestedRound]);
 
   const sortedQuestions = useMemo(
     () => [...(data?.questions ?? [])].sort((a, b) => a.index - b.index),

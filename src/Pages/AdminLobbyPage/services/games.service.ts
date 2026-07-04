@@ -240,9 +240,18 @@ export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO
 
 export async function fetchRoundAnswers(
   gameCode: string,
-  hostToken: string
+  hostToken: string,
+  roundNumber?: number
 ): Promise<RoundAnswersDTO> {
-  const path = `/api/v1/games/${encodeURIComponent(gameCode)}/round_answers`;
+  const params = new URLSearchParams();
+  if (typeof roundNumber === "number" && Number.isFinite(roundNumber)) {
+    params.set("round_number", String(roundNumber));
+  }
+
+  const query = params.toString();
+  const path = `/api/v1/games/${encodeURIComponent(gameCode)}/round_answers${
+    query ? `?${query}` : ""
+  }`;
   const raw = await http<unknown>(path, {
     method: "GET",
     cache: "no-store",

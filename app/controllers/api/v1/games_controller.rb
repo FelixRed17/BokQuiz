@@ -350,12 +350,13 @@ module Api
 
       # GET /api/v1/games/:code/round_answers
       def round_answers
-        unless @game.between_rounds? || @game.sudden_death? || @game.finished?
-          return render_api_error(code: "bad_state", message: "Round answers are only available after a round ends", status: 422)
+        round = completed_round_for_answers
+        unless round
+          return render_api_error(code: "bad_state", message: "Round answers are only available for completed rounds", status: 422)
         end
 
-        round = @game.round_number
-        questions = questions_for_round(round).each_with_index.map do |q, index|
+        questions = questions_for_round(round)
+        answers = questions.each_with_index.map do |q, index|
           options = Array(q.options)
           correct_index = q.correct_index.to_i
 
@@ -369,7 +370,7 @@ module Api
           }
         end
 
-        ok({ round_number: round, questions: questions })
+        ok({ round_number: round, questions: answers })
       end
 
       # POST /api/v1/games/:code/host_finish
@@ -412,6 +413,62 @@ module Api
           next_state: (payload[:next_state] || @game.status).to_s,
           sudden_death_players: payload[:sudden_death_players] || []
         }
+      end
+
+      def completed_round_for_answers
+        requested_round = positive_integer_param(:round_number) || positive_integer_param(:round)
+
+        if requested_round
+          return requested_round if round_answers_available?(requested_round)
+          return nil
+        end
+
+        completed_round = default_completed_round_for_answers
+        return nil unless completed_round && round_answers_available?(completed_round)
+
+        completed_round
+      end
+
+      def default_completed_round_for_answers
+        last_processed_round = @game.last_processed_round.to_i
+        current_round = @game.round_number.to_i
+
+        completed_round = if @game.between_rounds? || @game.sudden_death? || @game.finished?
+          [last_processed_round, current_round].max
+        elsif @game.in_round?
+          [last_processed_round, current_round - 1].max
+        else
+          0
+        end
+
+        completed_round.positive? ? completed_round : nil
+      end
+
+      def round_answers_available?(round)
+        round = round.to_i
+        return false unless round.positive?
+
+        last_processed_round = @game.last_processed_round.to_i
+        current_round = @game.round_number.to_i
+        max_completed_round = if @game.between_rounds? || @game.sudden_death? || @game.finished?
+          [last_processed_round, current_round].max
+        elsif @game.in_round?
+          [last_processed_round, current_round - 1].max
+        else
+          0
+        end
+
+        round <= max_completed_round && questions_for_round(round).exists?
+      end
+
+      def positive_integer_param(key)
+        value = params[key]
+        return nil if value.blank?
+
+        parsed = Integer(value)
+        parsed.positive? ? parsed : nil
+      rescue ArgumentError, TypeError
+        nil
       end
 
       def current_question
