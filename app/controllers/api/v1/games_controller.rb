@@ -3,7 +3,7 @@ module Api
   module V1
     class GamesController < ApplicationController
       before_action :find_game, except: :create
-      before_action :require_host!, only: [ :host_start, :host_next, :host_finish, :round_answers ]
+      before_action :require_host!, only: [ :host_start, :host_next, :host_finish ]
 
       # POST /api/v1/games
       def create
@@ -134,7 +134,7 @@ module Api
         if @game.in_round?
           if @game.current_question_index >= 4
             # end of round
-            @game.update!(status: :between_rounds, question_end_at: nil)
+            @game.update!(status: :between_rounds, question_end_at: nil, last_processed_round: @game.round_number)
             broadcast(:round_ended, { round_number: @game.round_number })
             ok({ round_ended: true, round_number: @game.round_number })
           else

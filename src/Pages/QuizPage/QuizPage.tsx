@@ -204,13 +204,19 @@ export default function QuizPage() {
       }
 
       if (msg.type === "round_ended") {
-        console.log("Round ended - navigating to player results");
+        console.log("Round ended - navigating to answer review");
         setSdQuestionCount(0); // Reset SD counter
-        // Add a small randomized delay to allow server to commit results
-        const jitter = Math.floor(Math.random() * 400); // 0-399ms
-        const wait = 700 + jitter; // 700-1099ms total
+        const roundNumber = isRecord(msg.payload)
+          ? (typeof msg.payload.round_number === "number"
+              ? msg.payload.round_number
+              : typeof msg.payload.round === "number"
+                ? msg.payload.round
+                : undefined)
+          : undefined;
+        const query = roundNumber ? `?round_number=${roundNumber}` : "";
+        const wait = 700 + Math.floor(Math.random() * 400);
         setTimeout(() => {
-          navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
+          navigate(`/game/${encodeURIComponent(gameCode)}/round-answers${query}`);
         }, wait);
       }
 

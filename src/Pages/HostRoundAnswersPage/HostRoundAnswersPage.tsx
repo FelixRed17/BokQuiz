@@ -40,12 +40,7 @@ export default function HostRoundAnswersPage() {
     let cancelled = false;
 
     const loadAnswers = async () => {
-      const hostToken = localStorage.getItem("hostToken");
-      if (!hostToken) {
-        setError("Host token missing");
-        setIsLoading(false);
-        return;
-      }
+      const hostToken = localStorage.getItem("hostToken") ?? undefined;
 
       try {
         setIsLoading(true);
@@ -84,6 +79,8 @@ export default function HostRoundAnswersPage() {
     navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
   };
 
+  const hasHostAccess = Boolean(localStorage.getItem("hostToken"));
+
   if (isLoading) {
     return (
       <div className={styles.container}>
@@ -101,7 +98,7 @@ export default function HostRoundAnswersPage() {
             className={styles.primaryButton}
             onClick={handleShowLeaderboard}
           >
-            Show Leaderboard
+            {hasHostAccess ? "Show Leaderboard" : "Continue to Leaderboard"}
           </button>
         </div>
       </div>
@@ -121,7 +118,7 @@ export default function HostRoundAnswersPage() {
           className={styles.primaryButton}
           onClick={handleShowLeaderboard}
         >
-          Show Leaderboard
+          {hasHostAccess ? "Show Leaderboard" : "Continue to Leaderboard"}
         </button>
       </header>
 

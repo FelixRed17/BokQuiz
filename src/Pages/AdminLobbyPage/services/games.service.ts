@@ -240,7 +240,7 @@ export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO
 
 export async function fetchRoundAnswers(
   gameCode: string,
-  hostToken: string,
+  hostToken?: string,
   roundNumber?: number
 ): Promise<RoundAnswersDTO> {
   const params = new URLSearchParams();
@@ -256,7 +256,7 @@ export async function fetchRoundAnswers(
     method: "GET",
     cache: "no-store",
     headers: {
-      "X-Host-Token": hostToken,
+      ...(hostToken ? { "X-Host-Token": hostToken } : {}),
       Accept: "application/json",
     },
   });
