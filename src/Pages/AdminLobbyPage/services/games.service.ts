@@ -1,5 +1,7 @@
 // src/Pages/AdminLobbyPage/services/games.service.ts
 import { http } from "../../../lib/http";
+import { ApiError } from "../../../lib/errors";
+import { fetchLocalRoundAnswers } from "../../../lib/localRoundAnswers";
 import type { ApiPlayerDTO, GameStateResponseDTO } from "../dto/games.dto";
 import type { GameState, Player } from "../types/games";
 
@@ -252,14 +254,27 @@ export async function fetchRoundAnswers(
   const path = `/api/v1/games/${encodeURIComponent(gameCode)}/round_answers${
     query ? `?${query}` : ""
   }`;
-  const raw = await http<unknown>(path, {
-    method: "GET",
-    cache: "no-store",
-    headers: {
-      ...(hostToken ? { "X-Host-Token": hostToken } : {}),
-      Accept: "application/json",
-    },
-  });
+
+  try {
+    const raw = await http<unknown>(path, {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        ...(hostToken ? { "X-Host-Token": hostToken } : {}),
+        Accept: "application/json",
+      },
+    });
+    return mapRoundAnswersPayload(raw);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 404) {
+      throw error;
+    }
+
+    return fetchRoundAnswersFallback(gameCode, roundNumber);
+  }
+}
+
+function mapRoundAnswersPayload(raw: unknown): RoundAnswersDTO {
   const payload = getPayload(raw);
   const questions = Array.isArray(payload.questions)
     ? payload.questions.filter(isRecord).map((question) => {
@@ -284,6 +299,33 @@ export async function fetchRoundAnswers(
     round_number: asNumber(payload.round_number ?? payload.round),
     questions,
   };
+}
+
+async function fetchRoundAnswersFallback(
+  gameCode: string,
+  roundNumber?: number
+): Promise<RoundAnswersDTO> {
+  let resolvedRound = roundNumber;
+
+  if (!resolvedRound) {
+    const state = await fetchGameState(gameCode);
+    if (
+      state.status === "between_rounds" ||
+      state.status === "finished" ||
+      state.status === "sudden_death"
+    ) {
+      resolvedRound = state.roundNumber;
+    }
+  }
+
+  if (!resolvedRound || resolvedRound <= 0) {
+    throw new ApiError(
+      "Round answers are not available yet. Please try again shortly.",
+      404
+    );
+  }
+
+  return fetchLocalRoundAnswers(resolvedRound);
 }
 
 /* submit answer */
