@@ -281,7 +281,7 @@ export async function fetchRoundAnswers(
     : [];
 
   return {
-    round_number: asNumber(payload.round_number),
+    round_number: asNumber(payload.round_number ?? payload.round),
     questions,
   };
 }

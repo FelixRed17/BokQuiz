@@ -350,7 +350,7 @@ module Api
 
       # GET /api/v1/games/:code/round_answers
       def round_answers
-        round = completed_round_for_answers
+        round = resolve_round_for_answers
         unless round
           return render_api_error(code: "bad_state", message: "Round answers are only available for completed rounds", status: 422)
         end
@@ -413,6 +413,22 @@ module Api
           next_state: (payload[:next_state] || @game.status).to_s,
           sudden_death_players: payload[:sudden_death_players] || []
         }
+      end
+
+      def resolve_round_for_answers
+        requested_round = positive_integer_param(:round_number) || positive_integer_param(:round)
+
+        # After a round ends the game sits in between_rounds with round_number set
+        # to the round that just finished. This is the canonical review window.
+        if @game.between_rounds?
+          completed_round = @game.round_number
+          round = requested_round || completed_round
+          return round if round.positive? && round <= completed_round && questions_for_round(round).exists?
+
+          return nil
+        end
+
+        completed_round_for_answers
       end
 
       def completed_round_for_answers

@@ -164,7 +164,12 @@ export default function QuizPage() {
       const state = await fetchGameState(gameCode);
 
       if (state.status === "between_rounds") {
-        navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
+        const roundNumber = state.roundNumber;
+        const query =
+          typeof roundNumber === "number" && roundNumber > 0
+            ? `?round_number=${roundNumber}`
+            : "";
+        navigate(`/game/${encodeURIComponent(gameCode)}/round-answers${query}`);
         return;
       }
 

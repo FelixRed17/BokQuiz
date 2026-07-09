@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
 import { useSyncedTimer } from "../../hooks/useSyncedTimer";
 import { fetchQuestion, hostNext } from "../AdminLobbyPage/services/games.service";
+import { isSuddenDeathQuestionRound } from "../../lib/gameFlow";
 import CountDown from "../CountDownPage/CountDown";
 import "./HostQuizView.css";
 
@@ -52,6 +53,22 @@ function getRoundNumber(value: unknown): number | null {
     : null;
 }
 
+function toPositiveRound(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.trunc(value);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+  }
+
+  return undefined;
+}
+
+const ROUND_END_NAVIGATION_DELAY_MS = 500;
+const LAST_QUESTION_AUTO_ADVANCE_MS = 1500;
+
 export default function HostQuizView() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
@@ -77,22 +94,36 @@ export default function HostQuizView() {
 
   const { state } = useGameState(gameCode, { pollIntervalMs: 2000 });
 
-  const navigateToRoundAnswers = (roundNumber?: number | null) => {
-    const resolvedRound =
-      roundNumber ?? question?.round_number ?? currentRoundRef.current;
-    const params = new URLSearchParams();
+  const navigateToRoundAnswers = useCallback(
+    (roundNumber?: unknown) => {
+      const resolvedRound =
+        toPositiveRound(roundNumber) ??
+        toPositiveRound(question?.round_number) ??
+        toPositiveRound(currentRoundRef.current);
+      const params = new URLSearchParams();
 
-    if (Number.isFinite(resolvedRound) && resolvedRound > 0) {
-      params.set("round_number", String(resolvedRound));
-    }
+      if (resolvedRound) {
+        params.set("round_number", String(resolvedRound));
+      }
 
-    const query = params.toString();
-    navigate(
-      `/game/${encodeURIComponent(gameCode)}/round-answers${
-        query ? `?${query}` : ""
-      }`
-    );
-  };
+      const query = params.toString();
+      navigate(
+        `/game/${encodeURIComponent(gameCode)}/round-answers${
+          query ? `?${query}` : ""
+        }`
+      );
+    },
+    [gameCode, navigate, question?.round_number]
+  );
+
+  const scheduleRoundAnswersNavigation = useCallback(
+    (roundNumber?: unknown) => {
+      window.setTimeout(() => {
+        navigateToRoundAnswers(roundNumber);
+      }, ROUND_END_NAVIGATION_DELAY_MS);
+    },
+    [navigateToRoundAnswers]
+  );
 
   useEffect(() => {
     if (!gameCode || question) return;
@@ -150,7 +181,7 @@ export default function HostQuizView() {
       }
       if (msg.type === "round_ended") {
         console.log("Round ended - navigating to answer review");
-        navigateToRoundAnswers(getRoundNumber(msg.payload));
+        scheduleRoundAnswersNavigation(getRoundNumber(msg.payload));
       }
       if (msg.type === "sudden_death_eliminated") {
         console.log("Sudden death ended - navigating to leaderboard");
@@ -163,18 +194,7 @@ export default function HostQuizView() {
     },
   });
 
-  // Use synchronized timer - calculate ends_at from time_remaining_ms if needed
-  const endsAt = question?.ends_at || 
-    (question?.time_remaining_ms ? new Date(Date.now() + question.time_remaining_ms).toISOString() : null);
-  const timeLeft = useSyncedTimer(endsAt, 20);
-  const correctIndex = question ? getCorrectIndex(question) : null;
-  const revealAnswer = timeLeft === 0 && correctIndex !== null;
-
-  const handleCountdownComplete = () => {
-    setShowQuiz(true);
-  };
-
-  const handleNextQuestion = async () => {
+  const handleNextQuestion = useCallback(async () => {
     if (isAdvancingRef.current) return;
 
     const hostToken = localStorage.getItem("hostToken");
@@ -189,7 +209,7 @@ export default function HostQuizView() {
       const result = await hostNext(gameCode, hostToken);
 
       if (result.round_ended) {
-        navigateToRoundAnswers(result.round_number);
+        scheduleRoundAnswersNavigation(result.round_number);
         return;
       }
 
@@ -222,6 +242,38 @@ export default function HostQuizView() {
       isAdvancingRef.current = false;
       setIsAdvancing(false);
     }
+  }, [gameCode, navigate, scheduleRoundAnswersNavigation]);
+
+  const handleNextQuestionRef = useRef(handleNextQuestion);
+  handleNextQuestionRef.current = handleNextQuestion;
+
+  // Use synchronized timer - calculate ends_at from time_remaining_ms if needed
+  const endsAt = question?.ends_at || 
+    (question?.time_remaining_ms ? new Date(Date.now() + question.time_remaining_ms).toISOString() : null);
+  const timeLeft = useSyncedTimer(endsAt, 20);
+  const correctIndex = question ? getCorrectIndex(question) : null;
+  const revealAnswer = timeLeft === 0 && correctIndex !== null;
+  const isLastRegularQuestion =
+    !!question &&
+    !isSuddenDeathQuestionRound(question.round_number) &&
+    question.index === 4;
+
+  useEffect(() => {
+    if (timeLeft !== 0 || !isLastRegularQuestion || isAdvancingRef.current) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (!isAdvancingRef.current) {
+        void handleNextQuestionRef.current();
+      }
+    }, LAST_QUESTION_AUTO_ADVANCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [timeLeft, isLastRegularQuestion]);
+
+  const handleCountdownComplete = () => {
+    setShowQuiz(true);
   };
 
   const players = state?.players ?? [];
@@ -307,10 +359,16 @@ export default function HostQuizView() {
           <div className="host-controls">
             <button
               className="btn-next"
-              onClick={handleNextQuestion}
+              onClick={() => {
+                void handleNextQuestion();
+              }}
               disabled={isAdvancing}
             >
-              {isAdvancing ? "Advancing..." : "Next Question →"}
+              {isAdvancing
+                ? "Advancing..."
+                : isLastRegularQuestion
+                  ? "End Round →"
+                  : "Next Question →"}
             </button>
           </div>
         </div>
