@@ -54,4 +54,31 @@ class Api::V1::GamesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
   end
+
+  test "round result is hidden from players until the host reveals it" do
+    game = Game.create!
+    game.players.create!(name: "Host", is_host: true, ready: true)
+    game.players.create!(name: "Alice", is_host: false, ready: true)
+    seed_round_questions(1)
+
+    game.update!(
+      status: :between_rounds,
+      round_number: 1,
+      current_question_index: 4,
+      last_processed_round: 1,
+      question_end_at: nil
+    )
+
+    get "/api/v1/games/#{game.code}/round_result"
+
+    assert_response :unprocessable_entity
+    body = JSON.parse(response.body)
+    assert_equal "not_revealed", body.dig("error", "code")
+
+    get "/api/v1/games/#{game.code}/round_result",
+        headers: { "X-Host-Token" => game.host_token }
+
+    assert_response :success
+    assert RoundResult.exists?(game_id: game.id, round_number: 1)
+  end
 end

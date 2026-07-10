@@ -195,13 +195,22 @@ export async function fetchFinalResults(gameCode: string): Promise<FinalResultsD
 
 /**
  * Fetch canonical round_result. Always returns a normalized RoundResultDTO.
- * If round_result isn't available (422/404/"Not between rounds"), falls back to /results.
+ * Pass hostToken when revealing the leaderboard for the first time after a round.
  */
-export async function fetchRoundResult(gameCode: string): Promise<RoundResultDTO> {
+export async function fetchRoundResult(
+  gameCode: string,
+  hostToken?: string
+): Promise<RoundResultDTO> {
   const ts = Date.now();
   const rrPath = `/api/v1/games/${encodeURIComponent(gameCode)}/round_result?ts=${ts}`;
 
-  const raw = await http<unknown>(rrPath, { method: "GET", cache: "no-store" });
+  const raw = await http<unknown>(rrPath, {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      ...(hostToken ? { "X-Host-Token": hostToken } : {}),
+    },
+  });
   const payload = getPayload(raw);
 
   const leaderboard = Array.isArray(payload.leaderboard)

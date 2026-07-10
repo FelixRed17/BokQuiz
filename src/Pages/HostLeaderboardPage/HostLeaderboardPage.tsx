@@ -106,9 +106,15 @@ function isRoundResultReadyError(error: unknown): boolean {
   const status = getErrorStatus(error);
   return (
     message.includes("not between rounds") ||
+    message.includes("not revealed") ||
+    message.includes("leaderboard not revealed") ||
     status === 422 ||
     status === 404
   );
+}
+
+function getHostToken(): string | undefined {
+  return localStorage.getItem("hostToken") ?? undefined;
 }
 
 function useHostWinnerNavigationFromState(nextState: string | undefined) {
@@ -152,7 +158,7 @@ export default function HostLeaderboardPage() {
       await fetchFinalResults(gameCode);
       
       // Try to get more detailed results from round_result as fallback
-      const rr = await fetchRoundResult(gameCode);
+      const rr = await fetchRoundResult(gameCode, getHostToken());
       
       if (rr && Array.isArray(rr.leaderboard) && rr.leaderboard.length > 0) {
         const normalized = normalizeRoundResult({
@@ -244,7 +250,7 @@ export default function HostLeaderboardPage() {
         if (payload.final || payload.result_id) {
           (async () => {
             try {
-              const rr = await fetchRoundResult(gameCode);
+              const rr = await fetchRoundResult(gameCode, getHostToken());
               setData({
                 round: rr.round ?? rr.round_number ?? 1,
                 leaderboard: rr.leaderboard ?? [],
@@ -282,7 +288,7 @@ export default function HostLeaderboardPage() {
           while (attempt < maxAttempts) {
             attempt += 1;
             try {
-              const rr = await fetchRoundResult(gameCode);
+              const rr = await fetchRoundResult(gameCode, getHostToken());
               setData({
                 round: rr.round ?? rr.round_number ?? 1,
                 leaderboard: rr.leaderboard ?? [],
@@ -354,7 +360,7 @@ export default function HostLeaderboardPage() {
           return;
         }
 
-        const result = await fetchRoundResult(gameCode);
+        const result = await fetchRoundResult(gameCode, getHostToken());
         const normalized = normalizeRoundResult(result);
 
         if (!cancelled) {
@@ -444,7 +450,7 @@ export default function HostLeaderboardPage() {
         if (result.next_status === "finished") {
           navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
         } else {
-          const rr = await fetchRoundResult(gameCode);
+          const rr = await fetchRoundResult(gameCode, getHostToken());
           setData(normalizeRoundResult(rr));
         }
         return;

@@ -210,16 +210,20 @@ module Api
       end
 
       # GET /api/v1/games/:code/round_result
-      # Reveals end-of-round scores + who is eliminated; advances state accordingly.
+      # Returns persisted round results for everyone. Creating/revealing a new result
+      # requires a valid host token so players cannot trigger the leaderboard early.
       def round_result
         round = @game.round_number
-        unless @game.between_rounds?
-          existing = if @game.sudden_death? || @game.finished?
-            RoundResult.find_by(game_id: @game.id, round_number: round)
-          end
+        existing = RoundResult.find_by(game_id: @game.id, round_number: round)
+        return ok(normalized_round_result_payload(existing, round)) if existing
 
-          return ok(normalized_round_result_payload(existing, round)) if existing
+        unless @game.between_rounds?
           return render_api_error(code: "bad_state", message: "Not between rounds", status: 422)
+        end
+
+        token = request.headers["X-Host-Token"].to_s
+        unless token.present? && token == @game.host_token
+          return render_api_error(code: "not_revealed", message: "Leaderboard not revealed yet", status: 422)
         end
 
         rr = nil
@@ -227,9 +231,8 @@ module Api
         ActiveRecord::Base.transaction do
           @game.lock!
 
-          # Idempotency: if already processed, return persisted result (no re-broadcast)
+          # Idempotency: another request may have created the result while we waited.
           if (existing = RoundResult.find_by(game_id: @game.id, round_number: round))
-            # Return from inside transaction (transaction will commit/rollback as usual)
             return ok(normalized_round_result_payload(existing, round))
           end
 

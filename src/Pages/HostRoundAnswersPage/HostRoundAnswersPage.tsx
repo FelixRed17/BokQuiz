@@ -97,6 +97,7 @@ export default function HostRoundAnswersPage() {
   const requestedRound = getRequestedRound(searchParams);
   const [data, setData] = useState<RoundAnswersDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRevealing, setIsRevealing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isHost] = useState(isHostSession);
 
@@ -136,17 +137,28 @@ export default function HostRoundAnswersPage() {
     };
   }, [gameCode, isHost, requestedRound]);
 
-  const goToLeaderboard = () => {
-    navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
+  const goToLeaderboard = async () => {
+    const hostToken = localStorage.getItem("hostToken");
+    if (!hostToken) {
+      setError("Host token missing. Please rejoin as host.");
+      return;
+    }
+
+    try {
+      setIsRevealing(true);
+      setError(null);
+      await fetchRoundResult(gameCode, hostToken);
+      navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsRevealing(false);
+    }
   };
 
   useGameChannel(isHost ? undefined : gameCode, {
     onMessage: (msg) => {
-      if (
-        msg.type === "round_result" ||
-        msg.type === "sudden_death_complete" ||
-        msg.type === "sudden_death_eliminated"
-      ) {
+      if (msg.type === "round_result") {
         navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
         return;
       }
@@ -163,35 +175,6 @@ export default function HostRoundAnswersPage() {
       }
     },
   });
-
-  useEffect(() => {
-    if (isHost || !gameCode) return;
-
-    let cancelled = false;
-
-    const pollForResults = async () => {
-      try {
-        const result = await fetchRoundResult(gameCode);
-        if (
-          !cancelled &&
-          Array.isArray(result.leaderboard) &&
-          result.leaderboard.length > 0
-        ) {
-          navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
-        }
-      } catch {
-        // Results are not ready until the host opens the leaderboard.
-      }
-    };
-
-    void pollForResults();
-    const intervalId = window.setInterval(pollForResults, 2000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [gameCode, isHost, navigate]);
 
   const sortedQuestions = useMemo(
     () => [...(data?.questions ?? [])].sort((a, b) => a.index - b.index),
@@ -211,8 +194,14 @@ export default function HostRoundAnswersPage() {
       <div className={styles.container}>
         <div className={styles.statusPanel}>
           <p className={styles.errorText}>{error}</p>
-          <button className={styles.primaryButton} onClick={goToLeaderboard}>
-            Show Leaderboard
+          <button
+            className={styles.primaryButton}
+            onClick={() => {
+              void goToLeaderboard();
+            }}
+            disabled={isRevealing}
+          >
+            {isRevealing ? "Revealing..." : "Show Leaderboard"}
           </button>
         </div>
       </div>
@@ -229,8 +218,14 @@ export default function HostRoundAnswersPage() {
           </h1>
         </div>
         {isHost ? (
-          <button className={styles.primaryButton} onClick={goToLeaderboard}>
-            Show Leaderboard
+          <button
+            className={styles.primaryButton}
+            onClick={() => {
+              void goToLeaderboard();
+            }}
+            disabled={isRevealing}
+          >
+            {isRevealing ? "Revealing..." : "Show Leaderboard"}
           </button>
         ) : null}
       </header>
