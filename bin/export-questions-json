@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+ruby -EUTF-8:UTF-8 -ryaml -rjson -e '
+  yml_path = File.join("db", "questions.yml")
+  abort "Missing #{yml_path}" unless File.exist?(yml_path)
+
+  data = YAML.load_file(yml_path, aliases: true)
+  json = JSON.pretty_generate(data)
+  json << "\n" unless json.end_with?("\n")
+
+  %w[public/questions.json dist/questions.json].each do |path|
+    File.write(path, json)
+    puts "Wrote #{path}"
+  end
+'

@@ -505,7 +505,10 @@ module Api
       end
 
       def questions_for_round(round)
-        Question.where(round_number: round).order(:id)
+        scope = Question.where(round_number: round).order(:id)
+        return scope.limit(5) if (1..4).cover?(round.to_i)
+
+        scope
       end
 
       def start_current_question!

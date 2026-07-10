@@ -17,7 +17,8 @@ if [ "${RESEED_QUESTIONS:-}" = "1" ]; then
   '
 fi
 
-bundle exec rails runner 'unless Question.exists?; load Rails.root.join("db","seeds.rb"); end'
+# Keep DB question text/options aligned with db/questions.yml on every deploy.
+bundle exec rails db:seed
 
 bundle exec puma -C config/puma.rb
 
