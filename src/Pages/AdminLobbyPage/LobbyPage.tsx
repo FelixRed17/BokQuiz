@@ -46,6 +46,8 @@ function LobbyScreen() {
       return;
     }
 
+    localStorage.setItem("amHost", "true");
+
     try {
       setIsStarting(true);
       await hostStart(gameCode, hostToken);

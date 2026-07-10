@@ -30,6 +30,8 @@ function isRoundAnswersUnavailable(error: unknown): boolean {
 }
 
 function isHostSession(): boolean {
+  const hostToken = localStorage.getItem("hostToken");
+  if (hostToken) return true;
   return localStorage.getItem("amHost") === "true";
 }
 
@@ -185,6 +187,19 @@ export default function HostRoundAnswersPage() {
     return (
       <div className={styles.container}>
         <div className={styles.statusPanel}>Loading round answers...</div>
+        {isHost ? (
+          <div className={styles.hostActions}>
+            <button
+              className={styles.primaryButton}
+              onClick={() => {
+                void goToLeaderboard();
+              }}
+              disabled={isRevealing}
+            >
+              {isRevealing ? "Revealing..." : "Show Leaderboard"}
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -291,6 +306,20 @@ export default function HostRoundAnswersPage() {
           })}
         </main>
       )}
+
+      {isHost ? (
+        <div className={styles.hostActions}>
+          <button
+            className={styles.primaryButton}
+            onClick={() => {
+              void goToLeaderboard();
+            }}
+            disabled={isRevealing}
+          >
+            {isRevealing ? "Revealing..." : "Show Leaderboard"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
