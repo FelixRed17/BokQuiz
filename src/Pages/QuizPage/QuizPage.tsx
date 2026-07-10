@@ -13,6 +13,7 @@ import {
   isPlayerInSuddenDeath,
   isSuddenDeathQuestionRound,
 } from "../../lib/gameFlow";
+import { ROUND_END_NAVIGATION_DELAY_MS } from "../../constants/game";
 
 type LocationState = { question?: QuestionResponseDTO };
 type QuestionSyncSource = "socket" | "fetch";
@@ -219,10 +220,9 @@ export default function QuizPage() {
                 : undefined)
           : undefined;
         const query = roundNumber ? `?round_number=${roundNumber}` : "";
-        const wait = 700 + Math.floor(Math.random() * 400);
         setTimeout(() => {
           navigate(`/game/${encodeURIComponent(gameCode)}/round-answers${query}`);
-        }, wait);
+        }, ROUND_END_NAVIGATION_DELAY_MS);
       }
 
       if (msg.type === "sudden_death_eliminated") {

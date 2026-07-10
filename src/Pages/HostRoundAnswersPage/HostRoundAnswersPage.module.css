@@ -193,6 +193,19 @@
   font-weight: 800;
 }
 
+.waitingBanner {
+  max-width: 1280px;
+  margin: 0 auto 1rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid rgba(244, 195, 0, 0.28);
+  border-radius: 8px;
+  background: rgba(0, 24, 8, 0.78);
+  color: #f4c300;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 .errorText {
   margin: 0 0 1rem;
   color: #ffb4b4;

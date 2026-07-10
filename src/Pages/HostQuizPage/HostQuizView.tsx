@@ -5,6 +5,7 @@ import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
 import { useSyncedTimer } from "../../hooks/useSyncedTimer";
 import { fetchQuestion, hostNext } from "../AdminLobbyPage/services/games.service";
 import { isSuddenDeathQuestionRound } from "../../lib/gameFlow";
+import { ROUND_END_NAVIGATION_DELAY_MS } from "../../constants/game";
 import CountDown from "../CountDownPage/CountDown";
 import "./HostQuizView.css";
 
@@ -66,7 +67,6 @@ function toPositiveRound(value: unknown): number | undefined {
   return undefined;
 }
 
-const ROUND_END_NAVIGATION_DELAY_MS = 500;
 const LAST_QUESTION_AUTO_ADVANCE_MS = 1500;
 
 export default function HostQuizView() {

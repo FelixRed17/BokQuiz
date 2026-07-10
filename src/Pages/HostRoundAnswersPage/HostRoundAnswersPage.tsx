@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   fetchRoundAnswers,
+  fetchRoundResult,
   type RoundAnswersDTO,
 } from "../AdminLobbyPage/services/games.service";
 import { ApiError } from "../../lib/errors";
+import { useGameChannel } from "../../hooks/useGameChannel";
 import styles from "./HostRoundAnswersPage.module.css";
 
 function getAnswerLabel(index: number): string {
@@ -25,6 +27,10 @@ function isRoundAnswersUnavailable(error: unknown): boolean {
     message.includes("not between rounds") ||
     message.includes("completed rounds")
   );
+}
+
+function isHostSession(): boolean {
+  return localStorage.getItem("amHost") === "true";
 }
 
 function getRequestedRound(searchParams: URLSearchParams): number | undefined {
@@ -79,6 +85,10 @@ async function loadRoundAnswersWithRetry(
   throw lastError ?? new Error("Unable to load round answers");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object");
+}
+
 export default function HostRoundAnswersPage() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
@@ -88,14 +98,15 @@ export default function HostRoundAnswersPage() {
   const [data, setData] = useState<RoundAnswersDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const hasHostAccess = Boolean(localStorage.getItem("hostToken"));
+  const [isHost] = useState(isHostSession);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadAnswers = async () => {
-      const hostToken = localStorage.getItem("hostToken") ?? undefined;
+      const hostToken = isHost
+        ? localStorage.getItem("hostToken") ?? undefined
+        : undefined;
 
       try {
         setIsLoading(true);
@@ -123,21 +134,69 @@ export default function HostRoundAnswersPage() {
     return () => {
       cancelled = true;
     };
-  }, [gameCode, requestedRound]);
+  }, [gameCode, isHost, requestedRound]);
+
+  const goToLeaderboard = () => {
+    navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
+  };
+
+  useGameChannel(isHost ? undefined : gameCode, {
+    onMessage: (msg) => {
+      if (
+        msg.type === "round_result" ||
+        msg.type === "sudden_death_complete" ||
+        msg.type === "sudden_death_eliminated"
+      ) {
+        navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
+        return;
+      }
+
+      if (msg.type === "game_finished") {
+        navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+        return;
+      }
+
+      if (msg.type === "question_started" && isRecord(msg.payload)) {
+        navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
+          state: { question: msg.payload },
+        });
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (isHost || !gameCode) return;
+
+    let cancelled = false;
+
+    const pollForResults = async () => {
+      try {
+        const result = await fetchRoundResult(gameCode);
+        if (
+          !cancelled &&
+          Array.isArray(result.leaderboard) &&
+          result.leaderboard.length > 0
+        ) {
+          navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
+        }
+      } catch {
+        // Results are not ready until the host opens the leaderboard.
+      }
+    };
+
+    void pollForResults();
+    const intervalId = window.setInterval(pollForResults, 2000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [gameCode, isHost, navigate]);
 
   const sortedQuestions = useMemo(
     () => [...(data?.questions ?? [])].sort((a, b) => a.index - b.index),
     [data?.questions]
   );
-
-  const handleContinue = () => {
-    if (hasHostAccess) {
-      navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
-      return;
-    }
-
-    navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
-  };
 
   if (isLoading) {
     return (
@@ -147,13 +206,13 @@ export default function HostRoundAnswersPage() {
     );
   }
 
-  if (error) {
+  if (error && isHost) {
     return (
       <div className={styles.container}>
         <div className={styles.statusPanel}>
           <p className={styles.errorText}>{error}</p>
-          <button className={styles.primaryButton} onClick={handleContinue}>
-            {hasHostAccess ? "Show Leaderboard" : "Continue to Results"}
+          <button className={styles.primaryButton} onClick={goToLeaderboard}>
+            Show Leaderboard
           </button>
         </div>
       </div>
@@ -169,10 +228,25 @@ export default function HostRoundAnswersPage() {
             Round {data?.round_number ?? "-"} Answers
           </h1>
         </div>
-        <button className={styles.primaryButton} onClick={handleContinue}>
-          {hasHostAccess ? "Show Leaderboard" : "Continue to Results"}
-        </button>
+        {isHost ? (
+          <button className={styles.primaryButton} onClick={goToLeaderboard}>
+            Show Leaderboard
+          </button>
+        ) : null}
       </header>
+
+      {!isHost ? (
+        <div className={styles.waitingBanner}>
+          Review the answers below. The host will reveal the leaderboard shortly.
+        </div>
+      ) : null}
+
+      {error && !isHost ? (
+        <div className={styles.waitingBanner}>
+          Some answers could not be loaded, but results will appear once the host
+          continues.
+        </div>
+      ) : null}
 
       {sortedQuestions.length === 0 ? (
         <div className={styles.statusPanel}>
