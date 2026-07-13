@@ -170,7 +170,7 @@ export default function QuizPage() {
           typeof roundNumber === "number" && roundNumber > 0
             ? `?round_number=${roundNumber}`
             : "";
-        navigate(`/game/${encodeURIComponent(gameCode)}/round-answers${query}`);
+        navigate(`/game/${encodeURIComponent(gameCode)}/player-round-answers${query}`);
         return;
       }
 
@@ -221,7 +221,7 @@ export default function QuizPage() {
           : undefined;
         const query = roundNumber ? `?round_number=${roundNumber}` : "";
         setTimeout(() => {
-          navigate(`/game/${encodeURIComponent(gameCode)}/round-answers${query}`);
+          navigate(`/game/${encodeURIComponent(gameCode)}/player-round-answers${query}`);
         }, ROUND_END_NAVIGATION_DELAY_MS);
       }
 

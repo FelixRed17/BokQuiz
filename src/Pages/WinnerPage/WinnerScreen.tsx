@@ -1,9 +1,7 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useNavigate } from "react-router-dom";
 import backgroundImg from "./BackgroundImage.optimized.jpg";
 import backgroundVideoUrl from "./BackgroundVideo.mov";
-import trophyAnimationUrl from "./Trophy.lottie?url";
 import "./WinnerScreen.css";
 
 const Confetti = lazy(() => import("react-confetti"));
@@ -20,7 +18,6 @@ export interface WinnerScreenProps {
   backgroundVideo?: string; // video URL
   overlayOpacity?: number; // 0..1
   confettiPieces?: number;
-  lottieUrl?: string; // remote Lottie JSON or dotLottie URL
 }
 
 const WinnerScreen: React.FC<WinnerScreenProps> = ({
@@ -34,7 +31,6 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
   backgroundVideo,
   overlayOpacity = 0.3,
   confettiPieces = 200,
-  lottieUrl,
 }) => {
   const navigate = useNavigate();
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
@@ -70,10 +66,6 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
     backgroundVideo && backgroundVideo.trim().length > 0
       ? backgroundVideo.trim()
       : backgroundVideoUrl;
-  const animationUrl =
-    lottieUrl && lottieUrl.trim().length > 0
-      ? lottieUrl.trim()
-      : trophyAnimationUrl;
 
   const styleVars = {
     "--primary": primaryColor,
@@ -128,15 +120,6 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
         <div>
           {name && showWinnerName ? <div className="name">{name}</div> : null}
         </div>
-      </div>
-
-      <div className="lottie-wrapper">
-        <DotLottieReact
-          src={animationUrl}
-          loop
-          autoplay
-          className="winner-lottie"
-        />
       </div>
 
       {/* Home Button */}

@@ -6,7 +6,8 @@ import {
   type RoundAnswersDTO,
 } from "../AdminLobbyPage/services/games.service";
 import { ApiError } from "../../lib/errors";
-import styles from "./HostRoundAnswersPage.module.css";
+import { useGameChannel } from "../../hooks/useGameChannel";
+import styles from "../HostRoundAnswersPage/HostRoundAnswersPage.module.css";
 
 function getAnswerLabel(index: number): string {
   return String.fromCharCode(65 + index);
@@ -45,7 +46,6 @@ function sleep(ms: number): Promise<void> {
 
 async function loadRoundAnswersWithRetry(
   gameCode: string,
-  hostToken: string | undefined,
   requestedRound: number | undefined
 ): Promise<RoundAnswersDTO> {
   const maxAttempts = 6;
@@ -56,7 +56,7 @@ async function loadRoundAnswersWithRetry(
     try {
       const answers = await fetchRoundAnswers(
         gameCode,
-        hostToken,
+        undefined,
         requestedRound
       );
 
@@ -80,7 +80,11 @@ async function loadRoundAnswersWithRetry(
   throw lastError ?? new Error("Unable to load round answers");
 }
 
-export default function HostRoundAnswersPage() {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object");
+}
+
+export default function PlayerRoundAnswersPage() {
   const { code } = useParams<{ code: string }>();
   const gameCode = code ?? "";
   const navigate = useNavigate();
@@ -88,21 +92,17 @@ export default function HostRoundAnswersPage() {
   const requestedRound = getRequestedRound(searchParams);
   const [data, setData] = useState<RoundAnswersDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRevealing, setIsRevealing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadAnswers = async () => {
-      const hostToken = localStorage.getItem("hostToken") ?? undefined;
-
       try {
         setIsLoading(true);
         setError(null);
         const answers = await loadRoundAnswersWithRetry(
           gameCode,
-          hostToken,
           requestedRound
         );
         if (cancelled) return;
@@ -125,29 +125,65 @@ export default function HostRoundAnswersPage() {
     };
   }, [gameCode, requestedRound]);
 
-  const goToLeaderboard = async () => {
-    const hostToken = localStorage.getItem("hostToken");
-    if (!hostToken) {
-      setError("Host token missing. Please rejoin as host.");
-      return;
-    }
+  useGameChannel(gameCode, {
+    onMessage: (msg) => {
+      if (msg.type === "round_result") {
+        navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
+        return;
+      }
 
-    try {
-      setIsRevealing(true);
-      setError(null);
-      await fetchRoundResult(gameCode, hostToken);
-      navigate(`/game/${encodeURIComponent(gameCode)}/leaderboard`);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsRevealing(false);
-    }
-  };
+      if (msg.type === "game_finished") {
+        navigate(`/game/${encodeURIComponent(gameCode)}/winner`);
+        return;
+      }
+
+      if (msg.type === "question_started" && isRecord(msg.payload)) {
+        navigate(`/game/${encodeURIComponent(gameCode)}/question`, {
+          state: { question: msg.payload },
+        });
+      }
+    },
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const pollForLeaderboard = async () => {
+      try {
+        const result = await fetchRoundResult(gameCode);
+        if (
+          !cancelled &&
+          Array.isArray(result.leaderboard) &&
+          result.leaderboard.length > 0
+        ) {
+          navigate(`/game/${encodeURIComponent(gameCode)}/round-result`);
+        }
+      } catch {
+        // Leaderboard is not revealed until the host clicks Show Leaderboard.
+      }
+    };
+
+    void pollForLeaderboard();
+    const intervalId = window.setInterval(pollForLeaderboard, 2000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [gameCode, navigate]);
 
   const sortedQuestions = useMemo(
     () => [...(data?.questions ?? [])].sort((a, b) => a.index - b.index),
     [data?.questions]
   );
+
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.statusPanel}>Loading round answers...</div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
@@ -158,34 +194,24 @@ export default function HostRoundAnswersPage() {
             Round {data?.round_number ?? "-"} Answers
           </h1>
         </div>
-        <button
-          className={styles.primaryButton}
-          onClick={() => {
-            void goToLeaderboard();
-          }}
-          disabled={isRevealing}
-        >
-          {isRevealing ? "Revealing..." : "Show Leaderboard"}
-        </button>
       </header>
 
-      {isLoading ? (
-        <div className={styles.statusPanel}>Loading round answers...</div>
-      ) : null}
+      <div className={styles.waitingBanner}>
+        Review the answers below. The host will reveal the leaderboard shortly.
+      </div>
 
-      {!isLoading && error ? (
-        <div className={styles.statusPanel}>
-          <p className={styles.errorText}>{error}</p>
+      {error ? (
+        <div className={styles.waitingBanner}>
+          Some answers could not be loaded, but results will appear once the host
+          continues.
         </div>
       ) : null}
 
-      {!isLoading && !error && sortedQuestions.length === 0 ? (
+      {sortedQuestions.length === 0 ? (
         <div className={styles.statusPanel}>
           No answers were returned for this round yet.
         </div>
-      ) : null}
-
-      {!isLoading && sortedQuestions.length > 0 ? (
+      ) : (
         <main className={styles.questionGrid}>
           {sortedQuestions.map((question) => {
             const correctIndex = question.correct_index;
@@ -228,7 +254,7 @@ export default function HostRoundAnswersPage() {
             );
           })}
         </main>
-      ) : null}
+      )}
     </div>
   );
 }
