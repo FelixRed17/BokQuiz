@@ -1,0 +1,153 @@
+@import url("https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@700&display=swap");
+
+.game-timer-panel {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(72, 72, 72, 0.95) 0%, rgba(18, 18, 18, 0.98) 100%);
+  border: 2px solid rgba(196, 196, 196, 0.85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.55),
+    0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+.game-timer-section {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.game-timer-label {
+  font-family: "Rajdhani", "Orbitron", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  white-space: nowrap;
+}
+
+.game-timer-clock-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  min-height: 38px;
+  padding: 0.2rem 0.65rem;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #050505 0%, #111111 100%);
+  border: 1px solid rgba(244, 195, 0, 0.45);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.85),
+    0 0 10px rgba(244, 195, 0, 0.18);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.game-timer-clock {
+  font-family: "Share Tech Mono", "Courier New", monospace;
+  font-size: 1.45rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: #f4c300;
+  text-shadow:
+    0 0 6px rgba(244, 195, 0, 0.95),
+    0 0 14px rgba(244, 195, 0, 0.65),
+    0 0 24px rgba(244, 195, 0, 0.35);
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.game-timer-panel.is-urgent {
+  border-color: rgba(255, 82, 82, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.55),
+    0 0 16px rgba(255, 45, 45, 0.35),
+    0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+.game-timer-clock-box.is-urgent {
+  border-color: rgba(255, 72, 72, 0.85);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.85),
+    0 0 12px rgba(255, 45, 45, 0.45);
+}
+
+.game-timer-clock.is-urgent {
+  color: #ff3b3b;
+  text-shadow:
+    0 0 6px rgba(255, 59, 59, 0.95),
+    0 0 14px rgba(255, 59, 59, 0.75),
+    0 0 24px rgba(255, 59, 59, 0.45);
+}
+
+.game-timer-panel.player-game-timer {
+  top: 24px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  gap: 1rem;
+  padding: 0.75rem 1.15rem;
+}
+
+.game-timer-panel.player-game-timer .game-timer-label {
+  font-size: 1.35rem;
+}
+
+.game-timer-panel.player-game-timer .game-timer-clock-box {
+  min-width: 118px;
+  min-height: 52px;
+  padding: 0.35rem 0.9rem;
+}
+
+.game-timer-panel.player-game-timer .game-timer-clock {
+  font-size: 2rem;
+}
+
+@media (max-width: 720px) {
+  .game-timer-panel {
+    top: 16px;
+    right: 16px;
+    gap: 0.55rem;
+    padding: 0.45rem 0.65rem;
+  }
+
+  .game-timer-label {
+    font-size: 0.9rem;
+  }
+
+  .game-timer-clock {
+    font-size: 1.2rem;
+  }
+
+  .game-timer-clock-box {
+    min-width: 74px;
+  }
+
+  .game-timer-panel.player-game-timer {
+    top: 16px;
+    padding: 0.6rem 0.9rem;
+  }
+
+  .game-timer-panel.player-game-timer .game-timer-label {
+    font-size: 1.1rem;
+  }
+
+  .game-timer-panel.player-game-timer .game-timer-clock {
+    font-size: 1.65rem;
+  }
+
+  .game-timer-panel.player-game-timer .game-timer-clock-box {
+    min-width: 96px;
+    min-height: 44px;
+  }
+}

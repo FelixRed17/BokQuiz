@@ -39,14 +39,14 @@
 
 .title {
   color: var(--primary, #FFFFFF);
-  font-size: clamp(2.2rem, 6vw, 4rem);
+  font-size: clamp(2.8rem, 7.5vw, 5.5rem);
   font-weight: 900;
   text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
 }
 
 .name {
-  font-size: clamp(3rem, 12vw, 8rem);
-  margin-top: 1.5rem;
+  font-size: clamp(3.75rem, 15vw, 10rem);
+  margin-top: 2rem;
   font-weight: bold;
   color: #ffffff;
   text-shadow: 1px 1px 4px rgba(10, 10, 10, 0.8);
@@ -66,10 +66,10 @@
 
 
 .message {
-  font-size: 1.25rem;
-  margin-top: 8px;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  margin-top: 1rem;
   color: #f0f0f0;
-  max-width: 800px;
+  max-width: 900px;
 }
 
 /* Home Button */
@@ -85,8 +85,8 @@
   color: #FFFFFF;
   border: none;
   border-radius: 12px;
-  padding: 12px 24px;
-  font-size: 1rem;
+  padding: 14px 28px;
+  font-size: 1.15rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;

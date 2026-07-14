@@ -1,14 +1,15 @@
-import React from 'react';
-import './Timer.css';
+import GameTimerPanel from "../../../components/GameTimerPanel/GameTimerPanel";
 
 interface TimerProps {
   timeLeft: number;
   className?: string;
 }
 
-const Timer: React.FC<TimerProps> = ({ timeLeft, className = '' }) => {
-  return <div className={`timer ${className}`}>{timeLeft}</div>;
-};
-
-export default Timer;
-
+export default function Timer({ timeLeft, className = "" }: TimerProps) {
+  return (
+    <GameTimerPanel
+      timeLeft={timeLeft}
+      className={`player-game-timer ${className}`.trim()}
+    />
+  );
+}

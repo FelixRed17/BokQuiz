@@ -1,7 +1,8 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import backgroundImg from "./BackgroundImage.optimized.jpg";
 import backgroundVideoUrl from "./BackgroundVideo.mov";
+import winnerSongUrl from "./winner-song.mp3";
 import "./WinnerScreen.css";
 
 const Confetti = lazy(() => import("react-confetti"));
@@ -16,6 +17,8 @@ export interface WinnerScreenProps {
   secondaryColor?: string;
   background?: string; // image URL
   backgroundVideo?: string; // video URL
+  celebrationAudio?: string; // audio URL
+  audioVolume?: number; // 0..1
   overlayOpacity?: number; // 0..1
   confettiPieces?: number;
 }
@@ -29,14 +32,18 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
   secondaryColor = "#F4C300",
   background,
   backgroundVideo,
+  celebrationAudio,
+  audioVolume = 0.85,
   overlayOpacity = 0.3,
   confettiPieces = 200,
 }) => {
   const navigate = useNavigate();
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [showWinnerName, setShowWinnerName] = useState(false);
+  const celebrationAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const handleReturnHome = () => {
+    celebrationAudioRef.current?.pause();
     navigate("/");
   };
 
@@ -57,6 +64,29 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
 
     return () => window.clearTimeout(fallbackTimer);
   }, [name, backgroundVideo]);
+
+  useEffect(() => {
+    if (!showWinnerName) return;
+
+    const audioSrc =
+      celebrationAudio && celebrationAudio.trim().length > 0
+        ? celebrationAudio.trim()
+        : winnerSongUrl;
+    const audio = new Audio(audioSrc);
+    audio.loop = true;
+    audio.volume = Math.min(Math.max(audioVolume, 0), 1);
+    celebrationAudioRef.current = audio;
+
+    void audio.play().catch(() => {
+      // Browsers may block autoplay until the user has interacted.
+    });
+
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+      celebrationAudioRef.current = null;
+    };
+  }, [showWinnerName, celebrationAudio, audioVolume]);
 
   const backgroundImageUrl =
     background && background.trim().length > 0

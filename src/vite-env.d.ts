@@ -8,6 +8,7 @@ declare module "*.gif";
 declare module "*.svg";
 declare module "*.mp4";
 declare module "*.mov";
+declare module "*.mp3";
 declare module "*.json";
 declare module "*.lottie?url";
 declare module "lottie-react";

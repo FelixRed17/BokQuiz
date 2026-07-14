@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useGameChannel } from "../../hooks/useGameChannel";
 import { useGameState } from "../AdminLobbyPage/hooks/useGameState";
 import { useSyncedTimer } from "../../hooks/useSyncedTimer";
+import GameTimerPanel from "../../components/GameTimerPanel/GameTimerPanel";
 import { fetchQuestion, hostNext } from "../AdminLobbyPage/services/games.service";
 import { isSuddenDeathQuestionRound } from "../../lib/gameFlow";
 import { ROUND_END_NAVIGATION_DELAY_MS } from "../../constants/game";
@@ -299,11 +300,7 @@ export default function HostQuizView() {
               <h1>Host Control Panel</h1>
               <span className="game-code">Game Code: {gameCode}</span>
             </div>
-            <div className="timer-display">
-              <div className="timer-circle">
-                <span className="timer-value">{timeLeft}</span>
-              </div>
-            </div>
+            <GameTimerPanel timeLeft={timeLeft} className="host-game-timer" />
           </div>
 
           {/* Question Display */}
