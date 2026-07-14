@@ -66,8 +66,6 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
   }, [name, backgroundVideo]);
 
   useEffect(() => {
-    if (!showWinnerName) return;
-
     const audioSrc =
       celebrationAudio && celebrationAudio.trim().length > 0
         ? celebrationAudio.trim()
@@ -86,7 +84,7 @@ const WinnerScreen: React.FC<WinnerScreenProps> = ({
       audio.currentTime = 0;
       celebrationAudioRef.current = null;
     };
-  }, [showWinnerName, celebrationAudio, audioVolume]);
+  }, [celebrationAudio, audioVolume]);
 
   const backgroundImageUrl =
     background && background.trim().length > 0
